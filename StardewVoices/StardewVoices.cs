@@ -24,6 +24,7 @@ using System.Reflection;
 
 namespace StardewVoices
 {
+    // Test branch
     /// <summary>The mod entry point.</summary>
     public class StardewVoices : Mod
     {
