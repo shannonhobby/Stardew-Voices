@@ -21,6 +21,7 @@ using Microsoft.Xna.Framework.Input;
 using StardewValley.Tools;
 using System.Diagnostics.Tracing;
 using System.Reflection;
+using System.Linq.Expressions;
 
 namespace StardewVoices
 {
@@ -32,50 +33,16 @@ namespace StardewVoices
         private static string audioPath = Path.Combine(modPath, "Audio");
         private static string inverseDialogueFolderPath = Path.Combine(modPath, "Dialogue Jsons");
 
-        private static string inverseDialogueJsonPath = Path.Combine(inverseDialogueFolderPath, "Dialogue.json");
-        private static string inverseExtraDialogueJsonPath = Path.Combine(inverseDialogueFolderPath, "ExtraDialogue.json");
-        private static string inverseGenericMarriageDialogueJsonPath = Path.Combine(inverseDialogueFolderPath, "Generic Marriage Dialogue.json");
-        private static string inverseMarriageDialogueJsonPath = Path.Combine(inverseDialogueFolderPath, "Marriage Dialogue.json");
-        private static string inverseRainyDialogueJsonPath = Path.Combine(inverseDialogueFolderPath, "rainy.json");
-        private static string inverseEngagementDialogueJsonPath = Path.Combine(inverseDialogueFolderPath, "EngagementDialogue.json");
-        private static string inverseInternalDialogueJsonPath = Path.Combine(inverseDialogueFolderPath, "Internal Dialogue.json");
-        private static string inverseNpcGiftTastesDialogueJsonPath = Path.Combine(inverseDialogueFolderPath, "NpcGiftTastes.json");
+        private static string genericDialogueFolderPath = Path.Combine(inverseDialogueFolderPath, "Generic");
+        private static string eventDialogueFolderPath = Path.Combine(inverseDialogueFolderPath, "Events");
+        private static string festivalDialogueFolderPath = Path.Combine(inverseDialogueFolderPath, "Festivals");
+        private static string characterDialogueFolderPath = Path.Combine(inverseDialogueFolderPath, "Characters");
 
 
-        private static string eventsJsonPath = Path.Combine(inverseDialogueFolderPath, "Events");
-        private static string festivalsJsonPath = Path.Combine(inverseDialogueFolderPath, "Festivals");
+        private static string festivalDatesJsonPath = Path.Combine(festivalDialogueFolderPath, "FestivalDates.json");
 
-        private static string festivalDatesJsonPath = Path.Combine(festivalsJsonPath, "FestivalDates.json");
-
-        private WaveBank eventsWaveBank;
-        private SoundBank eventsSoundBank;
-
-        private WaveBank festivalsWaveBank;
-        private SoundBank festivalsSoundBank;
-
-        private WaveBank dialogueWaveBank;
-        private SoundBank dialogueSoundBank;
-
-        private WaveBank engagementDialogueWaveBank;
-        private SoundBank engagementDialogueSoundBank;
-
-        private WaveBank marriageDialogueWaveBank;
-        private SoundBank marriageDialogueSoundBank;
-
-        private WaveBank genericMarriageDialogueWaveBank;
-        private SoundBank genericMarriageDialogueSoundBank;
-
-        private WaveBank extraDialogueWaveBank;
-        private SoundBank extraDialogueSoundBank;
-
-        private WaveBank rainyWaveBank;
-        private SoundBank rainySoundBank;
-
-        private WaveBank internalDialogueWaveBank;
-        private SoundBank internalDialogueSoundBank;
-
-        private WaveBank npcGiftTastesWaveBank;
-        private SoundBank npcGiftTastesSoundBank;
+        private WaveBank abigailWaveBank;
+        private SoundBank abigailSoundBank;
 
         private AudioEngine audioEngine;
         private AudioCategory dialogueCategory;
@@ -84,6 +51,36 @@ namespace StardewVoices
         private Cue lastCue;
         private string currentLineId;
         private string lastLineId;
+
+        private Dictionary<string, SoundBank> NpcSoundBankDict = new Dictionary<string, SoundBank>();
+        private Dictionary<string, Dictionary<string, string[]>> GenericNpcDialogueJsonDict = new Dictionary<string, Dictionary<string, string[]>>();
+
+        /*
+         *  A dictionary of NPC names mapped to dictionary=ies of different types of dialogue: ["Dialogue", "Marriage_Dialogue", etc...] that are dictionaries that contain dialogue line -> lineId key value pairs.
+         * 
+         * Ex:
+         *      "Abigail": {
+         *          "Dialogue" : {
+         *                "Oh, that's right... I heard someone new was moving onto that old farm.": [
+                              "Introduction"
+                            ],
+         *          },
+         *          
+         *          "Marriage_Dialogue": {
+                        "The dark... the rain... it gets me excited.": ["Rainy_Day_0"],
+                    },
+         *      },
+         *      
+         *      "Shane": {
+         *          etc...
+         *      }
+         * 
+         * 
+         */
+
+        private Dictionary<string, Dictionary<string, Dictionary<string, string[]>>> NpcDialogueJsonDict = new Dictionary<string, Dictionary<string, Dictionary<string, string[]>>>();
+
+
 
         /// <summary>The in-game dialogue line detected on the last update tick.</summary>
         private Stack<Dialogue> LastDialogue;
@@ -101,14 +98,6 @@ namespace StardewVoices
         private string lastFestival = null;
         private Dictionary<string, string[]> currentFestivalDict = null;
 
-        private Dictionary<string, string[]> dialogueDict = null;
-        private Dictionary<string, string[]> extraDialogueDict = null;
-        private Dictionary<string, string[]> rainyDialogueDict = null;
-        private Dictionary<string, string[]> marriageDialogueDict = null;
-        private Dictionary<string, string[]> genericMarriageDialogueDict = null;
-        private Dictionary<string, string[]> engagementDialogueDict = null;
-        private Dictionary<string, string[]> internalDialogueDict = null;
-        private Dictionary<string, string[]> npcGiftTastesDict = null;
 
         private List<string> eventsToTest = new List<string>();
         private Dictionary<int, string> eventCommandDict = new Dictionary<int, string>();
@@ -122,8 +111,6 @@ namespace StardewVoices
         private bool testingWorldLoaded = false;
         private NPC Abigail;
         private Farmer player;
-
-        private bool currentlyTalking;
 
         private Dictionary<string, string> festivalNameToDateDict = new Dictionary<string, string>();
 
@@ -143,6 +130,10 @@ namespace StardewVoices
 
         public IModHelper helper = null;
 
+        private bool currentlyTalking;
+
+        private List<string> supportedCharacters = new List<string>();
+
 
         /*********
         ** Public methods
@@ -151,6 +142,9 @@ namespace StardewVoices
         /// <param name="helper">Provides simplified APIs for writing mods.</param>
         public override void Entry(IModHelper helper)
         {
+            this.supportedCharacters.Add("Abigail");
+
+
             Monitor.Log($"Relative mods path: {modPath}", LogLevel.Debug);
 
             this.helper = helper;
@@ -167,7 +161,6 @@ namespace StardewVoices
             this.eventsToTest.Add("195019_HaleyHouse");
             this.eventsToTest.Add("195012_HaleyHouse");
             this.eventsToTest.Add("2123243_ManorHouse");
-
 
 
             this.eventsToTest.Add("2_Mountain");
@@ -223,9 +216,6 @@ namespace StardewVoices
             continuationDialogue.Add("AbigailInMine1");
 
 
-
-
-
             dialogueWithRandomNounOrAdj.Add("Last night I dreamt that my left hand had turned into a gigantic %noun. Does that mean anything?", "Dialogue-fall_Thu_chance_1");
             dialogueWithRandomNounOrAdj.Add("I did, but all I remember is that it had something to do with a %adj %noun. Weird.", "Generic Marriage Dialogue-Indoor_Day_3_sv1");
 
@@ -235,35 +225,9 @@ namespace StardewVoices
                 this.audioEngine = new AudioEngine(Path.Combine(audioPath, "Stardew Voices.xgs"));
                 this.dialogueCategory = this.audioEngine.GetCategory("Default");
 
-                this.eventsWaveBank = new WaveBank(audioEngine, Path.Combine(audioPath, "Abigail Events.xwb"));
-                this.eventsSoundBank = new SoundBank(audioEngine, Path.Combine(audioPath, "Abigail Events.xsb"));
+                this.abigailWaveBank = new WaveBank(audioEngine, Path.Combine(audioPath, "Abigail.xwb"));
+                this.abigailSoundBank = new SoundBank(audioEngine, Path.Combine(audioPath, "Abigail.xsb"));
 
-                this.festivalsWaveBank = new WaveBank(audioEngine, Path.Combine(audioPath, "Abigail Festival Dialogue.xwb"));
-                this.festivalsSoundBank = new SoundBank(audioEngine, Path.Combine(audioPath, "Abigail Festival Dialogue.xsb"));
-
-                this.dialogueWaveBank = new WaveBank(audioEngine, Path.Combine(audioPath, "Abigail Dialogue.xwb"));
-                this.dialogueSoundBank = new SoundBank(audioEngine, Path.Combine(audioPath, "Abigail Dialogue.xsb"));
-
-                this.engagementDialogueWaveBank = new WaveBank(audioEngine, Path.Combine(audioPath, "Abigail Engagement Dialogue.xwb"));
-                this.engagementDialogueSoundBank = new SoundBank(audioEngine, Path.Combine(audioPath, "Abigail Engagement Dialogue.xsb"));
-
-                this.marriageDialogueWaveBank = new WaveBank(audioEngine, Path.Combine(audioPath, "Abigail Marriage Dialogue.xwb"));
-                this.marriageDialogueSoundBank = new SoundBank(audioEngine, Path.Combine(audioPath, "Abigail Marriage Dialogue.xsb"));
-
-                this.genericMarriageDialogueWaveBank = new WaveBank(audioEngine, Path.Combine(audioPath, "Abigail Generic Marriage Dialogue.xwb"));
-                this.genericMarriageDialogueSoundBank = new SoundBank(audioEngine, Path.Combine(audioPath, "Abigail Generic Marriage Dialogue.xsb"));
-
-                this.extraDialogueWaveBank = new WaveBank(audioEngine, Path.Combine(audioPath, "Abigail Extra Dialogue.xwb"));
-                this.extraDialogueSoundBank = new SoundBank(audioEngine, Path.Combine(audioPath, "Abigail Extra Dialogue.xsb"));
-
-                this.rainyWaveBank = new WaveBank(audioEngine, Path.Combine(audioPath, "Abigail Rainy.xwb"));
-                this.rainySoundBank = new SoundBank(audioEngine, Path.Combine(audioPath, "Abigail Rainy.xsb"));
-
-                this.internalDialogueWaveBank = new WaveBank(audioEngine, Path.Combine(audioPath, "Abigail Internal Dialogue.xwb"));
-                this.internalDialogueSoundBank = new SoundBank(audioEngine, Path.Combine(audioPath, "Abigail Internal Dialogue.xsb"));
-
-                this.npcGiftTastesWaveBank = new WaveBank(audioEngine, Path.Combine(audioPath, "NpcGiftTastes.xwb"));
-                this.npcGiftTastesSoundBank = new SoundBank(audioEngine, Path.Combine(audioPath, "NpcGiftTastes.xsb"));
             } 
             catch (Exception e) 
             {
@@ -452,7 +416,7 @@ namespace StardewVoices
 
             if (Game1.CurrentEvent != null  && !Game1.CurrentEvent.isFestival && this.lastEvent == null)
             {
-                string locationFilePath = Path.Combine(eventsJsonPath, this.lastLocation.Name);
+                string locationFilePath = Path.Combine(eventDialogueFolderPath, this.lastLocation.Name);
                 string lastEventId = Game1.CurrentEvent.id;
 
                 if (lastEventId != null && lastEventId.Length > 0)
@@ -487,10 +451,10 @@ namespace StardewVoices
                 try
                 {
                     // Load dialogue dictionary for that festival
-                    if (!Directory.Exists(festivalsJsonPath))
+                    if (!Directory.Exists(festivalDialogueFolderPath))
                         throw new Exception("Festival dialogue folder could not be found");
 
-                    string filePath = Path.Combine(festivalsJsonPath, (string)festivalNameToDateDict[this.lastFestival] + ".json");
+                    string filePath = Path.Combine(festivalDialogueFolderPath, (string)festivalNameToDateDict[this.lastFestival] + ".json");
 
                     string jsonString = File.ReadAllText(filePath);
                     this.currentEventDict = null;
@@ -522,116 +486,17 @@ namespace StardewVoices
 
         }
 
-        private Cue getCueFromDialogueId(string lineId, string dialogueContext)
+        private Cue getCueFromDialogueId(string lineId, string dialogueContext, string characterName)
         {
             switch (dialogueContext)
             {
-                case "Dialogue":
+                case "Abigail":
                     try
                     {
-                        return this.dialogueSoundBank.GetCue(lineId);
+                        return this.abigailSoundBank.GetCue(dialogueContext + "-" + lineId);
                     } catch(Exception error)
                     {
-                        this.Monitor.Log($"Error getting cue for: {lineId} in Dialogue Sound Bank: {error}", LogLevel.Debug);
-                        return null;
-                    }
-
-                case "Event Dialogue":
-                    try
-                    {
-                        return this.eventsSoundBank.GetCue(lineId);
-                    }
-                    catch (Exception error)
-                    {
-                        this.Monitor.Log($"Error getting cue for: {lineId} in Events Sound Bank: {error}", LogLevel.Debug);
-                        return null;
-                    }
-
-                case "Festival Dialogue":
-                    try
-                    {
-                        return this.festivalsSoundBank.GetCue(lineId);
-                    }
-                    catch (Exception error)
-                    {
-                        this.Monitor.Log($"Error getting cue for: {lineId} in Festivals Sound Bank: {error}", LogLevel.Debug);
-                        return null;
-                    }
-
-                case "Engagement Dialogue":
-                    try
-                    {
-                        return this.engagementDialogueSoundBank.GetCue(lineId);
-                    }
-                    catch (Exception error)
-                    {
-                        this.Monitor.Log($"Error getting cue for: {lineId} in Engagement Sound Bank: {error}", LogLevel.Debug);
-                        return null;
-                    }
-
-                case "Extra Dialogue":
-                    try
-                    {
-                        return this.extraDialogueSoundBank.GetCue(lineId);
-                    }
-                    catch (Exception error)
-                    {
-                        this.Monitor.Log($"Error getting cue for: {lineId} in Extra Dialogue Sound Bank: {error}", LogLevel.Debug);
-                        return null;
-                    }
-
-                case "Marriage Dialogue":
-                    try
-                    {
-                        return this.marriageDialogueSoundBank.GetCue(lineId);
-                    }
-                    catch (Exception error)
-                    {
-                        this.Monitor.Log($"Error getting cue for: {lineId} in Marriage Dialogue Sound Bank: {error}", LogLevel.Debug);
-                        return null;
-                    }
-
-                case "Generic Marriage Dialogue":
-                    try
-                    {
-                        return this.genericMarriageDialogueSoundBank.GetCue(lineId);
-                    }
-                    catch (Exception error)
-                    {
-                        this.Monitor.Log($"Error getting cue for: {lineId} in Generic Marriage Dialogue Sound Bank: {error}", LogLevel.Debug);
-                        return null;
-                    }
-
-                case "Rainy Dialogue":
-                    try
-                    {
-                        return this.rainySoundBank.GetCue(lineId);
-                    }
-                    catch (Exception error)
-                    {
-                        this.Monitor.Log($"Error getting cue for: {lineId} in Rainy Dialogue Sound Bank: {error}", LogLevel.Debug);
-                        return null;
-                    }
-
-                case "Npc Gift Tastes":
-                    try
-                    {
-                        return this.npcGiftTastesSoundBank.GetCue(lineId);
-                    }
-                    catch (Exception error)
-                    {
-                        this.Monitor.Log($"Error getting cue for: {lineId} in Npc Gift Tastes Sound Bank: {error}", LogLevel.Debug);
-                        return null;
-                    }
-
-                case "Internal Dialogue":
-                    try
-                    {
-                        return this.internalDialogueSoundBank.GetCue(lineId);
-                    }
-                    catch (Exception error)
-                    {
-                        this.Monitor.Log($"Error getting cue for: {lineId} in Internal Dialogue Sound Bank: {error}", LogLevel.Debug);
+                        this.Monitor.Log($"Error getting cue for {characterName}: {lineId} in {dialogueContext} Sound Bank: {error}", LogLevel.Debug);
                         return null;
                     }
 
@@ -672,8 +537,7 @@ namespace StardewVoices
                         {
                             continue;
                         }
-
-                        if (currentCommand.Contains("textAboveHead") && (currentCommand.Contains("Abigail") || currentCommand.Contains("ClothesTherapyCharacters")))
+                        if (currentCommand.Contains("textAboveHead") && (StringContainsSupportedCharacter(currentCommand) || currentCommand.Contains("ClothesTherapyCharacters")))
                         {
                             break;
                         }
@@ -692,11 +556,20 @@ namespace StardewVoices
                     }
                 }
 
-                // hard code for Abigail
-                if (currentCommand.Contains("textAboveHead") && (currentCommand.Contains("Abigail") || currentCommand.Contains("ClothesTherapyCharacters")))
+                if (currentCommand.Contains("textAboveHead") && (StringContainsSupportedCharacter(currentCommand) || currentCommand.Contains("ClothesTherapyCharacters")))
                 {
                     Regex rx = new Regex(@"""(.*?)""");
                     string commandDialogue;
+
+                    string currentSpeaker = GetSupportedCharacterFromString(currentCommand);
+
+                    if(currentSpeaker.Contains("Could not find"))
+                    {
+                        this.Monitor.Log($"Could not find speaker for textAboveHead command: {currentCommand}", LogLevel.Debug);
+                        this.lastEventCommand = Game1.CurrentEvent.currentCommand;
+                        return;
+                    }
+
                     try
                     {
                         Match m = rx.Match(currentCommand);
@@ -710,7 +583,7 @@ namespace StardewVoices
                     }
          
 
-                    if (currentCommand.Contains("ClothesTherapyCharacters") && commandDialogue != "It's sweaty in here...")
+                    if (currentCommand.Contains("ClothesTherapyCharacters") && commandDialogue != "It's sweaty in here..." && currentSpeaker == "Abigail")
                     {
                         this.lastEventCommand = Game1.CurrentEvent.currentCommand;
                         return;
@@ -718,7 +591,8 @@ namespace StardewVoices
 
                     if(this.currentEventDict != null)
                     {
-                        string textAboveHeadLineId = getIdFromDialogueString(this.formatDialogueString(commandDialogue), "Abigail");
+
+                        string textAboveHeadLineId = getIdFromDialogueString(this.formatDialogueString(commandDialogue), currentSpeaker);
 
                         if (textAboveHeadLineId.Contains("not found"))
                         {
@@ -727,7 +601,7 @@ namespace StardewVoices
                             return;
                         }
 
-                        this.currentCue = this.getCueFromDialogueId(textAboveHeadLineId.Split("-")[1], textAboveHeadLineId.Split("-")[0]);
+                        this.currentCue = this.getCueFromDialogueId(textAboveHeadLineId.Split("-")[1], textAboveHeadLineId.Split("-")[0], currentSpeaker);
 
                         if (this.currentCue == null)
                         {
@@ -805,9 +679,9 @@ namespace StardewVoices
 
 
                 // If dialogue has gone from empty to not empty start the audio cues!
-                // Also only check if the speakers name is Abigail for performance purposes.
+                // Also only check supported characters for performance purposes.
                 if (
-                    Game1.currentSpeaker?.getName() == "Abigail"
+                    StringContainsSupportedCharacter(Game1.currentSpeaker?.getName())
                     && (currentActiveClickableMenu != null && currentActiveClickableMenu.GetType() == typeof(DialogueBox)) && currentDialogueBoxString.Length > 0 && currentDialogueBoxString != "...")
                 {
                     if (isReplacementDialogueBox)
@@ -826,7 +700,7 @@ namespace StardewVoices
                         return;
                     }
 
-                    this.currentCue = this.getCueFromDialogueId(currentLine.Split("-")[1], currentLine.Split("-")[0]);
+                    this.currentCue = this.getCueFromDialogueId(currentLine.Split("-")[1], currentLine.Split("-")[0], Game1.currentSpeaker?.getName());
                     this.currentLineId = currentLine.Split("-")[1];
 
                     if (this.currentCue == null)
@@ -923,29 +797,88 @@ namespace StardewVoices
                 if (!Directory.Exists(inverseDialogueFolderPath))
                     throw new Exception("Character dialogue folder could not be found");
 
-                string jsonString = File.ReadAllText(inverseDialogueJsonPath);
-                this.dialogueDict = JsonConvert.DeserializeObject<Dictionary<string, string[]>>(jsonString);
+                for (int i = 0; i < supportedCharacters.Count; i++)
+                {
+                    string characterDialogueJsonPath = Path.Combine(characterDialogueFolderPath, supportedCharacters[i].ToLower() + ".json");
+                    string jsonString = File.ReadAllText(characterDialogueJsonPath);
+                    Dictionary <string, Dictionary<string, string[]>> tempDictionary = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, string[]>>>(jsonString);
+                   
+                    if (!this.NpcDialogueJsonDict.ContainsKey(supportedCharacters[i]))
+                    {
+                        this.NpcDialogueJsonDict.Add(supportedCharacters[i], tempDictionary);
+                    }
+                    else
+                    {
+                        throw new Exception($"{supportedCharacters[i]} already populated in NPC Dialogue Dictionary");
+                    }
+                     
+                }
 
-                jsonString = File.ReadAllText(inverseExtraDialogueJsonPath);
-                this.extraDialogueDict = JsonConvert.DeserializeObject<Dictionary<string, string[]>>(jsonString);
+                // Extra Dialogue
 
-                jsonString = File.ReadAllText(inverseEngagementDialogueJsonPath);
-                this.engagementDialogueDict = JsonConvert.DeserializeObject<Dictionary<string, string[]>>(jsonString);
+                string genericDialogueJsonPath = Path.Combine(genericDialogueFolderPath, "ExtraDialogue.json");
+                string genericJsonString = File.ReadAllText(genericDialogueJsonPath);
+                Dictionary<string, string[]> tempDialogueDict = JsonConvert.DeserializeObject<Dictionary<string, string[]>>(genericJsonString);
 
-                jsonString = File.ReadAllText(inverseGenericMarriageDialogueJsonPath);
-                this.genericMarriageDialogueDict = JsonConvert.DeserializeObject<Dictionary<string, string[]>>(jsonString);
+                if (!this.GenericNpcDialogueJsonDict.ContainsKey("Extra_Dialogue"))
+                {
+                    this.GenericNpcDialogueJsonDict.Add("Extra_Dialogue", tempDialogueDict);
+                }
+                else
+                {
+                    throw new Exception("Extra_Dialogue already populated in NPC Dialogue Dictionary");
+                }
 
-                jsonString = File.ReadAllText(inverseMarriageDialogueJsonPath);
-                this.marriageDialogueDict = JsonConvert.DeserializeObject<Dictionary<string, string[]>>(jsonString);
+                // Engagement Dialogue
 
-                jsonString = File.ReadAllText(inverseRainyDialogueJsonPath);
-                this.rainyDialogueDict = JsonConvert.DeserializeObject<Dictionary<string, string[]>>(jsonString);
+                genericDialogueJsonPath = Path.Combine(genericDialogueFolderPath, "EngagementDialogue.json");
+                genericJsonString = File.ReadAllText(genericDialogueJsonPath);
+                tempDialogueDict = JsonConvert.DeserializeObject<Dictionary<string, string[]>>(genericJsonString);
 
-                jsonString = File.ReadAllText(inverseInternalDialogueJsonPath);
-                this.internalDialogueDict = JsonConvert.DeserializeObject<Dictionary<string, string[]>>(jsonString);
 
-                jsonString = File.ReadAllText(inverseNpcGiftTastesDialogueJsonPath);
-                this.npcGiftTastesDict = JsonConvert.DeserializeObject<Dictionary<string, string[]>>(jsonString);
+                if (!this.GenericNpcDialogueJsonDict.ContainsKey("Engagement_Dialogue"))
+                {
+                    this.GenericNpcDialogueJsonDict.Add("Engagement_Dialogue", tempDialogueDict);
+                }
+                else
+                {
+                    throw new Exception("Engagement_Dialogue already populated in NPC Dialogue Dictionary");
+                }
+
+
+                // Generic Marriage Dialogue
+
+                genericDialogueJsonPath = Path.Combine(genericDialogueFolderPath, "Marriage Dialogue Generic.json");
+                genericJsonString = File.ReadAllText(genericDialogueJsonPath);
+                tempDialogueDict = JsonConvert.DeserializeObject<Dictionary<string, string[]>>(genericJsonString);
+
+
+                if (!this.GenericNpcDialogueJsonDict.ContainsKey("Generic_Marriage_Dialogue"))
+                {
+                    this.GenericNpcDialogueJsonDict.Add("Generic_Marriage_Dialogue", tempDialogueDict);
+                }
+                else
+                {
+                    throw new Exception("Generic_Marriage_Dialogue already populated in NPC Dialogue Dictionary");
+                }
+
+                // Rainy Dialogue
+
+                genericDialogueJsonPath = Path.Combine(genericDialogueFolderPath, "rainy.json");
+                genericJsonString = File.ReadAllText(genericDialogueJsonPath);
+                tempDialogueDict = JsonConvert.DeserializeObject<Dictionary<string, string[]>>(genericJsonString);
+
+
+                if (!this.GenericNpcDialogueJsonDict.ContainsKey("Rainy"))
+                {
+                    this.GenericNpcDialogueJsonDict.Add("Rainy", tempDialogueDict);
+                }
+                else
+                {
+                    throw new Exception("Rainy dialogue key already populated in NPC Dialogue Dictionary");
+                }
+
+
             } catch (Exception ex)
             {
                 this.Monitor.Log($"Error setting up dialogue dictionaries: {ex}. Audio will not play.", LogLevel.Debug);
@@ -958,6 +891,7 @@ namespace StardewVoices
             try
             {
                 string jsonString = File.ReadAllText(festivalDatesJsonPath);
+                Monitor.Log(jsonString, LogLevel.Debug);
                 this.festivalNameToDateDict = JsonConvert.DeserializeObject<Dictionary<string, string>>(jsonString);
             } catch (Exception ex)
             {
@@ -985,7 +919,7 @@ namespace StardewVoices
             dialogueString = dialogueString.Replace("baby", "%kid1");
 
 
-
+            /// TODO: remove hardcoded Abigail stuff!
             // Hardcode for that abigail sprit board scene
             if (dialogueString.Contains("It's spelling out...") || dialogueString.Contains("I <"))
             {
@@ -1089,7 +1023,7 @@ namespace StardewVoices
             {
                 if (Game1.currentLocation != null)
                 {
-                    string eventPath = Path.Combine(eventsJsonPath, Game1.currentLocation.Name);
+                    string eventPath = Path.Combine(eventDialogueFolderPath, Game1.currentLocation.Name);
                     if (!Directory.Exists(eventPath))
                     {
                         return $"Directory not found at {eventPath}";
@@ -1123,12 +1057,31 @@ namespace StardewVoices
 
         private string getIdFromDialogueString(string dialogueString, string currentSpeaker)
         {
+
             if (!Directory.Exists(inverseDialogueFolderPath))
                 return "Character dialogue folder could not be found";
 
             if (currentSpeaker == null)
             {
                 return $"Current speaker is null for {dialogueString}";
+            }
+
+            Dictionary<string, Dictionary<string, string[]>> currentSpeakerDialogue;
+            Dictionary<string, string[]> dialogueDict;
+            Dictionary<string, string[]> internalDialogueDict;
+
+
+            try
+            {
+                currentSpeakerDialogue = GetAllDialogueForCharacter(currentSpeaker);
+
+                dialogueDict = currentSpeakerDialogue["Dialogue"];
+                internalDialogueDict = currentSpeakerDialogue["Internal_Dialogue"];
+
+            }
+            catch (Exception ex)
+            {
+                return $"Dialogue dictionaries not found for {currentSpeaker}. Exception: {ex}";
             }
 
             string formattedDialogueString = this.formatDialogueString(dialogueString);
@@ -1192,24 +1145,24 @@ namespace StardewVoices
                     }
                     else
                     {
-                        if (this.dialogueDict.ContainsKey(formattedDialogueString))
+                        if (dialogueDict.ContainsKey(formattedDialogueString))
                         {
-                            if (this.dialogueDict[formattedDialogueString].Length > 1)
+                            if (dialogueDict[formattedDialogueString].Length > 1)
                             {
-                                return this.getCorrectIdFromListOfLineIds(this.dialogueDict[formattedDialogueString], currentSpeaker, "Dialogue-");
+                                return this.getCorrectIdFromListOfLineIds(dialogueDict[formattedDialogueString], currentSpeaker, "Dialogue-");
                             }
 
-                            return "Dialogue-" + this.dialogueDict[formattedDialogueString][0];
+                            return "Dialogue-" + dialogueDict[formattedDialogueString][0];
                         }
 
-                        if (this.internalDialogueDict.ContainsKey(formattedDialogueString))
+                        if (internalDialogueDict.ContainsKey(formattedDialogueString))
                         {
-                            if (this.internalDialogueDict[formattedDialogueString].Length > 1)
+                            if (internalDialogueDict[formattedDialogueString].Length > 1)
                             {
-                                return this.getCorrectIdFromListOfLineIds(this.internalDialogueDict[formattedDialogueString], currentSpeaker, "Internal Dialogue-");
+                                return this.getCorrectIdFromListOfLineIds(internalDialogueDict[formattedDialogueString], currentSpeaker, "Internal Dialogue-");
                             }
 
-                            return "Internal Dialogue-" + this.internalDialogueDict[formattedDialogueString][0];
+                            return "Internal_Dialogue-" + internalDialogueDict[formattedDialogueString][0];
                         }
 
                         return $"Festival dialogue not found for {formattedDialogueString}";
@@ -1222,35 +1175,45 @@ namespace StardewVoices
                     List<Dictionary<string, string[]>> characterDialogueDictionaries = new List<Dictionary<string, string[]>>();
                     List<string> dialogueDictionaryNames = new List<string>();
 
+
+                    Dictionary<string, string[]> engagementDialogueDict = currentSpeakerDialogue["Engagement_Dialogue"];
+                    Dictionary<string, string[]> genericMarriageDialogueDict = currentSpeakerDialogue["Generic_Marriage_Dialogue"];
+                    Dictionary<string, string[]> extraDialogueDict = currentSpeakerDialogue["Marriage_Dialogue"];
+                    Dictionary<string, string[]> rainyDialogueDict = currentSpeakerDialogue["Rainy"];
+
+
+                    Dictionary<string, string[]> marriageDialogueDict = currentSpeakerDialogue["Marriage_Dialogue"];
+                    Dictionary<string, string[]> npcGiftTastesDialogueDict = currentSpeakerDialogue["NpcGiftTastes"];
+
                     if (Game1.player.isEngaged() || testingWorldLoaded)
                     {
-                        characterDialogueDictionaries.Add(this.engagementDialogueDict);
-                        dialogueDictionaryNames.Add("Engagement Dialogue-");
+                        characterDialogueDictionaries.Add(engagementDialogueDict);
+                        dialogueDictionaryNames.Add("Engagement_Dialogue-");
                     }
 
                     if (Game1.player.getSpouse()?.getName() == currentSpeaker || testingWorldLoaded)
                     {
-                        characterDialogueDictionaries.Add(this.marriageDialogueDict);
-                        dialogueDictionaryNames.Add("Marriage Dialogue-");
+                        characterDialogueDictionaries.Add(marriageDialogueDict);
+                        dialogueDictionaryNames.Add("Marriage_Dialogue-");
 
-                        characterDialogueDictionaries.Add(this.genericMarriageDialogueDict);
-                        dialogueDictionaryNames.Add("Generic Marriage Dialogue-");
+                        characterDialogueDictionaries.Add(genericMarriageDialogueDict);
+                        dialogueDictionaryNames.Add("Generic_Marriage_Dialogue-");
                     }
 
-                    characterDialogueDictionaries.Add(this.dialogueDict);
+                    characterDialogueDictionaries.Add(dialogueDict);
                     dialogueDictionaryNames.Add("Dialogue-");
 
-                    characterDialogueDictionaries.Add(this.extraDialogueDict);
-                    dialogueDictionaryNames.Add("Extra Dialogue-");
+                    characterDialogueDictionaries.Add(extraDialogueDict);
+                    dialogueDictionaryNames.Add("Extra_Dialogue-");
 
-                    characterDialogueDictionaries.Add(this.rainyDialogueDict);
-                    dialogueDictionaryNames.Add("Rainy Dialogue-");
+                    characterDialogueDictionaries.Add(rainyDialogueDict);
+                    dialogueDictionaryNames.Add("Rainy-");
 
-                    characterDialogueDictionaries.Add(this.npcGiftTastesDict);
-                    dialogueDictionaryNames.Add("Npc Gift Tastes-");
+                    characterDialogueDictionaries.Add(npcGiftTastesDialogueDict);
+                    dialogueDictionaryNames.Add("NpcGiftTastes-");
 
-                    characterDialogueDictionaries.Add(this.internalDialogueDict);
-                    dialogueDictionaryNames.Add("Internal Dialogue-");
+                    characterDialogueDictionaries.Add(internalDialogueDict);
+                    dialogueDictionaryNames.Add("Internal_Dialogue-");
 
                     string[] splitDialogueString = formattedDialogueString.Split(" ");
 
@@ -1266,7 +1229,7 @@ namespace StardewVoices
                             return dialogueDictionaryNames[i] + characterDialogueDictionaries[i][formattedDialogueString][0];
                         }
 
-                        if (dialogueDictionaryNames[i] == "Extra Dialogue-" || dialogueDictionaryNames[i] == "Internal Dialogue-")
+                        if (dialogueDictionaryNames[i] == "Extra_Dialogue-" || dialogueDictionaryNames[i] == "Internal_Dialogue-")
                         {
                             foreach (string key in characterDialogueDictionaries[i].Keys)
                             {
@@ -1378,35 +1341,112 @@ namespace StardewVoices
       
         }
 
+        private Boolean StringContainsSupportedCharacter(string input)
+        {
+            for (int i=0; i<this.supportedCharacters.Count; i++)
+            {
+               if (input.Contains(this.supportedCharacters[i]))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private String GetSupportedCharacterFromString(string input)
+        {
+            for (int i = 0; i < this.supportedCharacters.Count; i++)
+            {
+                if (input.Contains(this.supportedCharacters[i]))
+                {
+                    return this.supportedCharacters[i];
+                }
+            }
+
+            return "Could not find supported character in string :I";
+        }
+
+        private Dictionary<string, Dictionary<string, string[]>> GetAllDialogueForCharacter(string characterName)
+        {
+
+            try
+            {
+
+                Dictionary<string, Dictionary<string, string[]>> currentSpeakerDialogue = NpcDialogueJsonDict[characterName];
+
+                Dictionary<string, string[]> dialogueDict = currentSpeakerDialogue["Dialogue"];
+                Dictionary<string, string[]> internalDialogueDict = currentSpeakerDialogue["Internal_Dialogue"];
+                Dictionary<string, string[]> npcGiftTastesDialogueDict = currentSpeakerDialogue["NpcGiftTastes"];
+
+                // TODO: Update when non-marriageable characters are added
+                Dictionary<string, string[]>  marriageDialogue = currentSpeakerDialogue["Marriage_Dialogue"];
+
+
+                Dictionary<string, string[]> engagementDialogueDict = this.GenericNpcDialogueJsonDict["Engagement_Dialogue"];
+                Dictionary<string, string[]> genericMarriageDialogueDict = this.GenericNpcDialogueJsonDict["Generic_Marriage_Dialogue"];
+                Dictionary<string, string[]> extraDialogueDict = this.GenericNpcDialogueJsonDict["Extra_Dialogue"];
+                Dictionary<string, string[]> rainyDialogueDict = this.GenericNpcDialogueJsonDict["Rainy"];
+
+                Dictionary<string, Dictionary<string, string[]>> allDialogueForCharacter = new Dictionary<string, Dictionary<string, string[]>>();
+                allDialogueForCharacter.Add("Dialogue", dialogueDict);
+                allDialogueForCharacter.Add("Internal_Dialogue", internalDialogueDict);
+                allDialogueForCharacter.Add("NpcGiftTastes", npcGiftTastesDialogueDict);
+                allDialogueForCharacter.Add("Marriage_Dialogue", marriageDialogue);
+                allDialogueForCharacter.Add("Engagement_Dialogue", engagementDialogueDict);
+                allDialogueForCharacter.Add("Generic_Marriage_Dialogue", genericMarriageDialogueDict);
+                allDialogueForCharacter.Add("Extra_Dialogue", extraDialogueDict);
+                allDialogueForCharacter.Add("Rainy", rainyDialogueDict);
+
+                return allDialogueForCharacter;
+            }
+            catch (Exception ex)
+            {
+                Monitor.Log($"Error getting dialogue dictionaries for {characterName}: {ex}", LogLevel.Debug);
+                return new Dictionary<string, Dictionary<string, string[]>>();
+            }
+
+        }
+
         private void PopulateTestDialogueList()
         {
             List<Dictionary<string, string[]>> characterDialogueDictionaries = new List<Dictionary<string, string[]>>();
             List<string> dialogueDictionaryNames = new List<string>();
 
-            //characterDialogueDictionaries.Add(this.npcGiftTastesDict);
-            //dialogueDictionaryNames.Add("Npc Gift Tastes-");
+            Dictionary<string, Dictionary<string, string[]>> abigailDictionary;
 
-            //characterDialogueDictionaries.Add(this.internalDialogueDict);
-            //dialogueDictionaryNames.Add("Internal Dialogue-");
+            try
+            {
+                abigailDictionary = GetAllDialogueForCharacter("Abigail");
 
-            characterDialogueDictionaries.Add(this.extraDialogueDict);
-            dialogueDictionaryNames.Add("Extra Dialogue-");
+            }
+            catch (Exception ex) {
+                Monitor.Log($"Could not find dialogue for Abigail in testing. {ex}");
+                return;
+            }
 
-            characterDialogueDictionaries.Add(this.engagementDialogueDict);
-            dialogueDictionaryNames.Add("Engagement Dialogue-");
 
-            characterDialogueDictionaries.Add(this.marriageDialogueDict);
-            dialogueDictionaryNames.Add("Marriage Dialogue-");
+            characterDialogueDictionaries.Add(abigailDictionary["Extra_Dialogue"]);
+            dialogueDictionaryNames.Add("Extra_Dialogue-");
 
-            characterDialogueDictionaries.Add(this.genericMarriageDialogueDict);
-            dialogueDictionaryNames.Add("Generic Marriage Dialogue-");
+            characterDialogueDictionaries.Add(abigailDictionary["Engagement_Dialogue"]);
+            dialogueDictionaryNames.Add("Engagement_Dialogue-");
 
-            characterDialogueDictionaries.Add(this.dialogueDict);
+
+            characterDialogueDictionaries.Add(abigailDictionary["Generic_Marriage_Dialogue"]);
+            dialogueDictionaryNames.Add("Generic_Marriage_Dialogue-");
+
+            characterDialogueDictionaries.Add(abigailDictionary["Rainy"]);
+            dialogueDictionaryNames.Add("Rainy-");
+
+            characterDialogueDictionaries.Add(abigailDictionary["Marriage_Dialogue"]);
+            dialogueDictionaryNames.Add("Marriage_Dialogue-");
+
+
+            characterDialogueDictionaries.Add(abigailDictionary["Dialogue"]);
             dialogueDictionaryNames.Add("Dialogue-");
 
-            characterDialogueDictionaries.Add(this.rainyDialogueDict);
-            dialogueDictionaryNames.Add("Rainy Dialogue-");
-
+  
 
             for (int i = 0; i < characterDialogueDictionaries.Count; i++)
             {
@@ -1416,9 +1456,9 @@ namespace StardewVoices
 
                     // Make sure not to add non abigail dialogue
                     if (dialogueDictionaryNames[i] != "Dialogue-"
-                        && dialogueDictionaryNames[i] != "Marriage Dialogue-"
-                        && dialogueDictionaryNames[i] != "Npc Gift Tastes-"
-                        && dialogueDictionaryNames[i] != "Internal Dialogue-")
+                        && dialogueDictionaryNames[i] != "Marriage_Dialogue-"
+                        && dialogueDictionaryNames[i] != "Npc Gift_Tastes-"
+                        && dialogueDictionaryNames[i] != "Internal_Dialogue-")
                     {
                         confirmedCharacterDialogue = false;
                         foreach (string value in characterDialogueDictionaries[i][key])
