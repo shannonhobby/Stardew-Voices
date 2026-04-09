@@ -155,6 +155,13 @@ namespace StardewVoices
 
             this.Config = helper.ReadConfig<ModConfig>();
 
+            var gmcm = helper.ModRegistry.GetApi<IGenericModConfigMenuApi>(
+                "spacechase0.GenericModConfigMenu");
+
+
+            if (gmcm == null)
+                return;
+
             helper.Events.GameLoop.UpdateTicked += this.OnUpdateTicked;
             helper.Events.Input.ButtonPressed += this.OnButtonPressed;
 
