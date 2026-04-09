@@ -51,7 +51,7 @@ namespace StardewVoices
 
             this.ResetComponents();
 
-            this.DialogueVolumeSlider.value = (int)((volume / 3) * 100);
+            this.DialogueVolumeSlider.value = (int)((volume));
 
             this.AddOptions();
         }
@@ -106,7 +106,7 @@ namespace StardewVoices
         {
             return true;
         }
-
+  
    
         /// <summary>Handle the player pressing a keyboard button.</summary>
         /// <param name="key">The key that was pressed.</param>
@@ -162,7 +162,7 @@ namespace StardewVoices
                 {
                     this.volume = (float)((x - this.OptionSlots[1].bounds.X) / (float)(this.OptionSlots[1].bounds.Width) * 3);
                 }
-                this.DialogueVolumeSlider.value = (int)((this.volume / 3) * 100);
+                this.DialogueVolumeSlider.value = (int)(this.volume);
                 this.changeSliderOption(this.volume);
             }
         }

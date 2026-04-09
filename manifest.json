@@ -1,10 +1,10 @@
 {
   "Name": "Stardew Voices",
   "Author": "Shannon Hobby",
-  "Version": "1.0.0",
-  "Description": "Adding voiceover to Stardew Valley",
+  "Version": "2.0.1",
+  "Description": "Adds voiceover to love interests in Stardew Valley",
   "UniqueID": "shobby.StardewVoices",
   "EntryDll": "StardewVoices.dll",
-  "MinimumApiVersion": "3.0.0",
-  "UpdateKeys": []
+  "MinimumApiVersion": "4.3.2",
+  "UpdateKeys": ["Nexus:22550"]
 }
