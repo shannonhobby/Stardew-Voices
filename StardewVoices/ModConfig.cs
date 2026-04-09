@@ -28,5 +28,10 @@ namespace StardewVoices
          ** Menu settings
          ****/
         public float DialogueVolume { get; set; } = 3f;
+
+        /****
+         ** Language settings
+         ****/
+        public string Language { get; set; } = "en";
     }
 }
