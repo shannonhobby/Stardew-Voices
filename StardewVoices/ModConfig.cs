@@ -19,15 +19,9 @@ namespace StardewVoices
         public static ModConfig Defaults { get; } = new();
 
         /****
-         ** Keyboard buttons
-         ****/
-        /// <summary>The button which opens the menu.</summary>
-        public KeybindList OpenMenuKey { get; set; } = new(SButton.V);
-
-        /****
          ** Menu settings
          ****/
-        public float DialogueVolume { get; set; } = 3f;
+        public int DialogueVolume { get; set; } = 100;
 
         /****
          ** Language settings
