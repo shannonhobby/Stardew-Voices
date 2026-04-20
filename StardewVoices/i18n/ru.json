@@ -1,0 +1,10 @@
+{
+    "settings.volumeNote": "Если звук всё ещё слишком тихий:\nуменьшите громкость музыки и звуковых эффектов в настройках.",
+    "settings.volume": "Громкость",
+    "settings.volumeTooltip": "Настроить громкость",
+    "settings.languageWarning": "*ЧТОБЫ ИЗМЕНЕНИЯ ЯЗЫКА ВСТУПИЛИ В СИЛУ, НЕОБХОДИМО ПЕРЕЗАПУСТИТЬ ИГРУ*",
+    "settings.language": "Язык",
+    "settings.contactInfoSection": "Свяжитесь с нами по адресу stardewvoices@gmail.com, чтобы сообщить о проблеме",
+    "settings.castList": "Озвучка <",
+    "settings.castListToolTip": "Познакомьтесь с голосами персонажей!"
+}

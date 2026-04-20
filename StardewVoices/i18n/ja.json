@@ -1,0 +1,10 @@
+{
+    "settings.volumeNote": "音量がまだ小さい場合：\n設定でゲームの音楽と効果音の音量を下げてください。",
+    "settings.volume": "音量",
+    "settings.volumeTooltip": "音量を調整",
+    "settings.languageWarning": "※言語の変更を反映するには、ゲームを再起動する必要があります",
+    "settings.language": "言語",
+    "settings.contactInfoSection": "不具合の報告は stardewvoices@gmail.com までご連絡ください",
+    "settings.castList": "キャスト一覧 <",
+    "settings.castListToolTip": "キャラクターの声を担当する人たちを見てみよう！"
+}

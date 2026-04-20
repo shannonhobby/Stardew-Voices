@@ -154,21 +154,7 @@ namespace StardewVoices
             { "Shane", new Dictionary<string, string> { { "ko", "셰인" }, { "ja", "シェーン" }, { "ru", "Шейн" }, { "zh", "谢恩" } } }
         };
 
-        private static readonly List<string> LoveInterests = new List<string>
-        {
-            "Shane",
-            "Haley",
-            "Alex",
-            "Penny",
-            "Sam",
-            "Emily",
-            "Maru",
-            "Harvey",
-            "Elliott",
-            "Leah",
-            "Sebastian",
-            "Abigail"
-        };
+        private static Dictionary<string, string> LocalizedToEnglishNameMap;
 
          private static readonly List<string> SpecialCharacterLanguages = new List<string>
          {
@@ -216,6 +202,8 @@ namespace StardewVoices
             {
                 inverseDialogueFolderPath = Path.Combine(inverseDialogueFolderPath, currentLanguage);
             }
+
+            this.SetupLocalizedToEnglishMap();
 
 
             eventDialogueFolderPath = Path.Combine(inverseDialogueFolderPath, "Events");
@@ -899,8 +887,10 @@ namespace StardewVoices
                         return;
                     }
 
+                    string currentSpeaker = GetName(Game1.currentSpeaker?.getName());
 
-                    string currentLineId = getIdFromDialogueString(currentDialogueBoxString, Game1.currentSpeaker.Name);
+
+                    string currentLineId = getIdFromDialogueString(currentDialogueBoxString, currentSpeaker);
                     this.Monitor.Log(currentLineId, LogLevel.Debug);
 
 
@@ -911,7 +901,7 @@ namespace StardewVoices
                         return;
                     }
 
-                    this.currentCue = this.getCueFromDialogueId(currentLineId, Game1.currentSpeaker?.getName());
+                    this.currentCue = this.getCueFromDialogueId(currentLineId, currentSpeaker);
 
                     if (this.currentCue == null)
                     {
@@ -1096,6 +1086,29 @@ namespace StardewVoices
                 this.characterDictionary.Add(supportedCharacters[i], new Character(supportedCharacters[i]));
             }
         }
+
+        private void SetupLocalizedToEnglishMap()
+            {
+                var result = new Dictionary<string, string>();
+
+                foreach (var englishEntry in LocalizedNpcNames)
+                {
+                    string englishName = englishEntry.Key;
+                    var localizedDict = englishEntry.Value;
+
+                    foreach (var localizedEntry in localizedDict)
+                    {
+                        string localizedName = localizedEntry.Value;
+
+                        if (!result.ContainsKey(localizedName))
+                        {
+                            result[localizedName] = englishName;
+                        }
+                    }
+                }
+
+            LocalizedToEnglishNameMap = result;
+            }
 
         private void setupContinuationDialogue()
         {
@@ -1598,17 +1611,38 @@ namespace StardewVoices
 
         }
 
+        private string GetName(string name)
+        {
+            if (SpecialCharacterLanguages.Contains(currentLanguage))
+            {
+                LocalizedToEnglishNameMap.TryGetValue(name, out string localizedCharacterName);
+                return localizedCharacterName;
+            } else
+            {
+                return name;
+            }
+        }
+
+        private string GetLocalizedName(string name)
+        {
+            if (SpecialCharacterLanguages.Contains(currentLanguage))
+            {
+                LocalizedNpcNames.TryGetValue(name, out Dictionary<string, string> localizedCharacterNames);
+                localizedCharacterNames.TryGetValue(currentLanguage, out string localizedCharacterName);
+                return localizedCharacterName;
+            }
+            else
+            {
+                return name;
+            }
+        }
+
         private Boolean StringContainsSupportedCharacter(string input)
         {
             for (int i = 0; i < this.supportedCharacters.Count; i++)
             {
-                string characterName = this.supportedCharacters[i];
-                if (SpecialCharacterLanguages.Contains(currentLanguage))
-                {
-                    LocalizedNpcNames.TryGetValue(characterName, out Dictionary<string, string> localizedCharacterNames);
-                    localizedCharacterNames.TryGetValue(currentLanguage, out string localizedCharacterName);
-                    characterName = localizedCharacterName;
-                }
+                string characterName = GetLocalizedName(this.supportedCharacters[i]);
+              
 
                 if (input.Contains(characterName))
                 {
@@ -1619,12 +1653,13 @@ namespace StardewVoices
             return false;
         }
 
-        // TODO: FIX FOR OTHER LANGUAGES
+        
         private string GetSupportedCharacterFromString(string input)
         {
             for (int i = 0; i < this.supportedCharacters.Count; i++)
             {
-                if (input.Contains(this.supportedCharacters[i]))
+                string characterName = GetLocalizedName(supportedCharacters[i]);
+                if (input.Contains(characterName))
                 {
                     return this.supportedCharacters[i];
                 }
@@ -1726,29 +1761,25 @@ namespace StardewVoices
 
             api.AddParagraph(
                 ModManifest,
-                () => "If the volume is still too quiet: \n adjust the game music / sound effects to be quieter in settings."
+                () => Helper.Translation.Get("settings.volumeNote")
                 );
 
             api.AddNumberOption(
                 ModManifest,
                 () => this.Config.DialogueVolume,
                 value => this.Config.DialogueVolume = value,
-                () => "Volume",
-                () => "Adjust volume level",
+                () => Helper.Translation.Get("settings.volume"),
+                () => Helper.Translation.Get("settings.volumeTooltip"),
                 min: 0,
                 max: 100,
                 interval: 1
             );
 
-            api.AddParagraph(
-              ModManifest,
-              () => "*YOU WILL HAVE TO RESTART YOUR GAME FOR CHANGES TO TAKE EFFECT*"
-            );
-
+      
 
             api.AddTextOption(
                ModManifest,
-               name: () => "Language",
+               name: () => Helper.Translation.Get("settings.language"),
                getValue: () => Config.Language,
                setValue: value =>
                {
@@ -1762,10 +1793,15 @@ namespace StardewVoices
                     : value
                 );
 
+            api.AddParagraph(
+                ModManifest,
+                () => Helper.Translation.Get("settings.languageWarning")
+              );
+
             api.AddSectionTitle(
                 ModManifest,
-                text: () => "Cast List <",
-                tooltip: () => "Meet the voices behind the characters!"
+                text: () => Helper.Translation.Get("settings.castList"),
+                tooltip: () => Helper.Translation.Get("settings.castListToolTip")
                 );
 
             void AddCastLine(string character, string actor)

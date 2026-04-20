@@ -1,0 +1,10 @@
+{
+    "settings.volumeNote": "如果音量还是太小：\n请在设置中调低游戏的音乐和音效音量。",
+    "settings.volume": "音量",
+    "settings.volumeTooltip": "调整音量",
+    "settings.languageWarning": "*要使语言更改生效，需要重新启动游戏*",
+    "settings.language": "语言",
+    "settings.contactInfoSection": "如有问题，请联系 stardewvoices@gmail.com",
+    "settings.castList": "配音阵容 <",
+    "settings.castListToolTip": "认识为角色配音的声优们！"
+}
