@@ -20,6 +20,7 @@ namespace StardewVoices
         public string Name { get; }
         public SoundBank SoundBank { get; set; }
         private WaveBank WaveBank { get; set; }
+        private AudioCategory AudioCategory { get; set; }
         public NPC InGameNPC { get; set; }
         public Dictionary<string, Dictionary<string, string[]>> DialogueDictionary { get; set; }
         public Character(string name)
@@ -27,10 +28,16 @@ namespace StardewVoices
             this.Name = name;
         }
 
+        public void SetVolume(float volume) 
+        { 
+            this.AudioCategory.SetVolume(volume);
+        }
+
         public void SetupAudioBanks(AudioEngine audioEngine, string audioPath)
         {
             this.WaveBank = new WaveBank(audioEngine, Path.Combine(audioPath, this.Name + ".xwb"));
             this.SoundBank = new SoundBank(audioEngine, Path.Combine(audioPath, this.Name + ".xsb"));
+            this.AudioCategory = audioEngine.GetCategory(this.Name);
         }
 
 
@@ -57,7 +64,6 @@ namespace StardewVoices
 
 
         private AudioEngine audioEngine;
-        private AudioCategory dialogueCategory;
 
         private Cue currentCue;
         private Cue lastCue;
@@ -121,6 +127,22 @@ namespace StardewVoices
         private List<string> supportedCharacters = new List<string>();
         private Dictionary<string, Character> characterDictionary = new Dictionary<string, Character>();
         private static Dictionary<string, Dictionary<string, string[]>> genericDialogueDictionariesDictionary = new Dictionary<string, Dictionary<string, string[]>>();
+
+        private static List<string> LoveInterests = new()
+        {
+            "Abigail",
+            "Alex",
+            "Elliott",
+            "Emily",
+            "Haley",
+            "Harvey",
+            "Leah",
+            "Maru",
+            "Penny",
+            "Sam",
+            "Sebastian",
+            "Shane",
+        };
 
         private static readonly Dictionary<string, string> languageDisplayNames = new()
             {
@@ -415,32 +437,60 @@ namespace StardewVoices
 
 
 
-
-
             dialogueWithRandomNounOrAdj.Add("Last night I dreamt that my left hand had turned into a gigantic %noun. Does that mean anything?", "Dialogue-fall_Thu_chance_1");
             dialogueWithRandomNounOrAdj.Add("I did, but all I remember is that it had something to do with a %adj %noun. Weird.", "Generic Marriage Dialogue-Indoor_Day_3_sv1");
 
+        }
+        public float CalculateCharacterVolume(int volume)
+        {
+            float t = volume / 100f;
+            return 0.25f + MathF.Pow(t, 1.8f) * 4.5f;
+            
+        }
+
+        public float CalculateMasterVolume(int volume)
+        {
+            float t = volume / 100f;
+
+            // softer curve than characters so it behaves like a real "fader"
+            return MathF.Pow(t, 2.0f);
+        }
+
+        public float CalculateFinalVolume(int characterVolume, int masterVolume)
+        {
+            return CalculateCharacterVolume(characterVolume)
+                 * CalculateMasterVolume(masterVolume);
         }
 
         /*********
         ** Private methods
         *********/
+
+
         /// <summary>The method invoked when the game updates its state.</summary>
         /// <param name="sender">The event sender.</param>
         /// <param name="e">The event arguments.</param>
         private void OnUpdateTicked(object sender, EventArgs e)
         {
-            this.createModTestingWorld();
+           // this.createModTestingWorld();
 
             this.UpdateCurrentDialogue();
 
             this.UpdateLastLocationAndEvent();
 
-            if (this.dialogueCategory != null)
+
+            foreach (string character in LoveInterests)
             {
-                float t = this.Config.DialogueVolume / 100f;
-                float volume = 0.25f + MathF.Pow(t, 1.8f) * 4.5f;
-                this.dialogueCategory.SetVolume(volume);
+                var prop = this.Config.GetType().GetProperty($"{character}Volume");
+                if (prop == null)
+                {
+                    this.characterDictionary[character].SetVolume(CalculateFinalVolume(100, this.Config.DialogueVolume));
+
+                } else
+                {
+                    this.characterDictionary[character].SetVolume(CalculateFinalVolume((int)prop.GetValue(this.Config), this.Config.DialogueVolume));
+
+                }
             }
 
             if (characterNameRegex.Length == 0 && Game1.characterData != null && this.testingWorldLoaded)
@@ -1126,7 +1176,6 @@ namespace StardewVoices
             try
             {
                 this.audioEngine = new AudioEngine(Path.Combine(audioPath, "Stardew Voices.xgs"));
-                this.dialogueCategory = this.audioEngine.GetCategory("Default");
 
                 foreach (string character in this.supportedCharacters)
                 {
@@ -1759,6 +1808,32 @@ namespace StardewVoices
                 save: () => Helper.WriteConfig(Config)
             );
 
+            api.AddTextOption(
+            ModManifest,
+            name: () => Helper.Translation.Get("settings.language"),
+            getValue: () => Config.Language,
+            setValue: value =>
+            {
+                Config.Language = value;
+                ApplyLanguage(value);
+            },
+            allowedValues: languageDisplayNames.Keys.ToArray(),
+             formatAllowedValue: value =>
+             languageDisplayNames.TryGetValue(value, out var name)
+                 ? name
+                 : value
+             );
+
+            api.AddParagraph(
+                ModManifest,
+                () => Helper.Translation.Get("settings.languageWarning")
+              );
+
+            api.AddSectionTitle(
+                 ModManifest,
+                 text: () => $"{Helper.Translation.Get("settings.volume")}========================"
+                 );
+
             api.AddParagraph(
                 ModManifest,
                 () => Helper.Translation.Get("settings.volumeNote")
@@ -1768,35 +1843,146 @@ namespace StardewVoices
                 ModManifest,
                 () => this.Config.DialogueVolume,
                 value => this.Config.DialogueVolume = value,
-                () => Helper.Translation.Get("settings.volume"),
+                () => Helper.Translation.Get("settings.allVoices"),
                 () => Helper.Translation.Get("settings.volumeTooltip"),
                 min: 0,
                 max: 100,
                 interval: 1
             );
 
-      
 
-            api.AddTextOption(
-               ModManifest,
-               name: () => Helper.Translation.Get("settings.language"),
-               getValue: () => Config.Language,
-               setValue: value =>
-               {
-                   Config.Language = value;
-                   ApplyLanguage(value);
-               },
-               allowedValues: languageDisplayNames.Keys.ToArray(),
-                formatAllowedValue: value =>
-                languageDisplayNames.TryGetValue(value, out var name)
-                    ? name
-                    : value
-                );
+            api.AddNumberOption(
+                 ModManifest,
+                 () => this.Config.AbigailVolume,
+                 value => this.Config.AbigailVolume = value,
+                 () => $"{GetLocalizedName("Abigail")}",
+                 () => $"Volume for {GetLocalizedName("Abigail")} dialogue",
+                 min: 0,
+                 max: 100,
+                 interval: 1
+             );
 
-            api.AddParagraph(
+            api.AddNumberOption(
                 ModManifest,
-                () => Helper.Translation.Get("settings.languageWarning")
-              );
+                () => this.Config.AlexVolume,
+                value => this.Config.AlexVolume = value,
+                () => $"{GetLocalizedName("Alex")}",
+                () => $"Volume for {GetLocalizedName("Alex")} dialogue",
+                min: 0,
+                max: 100,
+                interval: 1
+            );
+
+            api.AddNumberOption(
+                ModManifest,
+                () => this.Config.ElliottVolume,
+                value => this.Config.ElliottVolume = value,
+                () => $"{GetLocalizedName("Elliott")}",
+                () => $"Volume for {GetLocalizedName("Elliott")} dialogue",
+                min: 0,
+                max: 100,
+                interval: 1
+            );
+
+            api.AddNumberOption(
+                ModManifest,
+                () => this.Config.EmilyVolume,
+                value => this.Config.EmilyVolume = value,
+                () => $"{GetLocalizedName("Emily")}",
+                () => $"Volume for {GetLocalizedName("Emily")} dialogue",
+                min: 0,
+                max: 100,
+                interval: 1
+            );
+
+            api.AddNumberOption(
+                ModManifest,
+                () => this.Config.HaleyVolume,
+                value => this.Config.HaleyVolume = value,
+                () => $"{GetLocalizedName("Haley")}",
+                () => $"Volume for {GetLocalizedName("Haley")} dialogue",
+                min: 0,
+                max: 100,
+                interval: 1
+            );
+
+            api.AddNumberOption(
+                ModManifest,
+                () => this.Config.HarveyVolume,
+                value => this.Config.HarveyVolume = value,
+                () => $"{GetLocalizedName("Harvey")}",
+                () => $"Volume for {GetLocalizedName("Harvey")} dialogue",
+                min: 0,
+                max: 100,
+                interval: 1
+            );
+
+            api.AddNumberOption(
+                ModManifest,
+                () => this.Config.LeahVolume,
+                value => this.Config.LeahVolume = value,
+                () => $"{GetLocalizedName("Leah")}",
+                () => $"Volume for {GetLocalizedName("Leah")} dialogue",
+                min: 0,
+                max: 100,
+                interval: 1
+            );
+
+            api.AddNumberOption(
+                ModManifest,
+                () => this.Config.MaruVolume,
+                value => this.Config.MaruVolume = value,
+                () => $"{GetLocalizedName("Maru")}",
+                () => $"Volume for {GetLocalizedName("Maru")} dialogue",
+                min: 0,
+                max: 100,
+                interval: 1
+            );
+
+            api.AddNumberOption(
+                ModManifest,
+                () => this.Config.PennyVolume,
+                value => this.Config.PennyVolume = value,
+                () => $"{GetLocalizedName("Penny")}",
+                () => $"Volume for {GetLocalizedName("Penny")} dialogue",
+                min: 0,
+                max: 100,
+                interval: 1
+            );
+
+            api.AddNumberOption(
+                ModManifest,
+                () => this.Config.SamVolume,
+                value => this.Config.SamVolume = value,
+                () => $"{GetLocalizedName("Sam")}",
+                () => $"Volume for {GetLocalizedName("Sam")} dialogue",
+                min: 0,
+                max: 100,
+                interval: 1
+            );
+
+            api.AddNumberOption(
+                ModManifest,
+                () => this.Config.SebastianVolume,
+                value => this.Config.SebastianVolume = value,
+                () => $"{GetLocalizedName("Sebastian")}",
+                () => $"Volume for {GetLocalizedName("Sebastian")} dialogue",
+                min: 0,
+                max: 100,
+                interval: 1
+            );
+
+            api.AddNumberOption(
+                ModManifest,
+                () => this.Config.ShaneVolume,
+                value => this.Config.ShaneVolume = value,
+                () => $"{GetLocalizedName("Shane")}",
+                () => $"Volume for {GetLocalizedName("Shane")} dialogue",
+                min: 0,
+                max: 100,
+                interval: 1
+            );
+
 
             api.AddSectionTitle(
                 ModManifest,
@@ -1812,18 +1998,18 @@ namespace StardewVoices
                 );
             }
 
-            AddCastLine("Emily", "Ariel Michelle");
-            AddCastLine("Penny", "Heidi Tabing");
-            AddCastLine("Sebastian", "David Meyers");
-            AddCastLine("Haley", "Kemi Haydee Stanton");
-            AddCastLine("Leah", "Aiden Dawn");
-            AddCastLine("Alex", "Eamon Kinsman");
-            AddCastLine("Sam", "Jacob Hopkins");
-            AddCastLine("Harvey", "GM Hakim");
-            AddCastLine("Maru", "Nia Celeste");
-            AddCastLine("Elliott", "Emmanuel \"Menji\" Menjivar");
-            AddCastLine("Abigail", "Diana Jurand");
-            AddCastLine("Shane", "Jonathan David Bullock");
+            AddCastLine(GetLocalizedName("Emily"), "Ariel Michelle");
+            AddCastLine(GetLocalizedName("Penny"), "Heidi Tabing");
+            AddCastLine(GetLocalizedName("Sebastian"), "David Meyers");
+            AddCastLine(GetLocalizedName("Haley"), "Kemi Haydee Stanton");
+            AddCastLine(GetLocalizedName("Leah"), "Aiden Dawn");
+            AddCastLine(GetLocalizedName("Alex"), "Eamon Kinsman");
+            AddCastLine(GetLocalizedName("Sam"), "Jacob Hopkins");
+            AddCastLine(GetLocalizedName("Harvey"), "GM Hakim");
+            AddCastLine(GetLocalizedName("Maru"), "Nia Celeste");
+            AddCastLine(GetLocalizedName("Elliott"), "Emmanuel \"Menji\" Menjivar");
+            AddCastLine(GetLocalizedName("Abigail"), "Diana Jurand");
+            AddCastLine(GetLocalizedName("Shane"), "Jonathan David Bullock");
 
 
         }
