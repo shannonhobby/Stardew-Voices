@@ -15,6 +15,38 @@ using System.Text;
 
 namespace StardewVoices
 {
+    public static class AudioPathHelper
+    {
+        /// <summary>
+        /// Converts a mod-local audio file path into a MonoGame-compatible
+        /// relative path from the game root directory.
+        /// </summary>
+        public static string GetGameRelativeAudioPath(string modDirectory, string relativeFilePath)
+        {
+            if (string.IsNullOrWhiteSpace(modDirectory))
+                throw new ArgumentException("Mod directory cannot be null or empty.", nameof(modDirectory));
+
+            if (string.IsNullOrWhiteSpace(relativeFilePath))
+                throw new ArgumentException("File path cannot be null or empty.", nameof(relativeFilePath));
+
+            // 1. Build absolute path to file inside mod
+            string absolutePath = Path.Combine(modDirectory, relativeFilePath);
+
+            // 2. Game root (what TitleContainer expects as base)
+            string gameRoot = AppDomain.CurrentDomain.BaseDirectory;
+
+            // 3. Convert to relative path from game root
+            string relativeToGame = Path.GetRelativePath(gameRoot, absolutePath);
+
+            // 4. Normalize separators for MonoGame/XNA
+            relativeToGame = relativeToGame
+                .Replace(Path.DirectorySeparatorChar, '/')
+                .Replace(Path.AltDirectorySeparatorChar, '/');
+
+            return relativeToGame;
+        }
+    }
+
     public class Character
     {
         public string Name { get; }
@@ -30,13 +62,13 @@ namespace StardewVoices
 
         public void SetVolume(float volume) 
         { 
-            this.AudioCategory.SetVolume(volume);
+            this.AudioCategory?.SetVolume(volume);
         }
 
         public void SetupAudioBanks(AudioEngine audioEngine, string audioPath)
         {
-            this.WaveBank = new WaveBank(audioEngine, Path.Combine(audioPath, this.Name + ".xwb"));
-            this.SoundBank = new SoundBank(audioEngine, Path.Combine(audioPath, this.Name + ".xsb"));
+            this.WaveBank = new WaveBank(audioEngine, AudioPathHelper.GetGameRelativeAudioPath(audioPath, this.Name + ".xwb"));
+            this.SoundBank = new SoundBank(audioEngine, AudioPathHelper.GetGameRelativeAudioPath(audioPath, this.Name + ".xsb"));
             this.AudioCategory = audioEngine.GetCategory(this.Name);
         }
 
@@ -194,15 +226,7 @@ namespace StardewVoices
         public override void Entry(IModHelper helper)
         {
             modPath = helper.DirectoryPath;
-            string audioFolder = Path.Combine(modPath, "Audio");
-
-            if (modPath.Contains("Resources"))
-            {
-                modPath.Replace("Resources", "MacOS");
-            }
-
-
-            audioPath = Path.GetRelativePath(Path.Combine(Path.Combine(modPath, ".."), ".."), audioFolder);
+            audioPath = Path.Combine(modPath, "Audio");
 
 
             this.helper = helper;
@@ -1175,7 +1199,7 @@ namespace StardewVoices
         {
             try
             {
-                this.audioEngine = new AudioEngine(Path.Combine(audioPath, "Stardew Voices.xgs"));
+                this.audioEngine = new AudioEngine(AudioPathHelper.GetGameRelativeAudioPath(audioPath, "Stardew Voices.xgs"));
 
                 foreach (string character in this.supportedCharacters)
                 {
