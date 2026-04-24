@@ -1,52 +1,80 @@
-﻿using System;
-using System.IO;
-using System.Collections.Generic;
-using Microsoft.Xna.Framework.Audio;
+﻿using Microsoft.Xna.Framework.Audio;
 using Newtonsoft.Json;
-using Microsoft.Xna.Framework;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
-using StardewModdingAPI.Utilities;
-using StardewModdingAPI.Framework.StateTracking;
-using StardewModdingAPI.Framework.Input;
 using StardewValley;
-using StardewValley.Menus;
 using StardewValley.Locations;
-using System.Text.Json.Serialization;
+using StardewValley.Menus;
+using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
-using System.ComponentModel.DataAnnotations;
-using StardewValley.Minigames;
-using Microsoft.Xna.Framework.Input;
-using StardewValley.Tools;
-using System.Diagnostics.Tracing;
-using System.Reflection;
-using System.Linq.Expressions;
-using StardewValley.Audio;
+using System.Text;
 
 
 namespace StardewVoices
 {
+    public static class AudioPathHelper
+    {
+        /// <summary>
+        /// Converts a mod-local audio file path into a MonoGame-compatible
+        /// relative path from the game root directory.
+        /// </summary>
+        public static string GetGameRelativeAudioPath(string modDirectory, string relativeFilePath)
+        {
+            if (string.IsNullOrWhiteSpace(modDirectory))
+                throw new ArgumentException("Mod directory cannot be null or empty.", nameof(modDirectory));
+
+            if (string.IsNullOrWhiteSpace(relativeFilePath))
+                throw new ArgumentException("File path cannot be null or empty.", nameof(relativeFilePath));
+
+            // 1. Build absolute path to file inside mod
+            string absolutePath = Path.Combine(modDirectory, relativeFilePath);
+
+            // 2. Game root (what TitleContainer expects as base)
+            string gameRoot = AppDomain.CurrentDomain.BaseDirectory;
+
+            // 3. Convert to relative path from game root
+            string relativeToGame = Path.GetRelativePath(gameRoot, absolutePath);
+
+            // 4. Normalize separators for MonoGame/XNA
+            relativeToGame = relativeToGame
+                .Replace(Path.DirectorySeparatorChar, '/')
+                .Replace(Path.AltDirectorySeparatorChar, '/');
+
+            return relativeToGame;
+        }
+    }
 
     public class Character
     {
         public string Name { get; }
         public SoundBank SoundBank { get; set; }
         private WaveBank WaveBank { get; set; }
+        private AudioCategory AudioCategory { get; set; }
         public NPC InGameNPC { get; set; }
         public Dictionary<string, Dictionary<string, string[]>> DialogueDictionary { get; set; }
-        public Character(string name) {
+        public Character(string name)
+        {
             this.Name = name;
+        }
+
+        public void SetVolume(float volume) 
+        { 
+            this.AudioCategory?.SetVolume(volume);
         }
 
         public void SetupAudioBanks(AudioEngine audioEngine, string audioPath)
         {
-            this.WaveBank = new WaveBank(audioEngine, Path.Combine(audioPath, this.Name +  ".xwb"));
-            this.SoundBank = new SoundBank(audioEngine, Path.Combine(audioPath, this.Name + ".xsb"));
+            this.WaveBank = new WaveBank(audioEngine, AudioPathHelper.GetGameRelativeAudioPath(audioPath, this.Name + ".xwb"));
+            this.SoundBank = new SoundBank(audioEngine, AudioPathHelper.GetGameRelativeAudioPath(audioPath, this.Name + ".xsb"));
+            this.AudioCategory = audioEngine.GetCategory(this.Name);
         }
 
 
     }
+
 
     /// <summary>The mod entry point.</summary>
     public class StardewVoices : Mod
@@ -68,7 +96,6 @@ namespace StardewVoices
 
 
         private AudioEngine audioEngine;
-        private AudioCategory dialogueCategory;
 
         private Cue currentCue;
         private Cue lastCue;
@@ -123,6 +150,7 @@ namespace StardewVoices
         string characterNameRegex = "";
 
         public ModConfig Config = null;
+        public IGenericModConfigMenuApi gmcm = null;
 
         public IModHelper helper = null;
 
@@ -132,6 +160,64 @@ namespace StardewVoices
         private Dictionary<string, Character> characterDictionary = new Dictionary<string, Character>();
         private static Dictionary<string, Dictionary<string, string[]>> genericDialogueDictionariesDictionary = new Dictionary<string, Dictionary<string, string[]>>();
 
+        private static List<string> LoveInterests = new()
+        {
+            "Abigail",
+            "Alex",
+            "Elliott",
+            "Emily",
+            "Haley",
+            "Harvey",
+            "Leah",
+            "Maru",
+            "Penny",
+            "Sam",
+            "Sebastian",
+            "Shane",
+        };
+
+        private static readonly Dictionary<string, string> languageDisplayNames = new()
+            {
+                { "en", "English" },
+                { "de", "Deutsch" },
+                { "es", "Español" },
+                { "fr", "Français" },
+                { "hu", "Magyar" },
+                { "it", "Italiano" },
+                { "ja", "Japanese (日本語)" },
+                { "ko", "Korean (한국어)" },
+                { "pt", "Português" },
+                { "ru", "Russian (Русский)" },
+                { "tr", "Türkçe" },
+                { "zh", "Chinese (中文)" }
+            };
+
+        private static readonly Dictionary<string, Dictionary<string, string>> LocalizedNpcNames = new()
+          {
+            { "Abigail", new Dictionary<string, string> { { "ko", "애비게일" }, { "ja", "アビゲイル" }, { "ru", "Абигейл" }, { "zh", "阿比盖尔" } } },
+            { "Alex", new Dictionary<string, string> { { "ko", "알렉스" }, { "ja", "アレックス" }, { "ru", "Алекс" }, { "zh", "亚历克斯" } } },
+            { "Elliott", new Dictionary<string, string> { { "ko", "엘리엇" }, { "ja", "エリオット" }, { "ru", "Эллиот" }, { "zh", "艾利欧特" } } },
+            { "Emily", new Dictionary<string, string> { { "ko", "에밀리" }, { "ja", "エミリー" }, { "ru", "Эмили" }, { "zh", "艾米丽" } } },
+            { "Haley", new Dictionary<string, string> { { "ko", "헤일리" }, { "ja", "ヘイリー" }, { "ru", "Хэйли" }, { "zh", "海莉" } } },
+            { "Harvey", new Dictionary<string, string> { { "ko", "하비" }, { "ja", "ハーヴィー" }, { "ru", "Харви" }, { "zh", "哈维" } } },
+            { "Leah", new Dictionary<string, string> { { "ko", "레아" }, { "ja", "リア" }, { "ru", "Лея" }, { "zh", "莉亚" } } },
+            { "Maru", new Dictionary<string, string> { { "ko", "마루" }, { "ja", "マル" }, { "ru", "Мару" }, { "zh", "玛鲁" } } },
+            { "Penny", new Dictionary<string, string> { { "ko", "페니" }, { "ja", "ペニー" }, { "ru", "Пенни" }, { "zh", "潘妮" } } },
+            { "Sam", new Dictionary<string, string> { { "ko", "샘" }, { "ja", "サム" }, { "ru", "Сэм" }, { "zh", "山姆" } } },
+            { "Sebastian", new Dictionary<string, string> { { "ko", "세바스찬" }, { "ja", "セバスチャン" }, { "ru", "Себастиан" }, { "zh", "塞巴斯蒂安" } } },
+            { "Shane", new Dictionary<string, string> { { "ko", "셰인" }, { "ja", "シェーン" }, { "ru", "Шейн" }, { "zh", "谢恩" } } }
+        };
+
+        private static Dictionary<string, string> LocalizedToEnglishNameMap;
+
+         private static readonly List<string> SpecialCharacterLanguages = new List<string>
+         {
+            "ko",
+            "ja",
+            "ru",
+            "zh"
+         };
+
         /*********
         ** Public methods
         *********/
@@ -140,43 +226,38 @@ namespace StardewVoices
         public override void Entry(IModHelper helper)
         {
             modPath = helper.DirectoryPath;
-            string audioFolder = Path.Combine(modPath, "Audio");
+            audioPath = Path.Combine(modPath, "Audio");
 
-            if(modPath.Contains("Resources"))
-            {
-                modPath.Replace("Resources", "MacOS");
-            }
-
-
-            audioPath = Path.GetRelativePath(Path.Combine(Path.Combine(modPath, ".."), ".."), audioFolder);
-   
 
             this.helper = helper;
 
             this.Config = helper.ReadConfig<ModConfig>();
 
+
             helper.Events.GameLoop.UpdateTicked += this.OnUpdateTicked;
             helper.Events.Input.ButtonPressed += this.OnButtonPressed;
-
+            helper.Events.GameLoop.GameLaunched += this.OnGameLaunched;
 
             inverseDialogueFolderPath = Path.Combine(modPath, "Dialogue Jsons");
 
-            
+
             currentLanguage = this.Config.Language;
-     
+
 
             if (currentLanguage != LocalizedContentManager.LanguageCode.en.ToString())
             {
                 inverseDialogueFolderPath = Path.Combine(inverseDialogueFolderPath, currentLanguage);
             }
-            
-            
+
+            this.SetupLocalizedToEnglishMap();
+
+
             eventDialogueFolderPath = Path.Combine(inverseDialogueFolderPath, "Events");
 
             characterDialogueFolderPath = Path.Combine(inverseDialogueFolderPath, "Characters");
 
             festivalDialogueFolderPath = Path.Combine(inverseDialogueFolderPath, "Festivals");
-            
+
 
             festivalDatesJsonPath = Path.Combine(festivalDialogueFolderPath, $"FestivalDates.{GetLanguageJsonExtension(currentLanguage)}");
 
@@ -188,7 +269,7 @@ namespace StardewVoices
             genericMarriageDialogueJsonPath = Path.Combine(genericDialogueFolderPath, "Marriage Dialogue Generic.json");
             rainyDialogueJsonPath = Path.Combine(genericDialogueFolderPath, "rainy.json");
 
-
+     
             this.supportedCharacters.Add("Shane");
             this.supportedCharacters.Add("Haley");
             this.supportedCharacters.Add("Alex");
@@ -235,7 +316,7 @@ namespace StardewVoices
 
 
             // Haley
-           //   this.eventsToTest.Add("11_HaleyHouse");
+            //   this.eventsToTest.Add("11_HaleyHouse");
             // this.eventsToTest.Add("12_HaleyHouse");
             // this.eventsToTest.Add("13_Beach");
             //  this.eventsToTest.Add("14_Forest");
@@ -313,52 +394,52 @@ namespace StardewVoices
             // NIght
             // this.eventsToTest.Add("9333219_Mountain");
             //this.eventsToTest.Add("9333220_FarmHouse");
-/*
-            // Elliott
-            this.eventsToTest.Add("39_ElliottHouse");
-            this.eventsToTest.Add("40_Saloon");
-            this.eventsToTest.Add("423502_ElliottHouse");
-            this.eventsToTest.Add("1848481_ArchaeologyHouse");
-            this.eventsToTest.Add("43_Beach");
-            this.eventsToTest.Add("3912125_Farm");
-            this.eventsToTest.Add("3912132_FarmHouse");
+            /*
+                        // Elliott
+                        this.eventsToTest.Add("39_ElliottHouse");
+                        this.eventsToTest.Add("40_Saloon");
+                        this.eventsToTest.Add("423502_ElliottHouse");
+                        this.eventsToTest.Add("1848481_ArchaeologyHouse");
+                        this.eventsToTest.Add("43_Beach");
+                        this.eventsToTest.Add("3912125_Farm");
+                        this.eventsToTest.Add("3912132_FarmHouse");
 
 
-            // Sam
-            this.eventsToTest.Add("44_SamHouse");
-            this.eventsToTest.Add("733330_Beach");
-            this.eventsToTest.Add("46_SamHouse");
-            this.eventsToTest.Add("45_Town");
-            this.eventsToTest.Add("47_Farm");
-            this.eventsToTest.Add("4081148_BusStop");
-            this.eventsToTest.Add("233104_Town");
-            this.eventsToTest.Add("3918600_FarmHouse");
-            this.eventsToTest.Add("3918601_FarmHouse");
-            this.eventsToTest.Add("3918602_FarmHouse");
-            this.eventsToTest.Add("3918603_FarmHouse");
+                        // Sam
+                        this.eventsToTest.Add("44_SamHouse");
+                        this.eventsToTest.Add("733330_Beach");
+                        this.eventsToTest.Add("46_SamHouse");
+                        this.eventsToTest.Add("45_Town");
+                        this.eventsToTest.Add("47_Farm");
+                        this.eventsToTest.Add("4081148_BusStop");
+                        this.eventsToTest.Add("233104_Town");
+                        this.eventsToTest.Add("3918600_FarmHouse");
+                        this.eventsToTest.Add("3918601_FarmHouse");
+                        this.eventsToTest.Add("3918602_FarmHouse");
+                        this.eventsToTest.Add("3918603_FarmHouse");
 
 
 
-            // Harvey
-            this.eventsToTest.Add("56_JoshHouse");
-            this.eventsToTest.Add("57_Hospital");
-            this.eventsToTest.Add("58_SeedShop");
-            this.eventsToTest.Add("571102_Hospital");
-            this.eventsToTest.Add("528052_Railroad");
-            this.eventsToTest.Add("3917626_FarmHouse");
+                        // Harvey
+                        this.eventsToTest.Add("56_JoshHouse");
+                        this.eventsToTest.Add("57_Hospital");
+                        this.eventsToTest.Add("58_SeedShop");
+                        this.eventsToTest.Add("571102_Hospital");
+                        this.eventsToTest.Add("528052_Railroad");
+                        this.eventsToTest.Add("3917626_FarmHouse");
 
 
-            // Alex
-            this.eventsToTest.Add("20_Beach");
-            this.eventsToTest.Add("2481135_Town");
-            this.eventsToTest.Add("21_JoshHouse");
-            this.eventsToTest.Add("2119820_JoshHouse");
-            this.eventsToTest.Add("288847_Beach");
-            this.eventsToTest.Add("911526_Saloon");
-            this.eventsToTest.Add("3917587_Farm");
-            this.eventsToTest.Add("3917590_Saloon");
-      
-            */
+                        // Alex
+                        this.eventsToTest.Add("20_Beach");
+                        this.eventsToTest.Add("2481135_Town");
+                        this.eventsToTest.Add("21_JoshHouse");
+                        this.eventsToTest.Add("2119820_JoshHouse");
+                        this.eventsToTest.Add("288847_Beach");
+                        this.eventsToTest.Add("911526_Saloon");
+                        this.eventsToTest.Add("3917587_Farm");
+                        this.eventsToTest.Add("3917590_Saloon");
+
+                        */
             /**  
 
               // Cheating Events
@@ -380,31 +461,60 @@ namespace StardewVoices
 
 
 
-
-
             dialogueWithRandomNounOrAdj.Add("Last night I dreamt that my left hand had turned into a gigantic %noun. Does that mean anything?", "Dialogue-fall_Thu_chance_1");
             dialogueWithRandomNounOrAdj.Add("I did, but all I remember is that it had something to do with a %adj %noun. Weird.", "Generic Marriage Dialogue-Indoor_Day_3_sv1");
 
         }
+        public float CalculateCharacterVolume(int volume)
+        {
+            float t = volume / 100f;
+            return 0.25f + MathF.Pow(t, 1.8f) * 4.5f;
+            
+        }
 
+        public float CalculateMasterVolume(int volume)
+        {
+            float t = volume / 100f;
+
+            // softer curve than characters so it behaves like a real "fader"
+            return MathF.Pow(t, 2.0f);
+        }
+
+        public float CalculateFinalVolume(int characterVolume, int masterVolume)
+        {
+            return CalculateCharacterVolume(characterVolume)
+                 * CalculateMasterVolume(masterVolume);
+        }
 
         /*********
         ** Private methods
         *********/
+
+
         /// <summary>The method invoked when the game updates its state.</summary>
         /// <param name="sender">The event sender.</param>
         /// <param name="e">The event arguments.</param>
         private void OnUpdateTicked(object sender, EventArgs e)
         {
-            //this.createModTestingWorld();
+           // this.createModTestingWorld();
 
             this.UpdateCurrentDialogue();
 
             this.UpdateLastLocationAndEvent();
 
-            if (this.dialogueCategory != null)
+
+            foreach (string character in LoveInterests)
             {
-                this.dialogueCategory.SetVolume(this.Config.DialogueVolume);
+                var prop = this.Config.GetType().GetProperty($"{character}Volume");
+                if (prop == null)
+                {
+                    this.characterDictionary[character].SetVolume(CalculateFinalVolume(100, this.Config.DialogueVolume));
+
+                } else
+                {
+                    this.characterDictionary[character].SetVolume(CalculateFinalVolume((int)prop.GetValue(this.Config), this.Config.DialogueVolume));
+
+                }
             }
 
             if (characterNameRegex.Length == 0 && Game1.characterData != null && this.testingWorldLoaded)
@@ -466,10 +576,11 @@ namespace StardewVoices
                 string location;
 
                 string[] currentEventSplitString = currentEventToTest.Split('_');
-                if(currentEventSplitString.Length > 2)
+                if (currentEventSplitString.Length > 2)
                 {
                     location = String.Join("_", currentEventSplitString.Skip(1).ToArray());
-                } else
+                }
+                else
                 {
                     location = currentEventSplitString[1];
                 }
@@ -516,18 +627,23 @@ namespace StardewVoices
                 //  }
             }
 
-         /**   if (this.Config.OpenMenuKey.JustPressed())
-            {
-                if (Game1.activeClickableMenu is Menu menu)
-                {
-                    menu.ExitIfValid();
-                }
-                else
-                {
-                    this.OpenVoicesMenu();
-                }
+            /**   if (this.Config.OpenMenuKey.JustPressed())
+               {
+                   if (Game1.activeClickableMenu is Menu menu)
+                   {
+                       menu.ExitIfValid();
+                   }
+                   else
+                   {
+                       this.OpenVoicesMenu();
+                   }
 
-            }*/
+               }*/
+        }
+
+        private void OnGameLaunched(object sender, GameLaunchedEventArgs e)
+        {
+            this.SetupGMCM();
         }
 
         private string GetCurrentTestDialogue()
@@ -563,15 +679,15 @@ namespace StardewVoices
 
                     try
                     {
-                        string jsonString = File.ReadAllText(filePath);
+                        string jsonString = File.ReadAllText(filePath, Encoding.UTF8);
                         this.currentEventDict = JsonConvert.DeserializeObject<Dictionary<string, string>>(jsonString);
                         this.eventsToday.Add(this.currentEventDict);
 
                     }
                     catch (Exception ex)
                     {
-                            this.Monitor.Log($"Event not found", LogLevel.Debug);
-                            this.Monitor.Log($"Attempted to read from filePath: {filePath}", LogLevel.Debug);
+                        this.Monitor.Log($"Event not found", LogLevel.Debug);
+                        this.Monitor.Log($"Attempted to read from filePath: {filePath}", LogLevel.Debug);
 
                     }
 
@@ -593,11 +709,12 @@ namespace StardewVoices
 
                     string filePath = Path.Combine(festivalDialogueFolderPath, (string)festivalNameToDateDict[this.lastFestival] + $".{GetLanguageJsonExtension(currentLanguage)}");
 
-                    string jsonString = File.ReadAllText(filePath);
+                    string jsonString = File.ReadAllText(filePath, Encoding.UTF8);
                     this.currentEventDict = null;
                     this.currentFestivalDict = JsonConvert.DeserializeObject<Dictionary<string, string[]>>(jsonString);
 
-                } catch (Exception ex)
+                }
+                catch (Exception ex)
                 {
                     this.Monitor.Log($"Couldn't find festival: {this.lastFestival}, {ex}", LogLevel.Debug);
                 }
@@ -633,7 +750,8 @@ namespace StardewVoices
                 // TODO: Check if i actually do need the dialogue context?
                 return characterSoundBank.GetCue(lineId);
 
-            } catch (Exception error)
+            }
+            catch (Exception error)
             {
                 this.Monitor.Log($"Error getting cue for {characterName}: {lineId} Sound Bank: {error}", LogLevel.Debug);
                 return null;
@@ -659,13 +777,14 @@ namespace StardewVoices
                             eventCommandDict.Add(count, command);
                             count++;
                         }
-                    } else
+                    }
+                    else
                     {
                         eventCommandDict.Add(count, eventCommand);
                         count++;
                     }
 
-               
+
                 }
                 eventCommandsHaveBeenLogged = true;
             }
@@ -700,7 +819,8 @@ namespace StardewVoices
                     try
                     {
                         currentCommand = eventCommandDict[Game1.CurrentEvent.currentCommand];
-                    } catch (Exception e)
+                    }
+                    catch (Exception e)
                     {
                         this.lastEventCommand = Game1.CurrentEvent.currentCommand;
                         return;
@@ -716,7 +836,7 @@ namespace StardewVoices
 
                     if (currentSpeaker.Contains("Could not find"))
                     {
-                       // this.Monitor.Log($"Could not find speaker for textAboveHead command: {currentCommand}", LogLevel.Debug);
+                        // this.Monitor.Log($"Could not find speaker for textAboveHead command: {currentCommand}", LogLevel.Debug);
                         this.lastEventCommand = Game1.CurrentEvent.currentCommand;
                         return;
                     }
@@ -728,12 +848,12 @@ namespace StardewVoices
                     }
                     catch (Exception e)
                     {
-                      //  Monitor.Log($"Error extracting dialogue from textAboveHead event command: {e}", LogLevel.Debug);
+                        //  Monitor.Log($"Error extracting dialogue from textAboveHead event command: {e}", LogLevel.Debug);
                         this.lastEventCommand = Game1.CurrentEvent.currentCommand;
                         return;
                     }
 
-                    
+
                     if (currentCommand.Contains("ClothesTherapyCharacters") && commandDialogue != "It's sweaty in here..." && currentSpeaker == "Abigail")
                     {
                         this.lastEventCommand = Game1.CurrentEvent.currentCommand;
@@ -747,7 +867,7 @@ namespace StardewVoices
 
                         if (textAboveHeadLineId.Contains("not found"))
                         {
-                           // this.Monitor.Log(textAboveHeadLineId, LogLevel.Debug);
+                            // this.Monitor.Log(textAboveHeadLineId, LogLevel.Debug);
                             this.lastEventCommand = Game1.CurrentEvent.currentCommand;
                             return;
                         }
@@ -756,7 +876,7 @@ namespace StardewVoices
 
                         if (this.currentCue == null)
                         {
-                         //   this.Monitor.Log($"Cue could not be found for textAboveHead line: {textAboveHeadLineId}", LogLevel.Debug);
+                            //   this.Monitor.Log($"Cue could not be found for textAboveHead line: {textAboveHeadLineId}", LogLevel.Debug);
                             this.lastEventCommand = Game1.CurrentEvent.currentCommand;
                             return;
                         }
@@ -792,6 +912,7 @@ namespace StardewVoices
 
         private void UpdateCurrentDialogue()
         {
+
             IClickableMenu currentActiveClickableMenu = Game1.activeClickableMenu;
             string currentDialogueBoxString = "";
 
@@ -804,7 +925,6 @@ namespace StardewVoices
             }
 
             this.CheckForTextAboveHead();
-
 
             // If the last dialogue box string stored doesn't equal the current dialogue box string that means there's been a change! (yay!)
             if (!this.LastDialogueBoxString.Equals(currentDialogueBoxString))
@@ -820,6 +940,7 @@ namespace StardewVoices
                     {
                         this.currentCue.Stop(AudioStopOptions.Immediate);
                         this.currentCue = null;
+
                     }
 
                     if (this.lastCue != null && this.lastCue.IsPlaying)
@@ -829,8 +950,7 @@ namespace StardewVoices
                 }
 
 
-                // If dialogue has gone from empty to not empty start the audio cues!
-                // Also only check supported characters for performance purposes.
+
                 if (Game1.currentSpeaker?.getName() != null && StringContainsSupportedCharacter(Game1.currentSpeaker?.getName())
                     && (currentActiveClickableMenu != null && currentActiveClickableMenu.GetType() == typeof(DialogueBox)) && currentDialogueBoxString.Length > 0 && currentDialogueBoxString != "...")
                 {
@@ -841,20 +961,25 @@ namespace StardewVoices
                         return;
                     }
 
-                    string currentLineId = getIdFromDialogueString(currentDialogueBoxString, Game1.currentSpeaker.Name);
+                    string currentSpeaker = GetName(Game1.currentSpeaker?.getName());
+
+
+                    string currentLineId = getIdFromDialogueString(currentDialogueBoxString, currentSpeaker);
+                    this.Monitor.Log(currentLineId, LogLevel.Debug);
+
 
                     if (currentLineId.Contains("not found"))
                     {
-                      //  this.Monitor.Log(currentLineId, LogLevel.Debug);
+                        this.Monitor.Log(currentLineId, LogLevel.Debug);
                         this.LastDialogueBoxString = currentDialogueBoxString;
                         return;
                     }
 
-                    this.currentCue = this.getCueFromDialogueId(currentLineId, Game1.currentSpeaker?.getName());
+                    this.currentCue = this.getCueFromDialogueId(currentLineId, currentSpeaker);
 
                     if (this.currentCue == null)
                     {
-                       // this.Monitor.Log($"Cue could not be found for current line: {this.currentLineId}: {currentDialogueBoxString}", LogLevel.Debug);
+                        // this.Monitor.Log($"Cue could not be found for current line: {this.currentLineId}: {currentDialogueBoxString}", LogLevel.Debug);
                         this.LastDialogueBoxString = currentDialogueBoxString;
                         return;
                     }
@@ -951,20 +1076,46 @@ namespace StardewVoices
                 for (int i = 0; i < this.supportedCharacters.Count; i++)
                 {
                     string characterDialoguePath = Path.Combine(characterDialogueFolderPath, supportedCharacters[i].ToLower() + ".json");
-                    string jsonString = File.ReadAllText(characterDialoguePath);
-                    characterDictionary[supportedCharacters[i]].DialogueDictionary = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, string[]>>>(jsonString);
+                    string jsonString = File.ReadAllText(characterDialoguePath, Encoding.UTF8);
+                    Dictionary<string, Dictionary<string, string[]>> tempDictionary = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, string[]>>>(jsonString);
+                    foreach (var script in tempDictionary)
+                    {
+                        tempDictionary[script.Key] = NormalizeDictionary(script.Value);
+                    }
 
-                    string genericDialogueJsonString = File.ReadAllText(engagementDialogueJsonPath);
-                    characterDictionary[supportedCharacters[i]].DialogueDictionary.Add("engagement", JsonConvert.DeserializeObject<Dictionary<string, string[]>>(genericDialogueJsonString));
+                    characterDictionary[supportedCharacters[i]].DialogueDictionary = tempDictionary;
 
-                    genericDialogueJsonString = File.ReadAllText(extraDialogueJsonPath);
-                    characterDictionary[supportedCharacters[i]].DialogueDictionary.Add("extra", JsonConvert.DeserializeObject<Dictionary<string, string[]>>(genericDialogueJsonString));
+                    string genericDialogueJsonString = File.ReadAllText(engagementDialogueJsonPath, Encoding.UTF8);
+                    characterDictionary[supportedCharacters[i]].DialogueDictionary.Add(
+                        "engagement", 
+                        JsonConvert.DeserializeObject<Dictionary<string, string[]>>(genericDialogueJsonString).ToDictionary(
+                            kvp => this.Normalize(kvp.Key),
+                            kvp => kvp.Value
+                        ));
 
-                    genericDialogueJsonString = File.ReadAllText(genericMarriageDialogueJsonPath);
-                    characterDictionary[supportedCharacters[i]].DialogueDictionary.Add("generic_marriage", JsonConvert.DeserializeObject<Dictionary<string, string[]>>(genericDialogueJsonString));
+                    genericDialogueJsonString = File.ReadAllText(extraDialogueJsonPath, Encoding.UTF8);
+                    characterDictionary[supportedCharacters[i]].DialogueDictionary.Add(
+                        "extra",
+                        JsonConvert.DeserializeObject<Dictionary<string, string[]>>(genericDialogueJsonString).ToDictionary(
+                            kvp => this.Normalize(kvp.Key),
+                            kvp => kvp.Value
+                        ));
 
-                    genericDialogueJsonString = File.ReadAllText(rainyDialogueJsonPath);
-                    characterDictionary[supportedCharacters[i]].DialogueDictionary.Add("rainy", JsonConvert.DeserializeObject<Dictionary<string, string[]>>(genericDialogueJsonString));
+                    genericDialogueJsonString = File.ReadAllText(genericMarriageDialogueJsonPath, Encoding.UTF8);
+                    characterDictionary[supportedCharacters[i]].DialogueDictionary.Add(
+                        "generic_marriage",
+                        JsonConvert.DeserializeObject<Dictionary<string, string[]>>(genericDialogueJsonString).ToDictionary(
+                            kvp => this.Normalize(kvp.Key),
+                            kvp => kvp.Value
+                        ));
+
+                    genericDialogueJsonString = File.ReadAllText(rainyDialogueJsonPath, Encoding.UTF8);
+                    characterDictionary[supportedCharacters[i]].DialogueDictionary.Add(
+                        "rainy",
+                        JsonConvert.DeserializeObject<Dictionary<string, string[]>>(genericDialogueJsonString).ToDictionary(
+                            kvp => this.Normalize(kvp.Key),
+                            kvp => kvp.Value
+                        ));
                 }
 
             }
@@ -975,13 +1126,26 @@ namespace StardewVoices
 
         }
 
+        private Dictionary<string, string[]> NormalizeDictionary(Dictionary<string, string[]> dictionary)
+        {
+            Dictionary<string, string[]> normalized = new Dictionary<string, string[]>();
+            foreach (var kvp in dictionary)
+            {
+                var normalizedKey = this.Normalize(kvp.Key);
+                normalized[normalizedKey] = kvp.Value;
+            }
+
+            return normalized;
+        }
+
         private void setupFestivalDictionary()
         {
             try
             {
-                string jsonString = File.ReadAllText(festivalDatesJsonPath);
+                string jsonString = File.ReadAllText(festivalDatesJsonPath, Encoding.UTF8);
                 this.festivalNameToDateDict = JsonConvert.DeserializeObject<Dictionary<string, string>>(jsonString);
-            } catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 this.Monitor.Log($"Error setting up festival dictionaries: {ex}. Audio will not play.", LogLevel.Error);
 
@@ -996,6 +1160,29 @@ namespace StardewVoices
                 this.characterDictionary.Add(supportedCharacters[i], new Character(supportedCharacters[i]));
             }
         }
+
+        private void SetupLocalizedToEnglishMap()
+            {
+                var result = new Dictionary<string, string>();
+
+                foreach (var englishEntry in LocalizedNpcNames)
+                {
+                    string englishName = englishEntry.Key;
+                    var localizedDict = englishEntry.Value;
+
+                    foreach (var localizedEntry in localizedDict)
+                    {
+                        string localizedName = localizedEntry.Value;
+
+                        if (!result.ContainsKey(localizedName))
+                        {
+                            result[localizedName] = englishName;
+                        }
+                    }
+                }
+
+            LocalizedToEnglishNameMap = result;
+            }
 
         private void setupContinuationDialogue()
         {
@@ -1012,8 +1199,7 @@ namespace StardewVoices
         {
             try
             {
-                this.audioEngine = new AudioEngine(Path.Combine(audioPath, "Stardew Voices.xgs"));
-                this.dialogueCategory = this.audioEngine.GetCategory("Default");
+                this.audioEngine = new AudioEngine(AudioPathHelper.GetGameRelativeAudioPath(audioPath, "Stardew Voices.xgs"));
 
                 foreach (string character in this.supportedCharacters)
                 {
@@ -1042,12 +1228,12 @@ namespace StardewVoices
         {
             dialogueString = dialogueString.Replace(Game1.player.Name, "@");
             dialogueString = dialogueString.Replace(Game1.getFarm().Name, "%farm");
-            if (this.currentEventDict == null )
+            if (this.currentEventDict == null)
             {
                 dialogueString = dialogueString.Replace("the second baby", "%kid2");
                 dialogueString = dialogueString.Replace("baby", "%kid1");
             }
-    
+
 
 
             /// TODO: remove hardcoded Abigail stuff!
@@ -1059,10 +1245,10 @@ namespace StardewVoices
 
             for (int i = 0; i < Game1.player.getChildren().Count; i++)
             {
-                dialogueString = dialogueString.Replace(Game1.player.getChildren()[i].Name, $"%kid{i+1}");
+                dialogueString = dialogueString.Replace(Game1.player.getChildren()[i].Name, $"%kid{i + 1}");
             }
 
-            return dialogueString;
+            return this.Normalize(dialogueString);
         }
 
         private bool IdHasSeasonInIt(string id)
@@ -1104,7 +1290,7 @@ namespace StardewVoices
 
                     if (this.IdHasDayOfWeekInIt(id))
                     {
-                         if (!id.Contains(Game1.Date.DayOfWeek.ToString().Substring(0, 3)) && !id.Contains(Game1.Date.DayOfWeek.ToString().Substring(0, 4)))
+                        if (!id.Contains(Game1.Date.DayOfWeek.ToString().Substring(0, 3)) && !id.Contains(Game1.Date.DayOfWeek.ToString().Substring(0, 4)))
                         {
                             continue;
                         }
@@ -1141,7 +1327,8 @@ namespace StardewVoices
                 }
 
                 return $"Event end dialogue not found for {currentSpeaker}: {dialogueString}";
-            } catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 return $"Event end dialogue not found for {currentSpeaker}: {dialogueString}, Exception: {ex}";
             }
@@ -1167,11 +1354,11 @@ namespace StardewVoices
                     foreach (string file in eventFilePaths)
                     {
 
-                        string jsonString = File.ReadAllText(file);
+                        string jsonString = File.ReadAllText(file, Encoding.UTF8);
                         Dictionary<string, string> tempEventDict = JsonConvert.DeserializeObject<Dictionary<string, string>>(jsonString);
 
                         // It needs to contain the dialogue line AND it has to be said by the right person
-                        if ( tempEventDict.ContainsKey(dialogueString) && tempEventDict[dialogueString].Contains(currentSpeaker))
+                        if (tempEventDict.ContainsKey(dialogueString) && tempEventDict[dialogueString].Contains(currentSpeaker))
                         {
                             this.eventResponseDict = tempEventDict;
                             return tempEventDict[dialogueString];
@@ -1182,7 +1369,8 @@ namespace StardewVoices
                 }
 
                 return $"Event dialogue not found for: {dialogueString} for {currentSpeaker}. No location.";
-            } catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 return $"Event dialogue not found for: {dialogueString} for {currentSpeaker}. Exception: {ex}";
             }
@@ -1232,7 +1420,7 @@ namespace StardewVoices
                     else
                     {
                         string closeEnoughKey = ContainsCloseEnoughLine(this.currentEventDict, formattedDialogueString);
-                        if(!closeEnoughKey.Contains("Not found"))
+                        if (!closeEnoughKey.Contains("Not found"))
                         {
                             return this.currentEventDict[closeEnoughKey];
                         }
@@ -1278,7 +1466,7 @@ namespace StardewVoices
                                     }
                                  }
                             } */
-                          
+
                         }
                         else
                         {
@@ -1459,17 +1647,10 @@ namespace StardewVoices
                     return $"Line not found for {currentSpeaker}: {formattedDialogueString}";
                 }
 
-            } catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 return $"Line not found for {currentSpeaker}: {formattedDialogueString}. Exception: {ex}";
-            }
-        }
-
-        private void OpenVoicesMenu()
-        {
-            if(Game1.activeClickableMenu == null)
-            {
-                Game1.activeClickableMenu = new Menu(this.dialogueCategory, this.Config, this.helper);
             }
         }
 
@@ -1495,18 +1676,48 @@ namespace StardewVoices
 
                 characterNameRegex = String.Join("|", characterNames);
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 Monitor.Log($"Error populating character names list: {ex}", LogLevel.Debug);
                 return;
             }
-      
+
+        }
+
+        private string GetName(string name)
+        {
+            if (SpecialCharacterLanguages.Contains(currentLanguage))
+            {
+                LocalizedToEnglishNameMap.TryGetValue(name, out string localizedCharacterName);
+                return localizedCharacterName;
+            } else
+            {
+                return name;
+            }
+        }
+
+        private string GetLocalizedName(string name)
+        {
+            if (SpecialCharacterLanguages.Contains(currentLanguage))
+            {
+                LocalizedNpcNames.TryGetValue(name, out Dictionary<string, string> localizedCharacterNames);
+                localizedCharacterNames.TryGetValue(currentLanguage, out string localizedCharacterName);
+                return localizedCharacterName;
+            }
+            else
+            {
+                return name;
+            }
         }
 
         private Boolean StringContainsSupportedCharacter(string input)
         {
-            for (int i=0; i<this.supportedCharacters.Count; i++)
+            for (int i = 0; i < this.supportedCharacters.Count; i++)
             {
-               if (input.Contains(this.supportedCharacters[i]))
+                string characterName = GetLocalizedName(this.supportedCharacters[i]);
+              
+
+                if (input.Contains(characterName))
                 {
                     return true;
                 }
@@ -1515,22 +1726,24 @@ namespace StardewVoices
             return false;
         }
 
+        
         private string GetSupportedCharacterFromString(string input)
         {
             for (int i = 0; i < this.supportedCharacters.Count; i++)
             {
-                if (input.Contains(this.supportedCharacters[i]))
+                string characterName = GetLocalizedName(supportedCharacters[i]);
+                if (input.Contains(characterName))
                 {
                     return this.supportedCharacters[i];
                 }
             }
 
-            return  "Could not find supported character in string :I";
+            return "Could not find supported character in string :I";
         }
 
         private string ContainsCloseEnoughLine(Dictionary<string, string> dictionary, string line)
         {
-            if(dictionary.ContainsKey(line))
+            if (dictionary.ContainsKey(line))
             {
                 return line;
             }
@@ -1539,7 +1752,7 @@ namespace StardewVoices
             {
                 string[] splitKey = key.Split(" ");
 
-                if (splitDialogueString.Length - key.Count(word => word=='@') > 1 && splitDialogueString.Intersect(splitKey).Count() > 0 && splitDialogueString.Length - splitDialogueString.Intersect(splitKey).Count() <= Math.Ceiling(splitDialogueString.Length * .25) )
+                if (splitDialogueString.Length - key.Count(word => word == '@') > 1 && splitDialogueString.Intersect(splitKey).Count() > 0 && splitDialogueString.Length - splitDialogueString.Intersect(splitKey).Count() <= Math.Ceiling(splitDialogueString.Length * .25))
                 {
                     // TODO FIX 
                     /*if (!key.Contains("female_farmer") && this.player.Gender == Gender.Female)
@@ -1569,7 +1782,7 @@ namespace StardewVoices
             {
                 string[] splitKey = key.Split(" ");
 
-                foreach ( string value in dictionary[key])
+                foreach (string value in dictionary[key])
                 {
                     if (splitDialogueString.Length - key.Count(word => word == '@') > 1 && splitDialogueString.Intersect(splitKey).Count() > 0 && splitDialogueString.Length - splitDialogueString.Intersect(splitKey).Count() <= Math.Ceiling(splitDialogueString.Length * .25))
                     {
@@ -1606,6 +1819,239 @@ namespace StardewVoices
 
         }
 
+        private void SetupGMCM()
+        {
+            var api = Helper.ModRegistry.GetApi<IGenericModConfigMenuApi>("spacechase0.GenericModConfigMenu");
+
+            if (api == null)
+                return;
+
+            api.Register(
+                ModManifest,
+                reset: () => Config = new ModConfig(),
+                save: () => Helper.WriteConfig(Config)
+            );
+
+            api.AddTextOption(
+            ModManifest,
+            name: () => Helper.Translation.Get("settings.language"),
+            getValue: () => Config.Language,
+            setValue: value =>
+            {
+                Config.Language = value;
+                ApplyLanguage(value);
+            },
+            allowedValues: languageDisplayNames.Keys.ToArray(),
+             formatAllowedValue: value =>
+             languageDisplayNames.TryGetValue(value, out var name)
+                 ? name
+                 : value
+             );
+
+            api.AddParagraph(
+                ModManifest,
+                () => Helper.Translation.Get("settings.languageWarning")
+              );
+
+            api.AddSectionTitle(
+                 ModManifest,
+                 text: () => $"{Helper.Translation.Get("settings.volume")}========================"
+                 );
+
+            api.AddParagraph(
+                ModManifest,
+                () => Helper.Translation.Get("settings.volumeNote")
+                );
+
+            api.AddNumberOption(
+                ModManifest,
+                () => this.Config.DialogueVolume,
+                value => this.Config.DialogueVolume = value,
+                () => Helper.Translation.Get("settings.allVoices"),
+                () => Helper.Translation.Get("settings.volumeTooltip"),
+                min: 0,
+                max: 100,
+                interval: 1
+            );
+
+
+            api.AddNumberOption(
+                 ModManifest,
+                 () => this.Config.AbigailVolume,
+                 value => this.Config.AbigailVolume = value,
+                 () => $"{GetLocalizedName("Abigail")}",
+                 () => $"Volume for {GetLocalizedName("Abigail")} dialogue",
+                 min: 0,
+                 max: 100,
+                 interval: 1
+             );
+
+            api.AddNumberOption(
+                ModManifest,
+                () => this.Config.AlexVolume,
+                value => this.Config.AlexVolume = value,
+                () => $"{GetLocalizedName("Alex")}",
+                () => $"Volume for {GetLocalizedName("Alex")} dialogue",
+                min: 0,
+                max: 100,
+                interval: 1
+            );
+
+            api.AddNumberOption(
+                ModManifest,
+                () => this.Config.ElliottVolume,
+                value => this.Config.ElliottVolume = value,
+                () => $"{GetLocalizedName("Elliott")}",
+                () => $"Volume for {GetLocalizedName("Elliott")} dialogue",
+                min: 0,
+                max: 100,
+                interval: 1
+            );
+
+            api.AddNumberOption(
+                ModManifest,
+                () => this.Config.EmilyVolume,
+                value => this.Config.EmilyVolume = value,
+                () => $"{GetLocalizedName("Emily")}",
+                () => $"Volume for {GetLocalizedName("Emily")} dialogue",
+                min: 0,
+                max: 100,
+                interval: 1
+            );
+
+            api.AddNumberOption(
+                ModManifest,
+                () => this.Config.HaleyVolume,
+                value => this.Config.HaleyVolume = value,
+                () => $"{GetLocalizedName("Haley")}",
+                () => $"Volume for {GetLocalizedName("Haley")} dialogue",
+                min: 0,
+                max: 100,
+                interval: 1
+            );
+
+            api.AddNumberOption(
+                ModManifest,
+                () => this.Config.HarveyVolume,
+                value => this.Config.HarveyVolume = value,
+                () => $"{GetLocalizedName("Harvey")}",
+                () => $"Volume for {GetLocalizedName("Harvey")} dialogue",
+                min: 0,
+                max: 100,
+                interval: 1
+            );
+
+            api.AddNumberOption(
+                ModManifest,
+                () => this.Config.LeahVolume,
+                value => this.Config.LeahVolume = value,
+                () => $"{GetLocalizedName("Leah")}",
+                () => $"Volume for {GetLocalizedName("Leah")} dialogue",
+                min: 0,
+                max: 100,
+                interval: 1
+            );
+
+            api.AddNumberOption(
+                ModManifest,
+                () => this.Config.MaruVolume,
+                value => this.Config.MaruVolume = value,
+                () => $"{GetLocalizedName("Maru")}",
+                () => $"Volume for {GetLocalizedName("Maru")} dialogue",
+                min: 0,
+                max: 100,
+                interval: 1
+            );
+
+            api.AddNumberOption(
+                ModManifest,
+                () => this.Config.PennyVolume,
+                value => this.Config.PennyVolume = value,
+                () => $"{GetLocalizedName("Penny")}",
+                () => $"Volume for {GetLocalizedName("Penny")} dialogue",
+                min: 0,
+                max: 100,
+                interval: 1
+            );
+
+            api.AddNumberOption(
+                ModManifest,
+                () => this.Config.SamVolume,
+                value => this.Config.SamVolume = value,
+                () => $"{GetLocalizedName("Sam")}",
+                () => $"Volume for {GetLocalizedName("Sam")} dialogue",
+                min: 0,
+                max: 100,
+                interval: 1
+            );
+
+            api.AddNumberOption(
+                ModManifest,
+                () => this.Config.SebastianVolume,
+                value => this.Config.SebastianVolume = value,
+                () => $"{GetLocalizedName("Sebastian")}",
+                () => $"Volume for {GetLocalizedName("Sebastian")} dialogue",
+                min: 0,
+                max: 100,
+                interval: 1
+            );
+
+            api.AddNumberOption(
+                ModManifest,
+                () => this.Config.ShaneVolume,
+                value => this.Config.ShaneVolume = value,
+                () => $"{GetLocalizedName("Shane")}",
+                () => $"Volume for {GetLocalizedName("Shane")} dialogue",
+                min: 0,
+                max: 100,
+                interval: 1
+            );
+
+
+            api.AddSectionTitle(
+                ModManifest,
+                text: () => Helper.Translation.Get("settings.castList"),
+                tooltip: () => Helper.Translation.Get("settings.castListToolTip")
+                );
+
+            void AddCastLine(string character, string actor)
+            {
+                api.AddSubHeader(
+                    mod: ModManifest,
+                    text: () => $"{character} - {actor}"
+                );
+            }
+
+            AddCastLine(GetLocalizedName("Emily"), "Ariel Michelle");
+            AddCastLine(GetLocalizedName("Penny"), "Heidi Tabing");
+            AddCastLine(GetLocalizedName("Sebastian"), "David Meyers");
+            AddCastLine(GetLocalizedName("Haley"), "Kemi Haydee Stanton");
+            AddCastLine(GetLocalizedName("Leah"), "Aiden Dawn");
+            AddCastLine(GetLocalizedName("Alex"), "Eamon Kinsman");
+            AddCastLine(GetLocalizedName("Sam"), "Jacob Hopkins");
+            AddCastLine(GetLocalizedName("Harvey"), "GM Hakim");
+            AddCastLine(GetLocalizedName("Maru"), "Nia Celeste");
+            AddCastLine(GetLocalizedName("Elliott"), "Emmanuel \"Menji\" Menjivar");
+            AddCastLine(GetLocalizedName("Abigail"), "Diana Jurand");
+            AddCastLine(GetLocalizedName("Shane"), "Jonathan David Bullock");
+
+
+        }
+
+        private void ApplyLanguage(string lang)
+        {
+            Monitor.Log($"Language switched to {lang} ({languageDisplayNames[lang]}) Please restart your program!", LogLevel.Info);
+        }
+
+        private string Normalize(string input)
+        {
+            return new string(input
+                .Normalize(NormalizationForm.FormC)
+                .Where(c => !char.IsControl(c))
+                .ToArray())
+            .Trim();
+        }
+
         private void PopulateTestDialogueList()
         {
             List<Dictionary<string, string[]>> characterDialogueDictionaries = new List<Dictionary<string, string[]>>();
@@ -1618,7 +2064,8 @@ namespace StardewVoices
                 shaneDictionary = this.characterDictionary["Shane"].DialogueDictionary;
 
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 Monitor.Log($"Could not find dialogue for Shane in testing. {ex}", LogLevel.Debug);
                 return;
             }
@@ -1666,7 +2113,7 @@ namespace StardewVoices
                         confirmedCharacterDialogue = false;
                         foreach (string value in characterDialogueDictionaries[i][key])
                         {
-                          
+
                             Match characterNameMatch = Regex.Match(value, this.characterNameRegex, RegexOptions.IgnoreCase);
                             if ((characterNameMatch.Success && value.Contains("Shane")) || !characterNameMatch.Success)
                             {

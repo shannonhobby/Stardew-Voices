@@ -1,0 +1,10 @@
+{
+    "settings.volumeNote": "Ses seviyesi hâlâ çok düşükse:\nayarlar bölümünden oyunun müzik ve ses efektlerinin sesini azaltın.",
+    "settings.volume": "Ses",
+    "settings.volumeTooltip": "Ses seviyesini ayarla",
+    "settings.languageWarning": "*DİL DEĞİŞİKLİKLERİNİN GEÇERLİ OLMASI İÇİN OYUNU YENİDEN BAŞLATMANIZ GEREKİR*",
+    "settings.language": "Dil",
+    "settings.contactInfoSection": "Herhangi bir sorunu bildirmek için stardewvoices@gmail.com adresiyle iletişime geçin",
+    "settings.castList": "Seslendirme ekibi <",
+    "settings.castListToolTip": "Karakterlere ses verenleri keşfedin!"
+}

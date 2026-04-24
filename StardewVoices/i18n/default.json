@@ -1,0 +1,10 @@
+{
+    "settings.volumeNote": "If the volume is still too quiet: \n adjust the game music / sound effects to be quieter in settings.",
+    "settings.volume": "Volume",
+    "settings.volumeTooltip": "Adjust volume level",
+    "settings.languageWarning": "*YOU WILL HAVE TO RESTART YOUR GAME FOR LANGUAGE CHANGES TO TAKE EFFECT*",
+    "settings.language": "Language",
+    "settings.contactInfoSection": "Contact stardewvoices@gmail.com to report any issues",
+    "settings.castList": "Cast List <",
+    "settings.castListToolTip": "Meet the voices behind the characters!"
+}

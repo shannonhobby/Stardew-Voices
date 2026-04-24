@@ -1,0 +1,10 @@
+{
+    "settings.volumeNote": "Ha a hangerő még mindig túl alacsony:\nállítsd halkabbra a játék zenéjét és hanghatásait a beállításokban.",
+    "settings.volume": "Hangerő",
+    "settings.volumeTooltip": "Hangerő beállítása",
+    "settings.languageWarning": "*A NYELVI VÁLTOZTATÁSOK ÉRVÉNYESÍTÉSÉHEZ ÚJRA KELL INDÍTANOD A JÁTÉKOT*",
+    "settings.language": "Nyelv",
+    "settings.contactInfoSection": "Hibák jelentéséhez írj a stardewvoices@gmail.com címre",
+    "settings.castList": "Szinkronszínészek <",
+    "settings.castListToolTip": "Ismerd meg a karakterek hangjait!"
+}

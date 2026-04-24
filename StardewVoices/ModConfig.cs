@@ -19,15 +19,23 @@ namespace StardewVoices
         public static ModConfig Defaults { get; } = new();
 
         /****
-         ** Keyboard buttons
+         ** Volume settings
          ****/
-        /// <summary>The button which opens the menu.</summary>
-        public KeybindList OpenMenuKey { get; set; } = new(SButton.V);
+        public int DialogueVolume { get; set; } = 100;
 
-        /****
-         ** Menu settings
-         ****/
-        public float DialogueVolume { get; set; } = 3f;
+        public int AbigailVolume { get; set; } = 100;
+        public int AlexVolume { get; set; } = 100;
+        public int ElliottVolume { get; set; } = 100;
+        public int EmilyVolume { get; set; } = 100;
+        public int HaleyVolume { get; set; } = 100;
+        public int HarveyVolume { get; set; } = 100;
+        public int LeahVolume { get; set; } = 100;
+        public int MaruVolume { get; set; } = 100;
+        public int PennyVolume { get; set; } = 100;
+        public int SamVolume { get; set; } = 100;
+        public int SebastianVolume { get; set; } = 100;
+        public int ShaneVolume { get; set; } = 100;
+
 
         /****
          ** Language settings

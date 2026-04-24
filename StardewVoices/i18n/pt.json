@@ -1,0 +1,10 @@
+{
+    "settings.volumeNote": "Se o volume ainda estiver muito baixo:\najuste o volume da música e dos efeitos sonoros do jogo nas configurações.",
+    "settings.volume": "Volume",
+    "settings.volumeTooltip": "Ajustar volume",
+    "settings.languageWarning": "*É NECESSÁRIO REINICIAR O JOGO PARA QUE AS ALTERAÇÕES DE IDIOMA TENHAM EFEITO*",
+    "settings.language": "Idioma",
+    "settings.contactInfoSection": "Entre em contato pelo e-mail stardewvoices@gmail.com para relatar qualquer problema",
+    "settings.castList": "Elenco vocal <",
+    "settings.castListToolTip": "Conheça as vozes dos personagens!"
+}

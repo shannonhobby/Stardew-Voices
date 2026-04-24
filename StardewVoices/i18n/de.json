@@ -1,0 +1,10 @@
+{
+    "settings.volumeNote": "Falls die Lautstärke immer noch zu niedrig ist:\nreduziere in den Einstellungen die Lautstärke von Musik und Soundeffekten im Spiel.",
+    "settings.volume": "Lautstärke",
+    "settings.volumeTooltip": "Lautstärke anpassen",
+    "settings.languageWarning": "*DU MUSST DAS SPIEL NEU STARTEN, DAMIT SPRACHÄNDERUNGEN WIRKUNG ERZIELEN*",
+    "settings.language": "Sprache",
+    "settings.contactInfoSection": "Bei Problemen kontaktiere bitte stardewvoices@gmail.com",
+    "settings.castList": "Cast der Sprecher <",
+    "settings.castListToolTip": "Lerne die Stimmen der Charaktere kennen!"
+}
