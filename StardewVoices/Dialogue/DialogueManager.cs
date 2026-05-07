@@ -6,83 +6,49 @@ using System;
 using Newtonsoft.Json;
 using StardewModdingAPI;
 using System.Text;
+using StardewVoices.Pathing;
+using StardewVoices.Characters;
+using StardewVoices.EventManager;
 
-namespace StardewVoices.DialogueManager
+namespace StardewVoices.Dialogue
 {
     public class DialogueManager
     {
-        private Dictionary<string, Character> characterDictionary = new Dictionary<string, Character>();
         private static Dictionary<string, Dictionary<string, string[]>> genericDialogueDictionariesDictionary = new Dictionary<string, Dictionary<string, string[]>>();
-
+        private FestivalHandler _festivalHandler { get; }
+        private EventHandler _eventHandler { get; }
+        private CharacterDialogueHandler _characterDialogueHandler { get; }
+        private ContinuationDialogue _continuationDialogue { get; }
+        private PathManager _pathManager { get; }
+        private CharacterManager _characterManager { get; }
+        private GameEvents _gameEvents { get; }
 
         Dictionary<string, string> dialogueWithRandomNounOrAdj = new Dictionary<string, string>();
-        bool isReplacementDialogueBox = false;
+        private bool isReplacementDialogueBox = false;
 
-        private void setupDialogueDictionaries()
-        {
-            try
-            {
-                if (!Directory.Exists(characterDialogueFolderPath))
-                    throw new Exception("Character dialogue folder could not be found");
+        public DialogueManager(PathManager pathManager, CharacterManager characterManager, GameEvents gameEvents) {
+            if (!Directory.Exists(pathManager.GetPath("Characters").ToString()))
+                throw new Exception("Character dialogue folder could not be found");
 
-                for (int i = 0; i < this.supportedCharacters.Count; i++)
-                {
-                    string characterDialoguePath = Path.Combine(characterDialogueFolderPath, supportedCharacters[i].ToLower() + ".json");
-                    string jsonString = File.ReadAllText(characterDialoguePath, Encoding.UTF8);
-                    Dictionary<string, Dictionary<string, string[]>> tempDictionary = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, string[]>>>(jsonString);
-                    foreach (var script in tempDictionary)
-                    {
-                        tempDictionary[script.Key] = NormalizeDictionary(script.Value);
-                    }
+            _pathManager = pathManager;
+            _characterManager = characterManager;
+            _gameEvents = gameEvents;
 
-                    characterDictionary[supportedCharacters[i]].DialogueDictionary = tempDictionary;
+            _festivalHandler = new FestivalHandler(pathManager);
+            _eventHandler = new EventHandler();
+            _characterDialogueHandler = new CharacterDialogueHandler(pathManager, characterManager);
+            _continuationDialogue = new ContinuationDialogue(characterManager);
 
-                    string genericDialogueJsonString = File.ReadAllText(engagementDialogueJsonPath, Encoding.UTF8);
-                    characterDictionary[supportedCharacters[i]].DialogueDictionary.Add(
-                        "engagement",
-                        JsonConvert.DeserializeObject<Dictionary<string, string[]>>(genericDialogueJsonString).ToDictionary(
-                            kvp => this.Normalize(kvp.Key),
-                            kvp => kvp.Value
-                        ));
 
-                    genericDialogueJsonString = File.ReadAllText(extraDialogueJsonPath, Encoding.UTF8);
-                    characterDictionary[supportedCharacters[i]].DialogueDictionary.Add(
-                        "extra",
-                        JsonConvert.DeserializeObject<Dictionary<string, string[]>>(genericDialogueJsonString).ToDictionary(
-                            kvp => this.Normalize(kvp.Key),
-                            kvp => kvp.Value
-                        ));
 
-                    genericDialogueJsonString = File.ReadAllText(genericMarriageDialogueJsonPath, Encoding.UTF8);
-                    characterDictionary[supportedCharacters[i]].DialogueDictionary.Add(
-                        "generic_marriage",
-                        JsonConvert.DeserializeObject<Dictionary<string, string[]>>(genericDialogueJsonString).ToDictionary(
-                            kvp => this.Normalize(kvp.Key),
-                            kvp => kvp.Value
-                        ));
-
-                    genericDialogueJsonString = File.ReadAllText(rainyDialogueJsonPath, Encoding.UTF8);
-                    characterDictionary[supportedCharacters[i]].DialogueDictionary.Add(
-                        "rainy",
-                        JsonConvert.DeserializeObject<Dictionary<string, string[]>>(genericDialogueJsonString).ToDictionary(
-                            kvp => this.Normalize(kvp.Key),
-                            kvp => kvp.Value
-                        ));
-                }
-
-            }
-            catch (Exception ex)
-            {
-                this.Monitor.Log($"Error setting up dialogue dictionaries: {ex}. Audio will not play.", LogLevel.Error);
-            }
-
+            dialogueWithRandomNounOrAdj.Add("Last night I dreamt that my left hand had turned into a gigantic %noun. Does that mean anything?", "Dialogue-fall_Thu_chance_1");
+            dialogueWithRandomNounOrAdj.Add("I did, but all I remember is that it had something to do with a %adj %noun. Weird.", "Generic Marriage Dialogue-Indoor_Day_3_sv1");
         }
-
 
         private string getIdFromDialogueString(string dialogueString, string currentSpeaker)
         {
 
-            if (!Directory.Exists(inverseDialogueFolderPath))
+            if (!Directory.Exists(_pathManager.GetPathString("Dialogue Jsons")))
                 return "Character dialogue folder could not be found";
 
             if (currentSpeaker == null)
@@ -90,17 +56,17 @@ namespace StardewVoices.DialogueManager
                 return $"Current speaker is null for {dialogueString}";
             }
 
-            Dictionary<string, Dictionary<string, string[]>> currentSpeakerDialogue;
+            DialogueDictionary currentSpeakerDialogueDict;
             Dictionary<string, string[]> dialogueDict;
             Dictionary<string, string[]> miscDialogueDict;
 
 
             try
             {
-                currentSpeakerDialogue = this.characterDictionary[currentSpeaker].DialogueDictionary;
+                currentSpeakerDialogueDict = _characterManager.GetCharacter(currentSpeaker).GetDialogueDictionary();
 
-                dialogueDict = currentSpeakerDialogue["dialogue"];
-                miscDialogueDict = currentSpeakerDialogue["misc"];
+                dialogueDict = currentSpeakerDialogueDict.GetType("dialogue");
+                miscDialogueDict = currentSpeakerDialogueDict.GetType("misc");
 
             }
             catch (Exception ex)

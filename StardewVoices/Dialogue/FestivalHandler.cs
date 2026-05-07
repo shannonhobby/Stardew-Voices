@@ -3,23 +3,26 @@ using StardewModdingAPI;
 using System.Collections.Generic;
 using System.Text;
 using System;
+using StardewVoices.Pathing;
+using System.IO;
 
-namespace StardewVoices.DialogueManager
+
+namespace StardewVoices.Dialogue
 {
-    public static class FestivalHandler
+    public class FestivalHandler
     {
         private Dictionary<string, string> festivalNameToDateDict = new Dictionary<string, string>();
 
-
         /// <summary>The in-game festival detected on the last update tick.</summary>
-        private string lastFestival = null;
-        private Dictionary<string, string[]> currentFestivalDict = null;
+        public string lastFestival { get; set; }
+        /// <summary>Dialogue for the currently active festival.</summary>
+        public DialogueDictionary currentFestivalDict { get; set; }
 
-        private void setupFestivalDictionary()
+        public FestivalHandler(PathManager pathManager)
         {
             try
             {
-                string jsonString = File.ReadAllText(festivalDatesJsonPath, Encoding.UTF8);
+                string jsonString = File.ReadAllText(pathManager.GetPathString(pathManager.FestivalDatesJsonName), Encoding.UTF8);
                 this.festivalNameToDateDict = JsonConvert.DeserializeObject<Dictionary<string, string>>(jsonString);
             }
             catch (Exception ex)
@@ -27,8 +30,6 @@ namespace StardewVoices.DialogueManager
                 this.Monitor.Log($"Error setting up festival dictionaries: {ex}. Audio will not play.", LogLevel.Error);
 
             }
-
         }
-
     }
 }

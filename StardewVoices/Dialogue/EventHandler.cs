@@ -5,16 +5,26 @@ using System.IO;
 using System.Text;
 using System;
 
-namespace StardewVoices.DialogueManager
+namespace StardewVoices.Dialogue
 {
-    public static class EventDialogueManager
+    public class EventHandler
     {
         private List<Dictionary<string, string>> eventsToday = new List<Dictionary<string, string>>();
 
         /// <summary>The in-game event detected on the last update tick.</summary>
-        private Event lastEvent = null;
-        private Dictionary<string, string> currentEventDict = null;
-        private Dictionary<string, string> eventResponseDict = null;
+        internal Event lastEvent = null;
+        internal Dictionary<string, string> currentEventDict = null;
+        internal Dictionary<string, string> eventResponseDict = null;
+
+        public EventHandler()
+        {
+
+        }
+
+        public Dictionary<string, string> CheckForEvent()
+        {
+
+        }
 
         private string checkEventsThatHappenedTodayForDialogue(string dialogueString, string currentSpeaker)
         {

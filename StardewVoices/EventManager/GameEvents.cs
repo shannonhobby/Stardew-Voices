@@ -11,15 +11,25 @@ using System.Text;
 
 namespace StardewVoices.EventManager
 {
-    public static class GameEvents {
+    public class GameEvents {
         /// <summary>The in-game location detected on the last update tick.</summary>
-        private GameLocation lastLocation = null;
-        private WorldDate lastDate = null;
+        private GameLocation _lastLocation = null;
+        private WorldDate _lastDate = null;
+        private bool _currentlyTalking;
+
+        private ManagerHub _managers { get; }
+        private DialogueEventManager _dialogueEventManager { get; }
+
+        public GameEvents(ManagerHub managers)
+        {
+            _managers = managers;
+            _dialogueEventManager = new DialogueEventManager();
+        }
 
         /// <summary>The method invoked when the game updates its state.</summary>
         /// <param name="sender">The event sender.</param>
         /// <param name="e">The event arguments.</param>
-        private void OnUpdateTicked(object sender, EventArgs e)
+        public void OnUpdateTicked(object sender, EventArgs e)
         {
             this.createModTestingWorld();
 
@@ -79,7 +89,7 @@ namespace StardewVoices.EventManager
         /// <summary>Raised after the player presses a button on the keyboard, controller, or mouse.</summary>
         /// <param name="sender">The event sender.</param>
         /// <param name="e">The event data.</param>
-        private void OnButtonPressed(object sender, ButtonPressedEventArgs e)
+        public void OnButtonPressed(object sender, ButtonPressedEventArgs e)
         {
             // ignore if player hasn't loaded a save yet
             if (!Context.IsWorldReady)
@@ -157,13 +167,13 @@ namespace StardewVoices.EventManager
                }*/
         }
 
-        private void OnGameLaunched(object sender, GameLaunchedEventArgs e)
+        public void OnGameLaunched(object sender, GameLaunchedEventArgs e)
         {
-            Menu.SetupGMCM(Helper, ModManifest);
+            _managers.menu.SetupGMCM(Helper, ModManifest);
         }
 
 
-        private void UpdateLastLocationAndEvent()
+        public void UpdateLastLocationAndEvent()
         {
             // Deal with events!
 

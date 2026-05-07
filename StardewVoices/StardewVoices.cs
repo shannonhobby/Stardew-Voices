@@ -35,7 +35,6 @@ namespace StardewVoices
 
 
 
-        private bool currentlyTalking;
 
     
       

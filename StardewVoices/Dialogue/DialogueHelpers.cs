@@ -6,14 +6,14 @@ using StardewVoices.Localization;
 using StardewModdingAPI;
 using StardewValley;
 
-namespace StardewVoices.DialogueManager
+namespace StardewVoices.Dialogue
 {
     public static class DialogueHelpers
     {
 
         public static Boolean StringContainsSupportedCharacter(string input)
         {
-            for (int i = 0; i < this.supportedCharacters.Count; i++)
+            for (int i = 0; i < Constants.supportedCharacters.Count; i++)
             {
                 string characterName = GetLocalizedName(this.supportedCharacters[i]);
 
@@ -100,7 +100,7 @@ namespace StardewVoices.DialogueManager
             Dictionary<string, string[]> normalized = new Dictionary<string, string[]>();
             foreach (var kvp in dictionary)
             {
-                var normalizedKey = this.Normalize(kvp.Key);
+                var normalizedKey = Normalize(kvp.Key);
                 normalized[normalizedKey] = kvp.Value;
             }
 

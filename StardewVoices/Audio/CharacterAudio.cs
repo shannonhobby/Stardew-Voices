@@ -1,17 +1,28 @@
 using Microsoft.Xna.Framework.Audio;
+using StardewModdingAPI;
 using StardewValley;
+using StardewValley.Audio;
 using StardewVoices.Utils;
+using System.Threading;
+using System;
 
 namespace StardewVoices.Audio
 {
     public class CharacterAudio
     {
         public SoundBank SoundBank { get; set; }
-        private AudioCategory AudioCategory { get; set; }
+        private AudioCategory _AudioCategory { get; }
+        private AudioManager _AudioManager { get; }
+
+        public CharacterAudio(string name, AudioManager audioManager) { 
+             SoundBank = new SoundBank(audioManager.AudioEngine, AudioPathHelper.GetGameRelativeAudioPath(audioManager.AudioPath.ToString(), name + ".xsb"));
+            _AudioCategory = audioManager.AudioEngine.GetCategory(name);
+        
+        }
 
         public void SetVolume(float volume)
         {
-            this.AudioCategory?.SetVolume(volume);
+            this._AudioCategory?.SetVolume(volume);
             // access the config from here?
             /*
             var prop = this.Config.GetType().GetProperty($"{character}Volume");
@@ -26,12 +37,6 @@ namespace StardewVoices.Audio
 
             }
             */
-        }
-
-        public void SetupAudioBanks(string name, AudioEngine audioEngine, string audioPath)
-        {
-            SoundBank = new SoundBank(audioEngine, AudioPathHelper.GetGameRelativeAudioPath(audioPath, name + ".xsb"));
-            AudioCategory = audioEngine.GetCategory(name);
         }
 
         public void Play(string cueName)

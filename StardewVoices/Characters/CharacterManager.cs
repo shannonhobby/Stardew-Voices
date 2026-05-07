@@ -5,37 +5,43 @@ using System.Threading;
 using System;
 using StardewValley;
 using System.Collections.Generic;
+using StardewVoices.Audio;
 
-namespace StardewVoices.CharacterManager
+namespace StardewVoices.Characters
 {
     public class CharacterManager
     {
         string characterNameRegex = "";
+        private Dictionary<string, Character> characterDictionary = new Dictionary<string, Character>();
 
-        public CharacterManager() { }
-        private void setupCharacterSoundBanks()
+        public CharacterManager() 
         {
-            try
-            {
-                this.audioEngine = new AudioEngine(AudioPathHelper.GetGameRelativeAudioPath(audioPath, "Stardew Voices.xgs"));
+            SetupCharacterDictionary();
+            PopulateCharacterNamesList();
+        }
 
-                foreach (string character in this.supportedCharacters)
-                {
-                    this.characterDictionary[character].Audio.SetupAudioBanks(character, audioEngine, audioPath);
-                }
+        public Character GetCharacter(string characterName)
+        {
+            return characterDictionary[characterName];
+        }
+      
 
-            }
-            catch (Exception e)
+        private void SetupCharacterDictionary()
+        {
+            for (int i = 0; i < Constants.supportedCharacters.Count; i++)
             {
-                Monitor.Log($"Error loading sound bank, audio cannot play: {e}", LogLevel.Error);
+                this.characterDictionary.Add(Constants.supportedCharacters[i], new Character(Constants.supportedCharacters[i]));
             }
         }
 
-        private void setupCharacterDictionary()
+        internal void SetCharacterAudio(string characterName, CharacterAudio audio)
         {
-            for (int i = 0; i < this.supportedCharacters.Count; i++)
+            try
             {
-                this.characterDictionary.Add(supportedCharacters[i], new Character(supportedCharacters[i]));
+                characterDictionary[characterName].SetCharacterAudio(audio);
+            } catch (Exception e)
+            {
+                // LOG ERROR
             }
         }
 

@@ -4,10 +4,14 @@ namespace StardewVoices.Localization
 {
     public class LocalizationManager
     {
-        private string currentLanguage;
+        public string CurrentLanguage { get; }
         private static Dictionary<string, string> LocalizedToEnglishNameMap;
 
-        public LocalizationManager() { }
+        public LocalizationManager(string currentLanguage)
+        {
+            CurrentLanguage = currentLanguage;
+            SetupLocalizedToEnglishMap();
+        }
 
         private void SetupLocalizedToEnglishMap()
         {
@@ -35,7 +39,7 @@ namespace StardewVoices.Localization
 
         public string GetName(string name)
         {
-            if (Constants.SpecialCharacterLanguages.Contains(currentLanguage))
+            if (Constants.SpecialCharacterLanguages.Contains(CurrentLanguage))
             {
                 LocalizedToEnglishNameMap.TryGetValue(name, out string localizedCharacterName);
                 return localizedCharacterName;
@@ -46,23 +50,23 @@ namespace StardewVoices.Localization
             }
         }
 
-        public string GetLanguageJsonExtension(string language)
+        public string GetLanguageJsonExtension()
         {
-            if (language == "en")
+            if (CurrentLanguage == "en")
             {
                 return "json";
             }
 
-            return $"{language}-{Constants.languageDict[language]}.json";
+            return $"{CurrentLanguage}-{Constants.languageDict[CurrentLanguage]}.json";
 
         }
 
         public string GetLocalizedName(string name)
         {
-            if (Constants.SpecialCharacterLanguages.Contains(currentLanguage))
+            if (Constants.SpecialCharacterLanguages.Contains(CurrentLanguage))
             {
                 Constants.LocalizedNpcNames.TryGetValue(name, out Dictionary<string, string> localizedCharacterNames);
-                localizedCharacterNames.TryGetValue(currentLanguage, out string localizedCharacterName);
+                localizedCharacterNames.TryGetValue(CurrentLanguage, out string localizedCharacterName);
                 return localizedCharacterName;
             }
             else

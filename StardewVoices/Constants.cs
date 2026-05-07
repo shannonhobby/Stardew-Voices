@@ -36,6 +36,22 @@ namespace StardewVoices
             "Shane",
         };
 
+        public static List<string> DialogueTypes = new()
+        {
+            "engagement",
+            "extra",
+            "generic_marriage",
+            "rainy",
+        };
+
+        public static Dictionary<string, string> DialogueTypeToFileName = new()
+        {
+            { "engagement", "EngagementDialogue.json" },
+            { "extra","ExtraDialogue.json" },
+            { "generic_marriage", "Marriage Dialogue Generic.json" },
+            { "rainy", "rainy.json" },
+        };
+
         public static readonly List<string> SpecialCharacterLanguages = new List<string>
          {
             "ko",
