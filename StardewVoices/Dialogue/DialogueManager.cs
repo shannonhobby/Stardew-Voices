@@ -65,15 +65,55 @@ namespace StardewVoices.Dialogue
             {
                 string eventDialogue = _eventHandler.CheckForDialogueInEvent(formattedDialogueString, currentSpeaker, _characterDialogueHandler);
                 if(eventDialogue != null)
-                {
-                    return eventDialogue;
-                }
+                                {
+                                    if (dialogueDict[closeEnoughKey].Length > 1)
+                                    {
+                                        return this.getCorrectIdFromListOfLineIds(dialogueDict[closeEnoughKey], currentSpeaker, "Dialogue-");
+                                    }else
+                                    {
+                                        return dialogueDict[closeEnoughKey][0];
+
+                                    }
+                                 }
+                            } */
+
+                        }
+                        else
+                        {
+                            return eventDialogue;
+                        }
 
                 string festivalDialogue = _festivalHandler.CheckForDialogueInFestival(formattedDialogueString, currentSpeaker, _characterDialogueHandler);
                 if(festivalDialogue != null)
-                {
+                        {
                     return festivalDialogue;
+                    }
+                    else
+                    {
+                        if (dialogueDict.ContainsKey(formattedDialogueString))
+                        {
+                            if (dialogueDict[formattedDialogueString].Length > 1)
+                            {
+                                return this.getCorrectIdFromListOfLineIds(dialogueDict[formattedDialogueString], currentSpeaker, "Dialogue-");
+                            }
+
+                            return dialogueDict[formattedDialogueString][0];
+                        }
+
+                        if (miscDialogueDict.ContainsKey(formattedDialogueString))
+                        {
+                            if (miscDialogueDict[formattedDialogueString].Length > 1)
+                            {
+                                return this.getCorrectIdFromListOfLineIds(miscDialogueDict[formattedDialogueString], currentSpeaker, "Internal Dialogue-");
+                            }
+
+                            return miscDialogueDict[formattedDialogueString][0];
+                        }
+
+                        return $"Festival dialogue not found for {formattedDialogueString}";
+                    }
                 }
+
                 // If not currently in event or festival check all dialogue dictionaries
                 else
                 {

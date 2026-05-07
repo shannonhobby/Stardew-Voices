@@ -71,7 +71,7 @@ namespace StardewVoices.Dialogue
                         return dialogueDict[closeEnoughKey][0];
 
                     }
-                 }
+            }
             } */
         }
 
