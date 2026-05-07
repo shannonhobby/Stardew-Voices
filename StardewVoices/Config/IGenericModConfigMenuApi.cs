@@ -7,7 +7,7 @@ using StardewModdingAPI.Utilities;
 using StardewValley;
 using StardewValley.Menus;
 
-namespace StardewVoices
+namespace StardewVoices.Config
 {
     /// <summary>The API which lets other mods add a config UI through Generic Mod Config Menu.</summary>
     public interface IGenericModConfigMenuApi // Obsolete methods can be found in Framework/IGenericModConfigMenuApiWithObsoleteMethods

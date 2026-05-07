@@ -6,14 +6,14 @@ using StardewVoices.Localization;
 using StardewModdingAPI;
 using StardewValley;
 
-namespace StardewVoices.DialogueManager
+namespace StardewVoices.Dialogue
 {
     public static class DialogueHelpers
     {
 
-        public static Boolean StringContainsSupportedCharacter(string input)
+        internal static Boolean StringContainsSupportedCharacter(string input)
         {
-            for (int i = 0; i < this.supportedCharacters.Count; i++)
+            for (int i = 0; i < Constants.supportedCharacters.Count; i++)
             {
                 string characterName = GetLocalizedName(this.supportedCharacters[i]);
 
@@ -28,7 +28,7 @@ namespace StardewVoices.DialogueManager
         }
 
 
-        public static string GetSupportedCharacterFromString(string input)
+        internal static string GetSupportedCharacterFromString(string input)
         {
             for (int i = 0; i < this.supportedCharacters.Count; i++)
             {
@@ -42,7 +42,7 @@ namespace StardewVoices.DialogueManager
             return "Could not find supported character in string :I";
         }
 
-        public static string ContainsCloseEnoughLine(Dictionary<string, string> dictionary, string line)
+        internal static string ContainsCloseEnoughLine(Dictionary<string, string> dictionary, string line)
         {
             if (dictionary.ContainsKey(line))
             {
@@ -72,7 +72,7 @@ namespace StardewVoices.DialogueManager
             return "Not found";
         }
 
-        public static string DialogueContainsCloseEnoughLine(Dictionary<string, string[]> dictionary, string line)
+        internal static string DialogueContainsCloseEnoughLine(Dictionary<string, string[]> dictionary, string line)
         {
             if (dictionary.ContainsKey(line))
             {
@@ -100,7 +100,7 @@ namespace StardewVoices.DialogueManager
             Dictionary<string, string[]> normalized = new Dictionary<string, string[]>();
             foreach (var kvp in dictionary)
             {
-                var normalizedKey = this.Normalize(kvp.Key);
+                var normalizedKey = Normalize(kvp.Key);
                 normalized[normalizedKey] = kvp.Value;
             }
 
@@ -109,7 +109,7 @@ namespace StardewVoices.DialogueManager
 
 
 
-        public static string Normalize(string input)
+        internal static string Normalize(string input)
         {
             return new string(input
                 .Normalize(NormalizationForm.FormC)
@@ -120,7 +120,7 @@ namespace StardewVoices.DialogueManager
 
 
 
-        public static bool DialogueHasContinuation(string dialogueId)
+        internal static bool DialogueHasContinuation(string dialogueId)
         {
             foreach (string id in this.continuationDialogue)
             {
@@ -134,7 +134,7 @@ namespace StardewVoices.DialogueManager
         }
 
 
-        private string formatDialogueString(string dialogueString)
+        private static string formatDialogueString(string dialogueString)
         {
             dialogueString = dialogueString.Replace(Game1.player.Name, "@");
             dialogueString = dialogueString.Replace(Game1.getFarm().Name, "%farm");
@@ -161,12 +161,12 @@ namespace StardewVoices.DialogueManager
             return this.Normalize(dialogueString);
         }
 
-        private bool IdHasSeasonInIt(string id)
+        private static bool IdHasSeasonInIt(string id)
         {
             return id.ToLower().Contains("fall") || id.ToLower().Contains("winter") || id.ToLower().Contains("spring") || id.ToLower().Contains("summer");
         }
 
-        private bool IdHasDayOfWeekInIt(string id)
+        private static bool IdHasDayOfWeekInIt(string id)
         {
             return id.ToLower().Contains("mon") || id.ToLower().Contains("tue") || id.ToLower().Contains("wed") || id.ToLower().Contains("thur") || id.ToLower().Contains("fri") || id.ToLower().Contains("sat") || id.ToLower().Contains("sun");
         }
@@ -174,7 +174,7 @@ namespace StardewVoices.DialogueManager
         // Abigail has two instances of this: event_grave (I've lived in the valley my whole life, but I've never really done anything memorable. I want to go on an adventure!) 
         // and PurchasedItem_Abigail_QualityLow vs high
         // We're gonna hard code for these situations a lil bit :(
-        private string getCorrectIdFromListOfLineIds(string[] dialogueIdStrings, string currentSpeaker, string dialogueContext)
+        internal static string getCorrectIdFromListOfLineIds(string[] dialogueIdStrings, string currentSpeaker, string dialogueContext)
         {
             foreach (string id in dialogueIdStrings)
             {

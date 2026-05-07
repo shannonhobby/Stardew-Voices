@@ -5,18 +5,66 @@ using System.IO;
 using System.Text;
 using System;
 
-namespace StardewVoices.DialogueManager
+namespace StardewVoices.Dialogue
 {
-    public static class EventDialogueManager
+    public class EventHandler
     {
-        private List<Dictionary<string, string>> eventsToday = new List<Dictionary<string, string>>();
+        internal List<Dictionary<string, string>> eventsToday = new List<Dictionary<string, string>>();
 
         /// <summary>The in-game event detected on the last update tick.</summary>
-        private Event lastEvent = null;
-        private Dictionary<string, string> currentEventDict = null;
-        private Dictionary<string, string> eventResponseDict = null;
+        internal Event lastEvent = null;
+        internal Dictionary<string, string> currentEventDict = null;
+        // TODO - i forget what this is for exactly but it's important
+        internal Dictionary<string, string> eventResponseDict = null;
 
-        private string checkEventsThatHappenedTodayForDialogue(string dialogueString, string currentSpeaker)
+        public EventHandler()
+        {
+
+        }
+
+        public string CheckForDialogueInEvent(string dialogue, string currentSpeaker, CharacterDialogueHandler characterDialogueHandler)
+        {
+            if(EventsIsHappening())
+            {
+                if (this.currentEventDict.ContainsKey(dialogue))
+                {
+                    return this.currentEventDict[dialogue];
+                }
+            } else
+            {
+                // this doesn't really do anything? might be safe to remove
+                string closeEnoughKey = DialogueHelpers.ContainsCloseEnoughLine(this.currentEventDict, dialogue);
+
+                // Check surrounding event files and also the dialogue file to see if the dialogue is there:
+                if (this.eventResponseDict != null && this.eventResponseDict.ContainsKey(dialogue))
+                {
+                    return eventResponseDict[dialogue];
+                }
+
+                string eventDialogue = checkForDialogueInNearbyEvents(dialogue, currentSpeaker, Game1.CurrentEvent.id);
+
+                // If it's not found in a nearby event it could be in dialogue
+                if (eventDialogue.Contains("not found"))
+                {
+
+                    characterDialogueHandler.CheckEverydayCharacterDictionariesForDialogue(currentSpeaker, dialogue);
+                }
+                else
+                {
+                    return eventDialogue;
+                }
+
+                return $"Event dialogue not found for {dialogue}";
+            }
+
+        }
+
+        private Boolean EventsIsHappening()
+        {
+            return Game1.CurrentEvent != null && this.currentEventDict != null;
+        }
+
+        internal string checkEventsThatHappenedTodayForDialogue(string dialogueString, string currentSpeaker)
         {
             try
             {

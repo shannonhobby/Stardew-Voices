@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System;
 
-namespace StardewVoices.DialogueManager
+namespace StardewVoices.Dialogue
 {
     public static class TextBubbleHandler {
         private Dictionary<int, string> eventCommandDict = new Dictionary<int, string>();
