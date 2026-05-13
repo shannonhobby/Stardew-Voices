@@ -13,16 +13,16 @@ namespace StardewVoices.Audio
     public class AudioManager
     {
         internal AudioEngine AudioEngine { get; }
-        internal CuePlayer CuePlayer { get; }
         internal PathNode AudioPath { get; }
         public List<CharacterAudio> CharacterAudios { get; }
-        internal CharacterManager CharacterManager { get; } 
+        internal CharacterManager CharacterManager { get; }
+
+        private Cue lastCue { get; set; }
+        private Cue currentCue { get; set; }
 
         public AudioManager(CharacterManager characterManager, PathManager pathManager) {
             AudioPath = pathManager.GetPath("Audio");
 ;           AudioEngine = new AudioEngine(AudioPathHelper.GetGameRelativeAudioPath(AudioPath.ToString(), "Stardew Voices.xgs"));
-            CuePlayer = new CuePlayer();
-
             CharacterManager = characterManager;
             try
             {
@@ -36,24 +36,77 @@ namespace StardewVoices.Audio
             }
             catch (Exception e)
             {
-                Monitor.Log($"Error loading sound bank, audio cannot play: {e}", LogLevel.Error);
+                ErrorLogger.Error($"Error loading sound bank, audio cannot play:", e);
             }
         }
 
+
         public void Play(string lineId, string characterName)
         {
-            Character character = CharacterManager.GetCharacter(characterName);
-            character.Play(lineId);
+            SoundBank soundBank = CharacterManager.GetCharacter(characterName)?.GetSoundBank();
+            currentCue = getCueFromDialogueId(lineId, soundBank, characterName);
+
+
+            if (lastCue != null && lastCue.IsPlaying)
+            {
+                lastCue.Stop(AudioStopOptions.Immediate);
+            }
+
+            currentCue.Play();
         }
+
+        public Cue GetCueFromDialogueId(string lineId, string characterName)
+        {
+            Character character = CharacterManager.GetCharacter(characterName);
+            return character.Audio.GetCue(lineId);
+
+        }
+
 
         public void StopCue()
         {
-            CuePlayer.Stop();
+            if (currentCue != null)
+            {
+                currentCue.Stop(AudioStopOptions.Immediate);
+                currentCue = null;
+
+            }
+
+            StopLastCue();
+        }
+
+        public void StopLastCue()
+        {
+
+            if (lastCue != null && lastCue.IsPlaying)
+            {
+                lastCue.Stop(AudioStopOptions.Immediate);
+            }
+        }
+
+        public Boolean LastCueIsStillPlaying() {
+            return (this.lastCue == null || (this.lastCue != null && !this.lastCue.IsPlaying);
         }
 
         public void NextCue()
         {
-            CuePlayer.NextCue();
+            if (this.currentCue != null)
+            {
+                this.lastCue = currentCue;
+            }
+        }
+
+        public Cue getCueFromDialogueId(string lineId, SoundBank soundBank, string characterName)
+        {
+            try
+            {
+                return soundBank.GetCue(lineId);
+            }
+            catch (Exception error)
+            {
+                ErrorLogger.WarnOnce($"Error getting cue for {characterName}: {lineId} Sound Bank: {error}");
+                return null;
+            }
         }
     }
 }

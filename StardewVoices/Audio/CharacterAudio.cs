@@ -12,13 +12,11 @@ namespace StardewVoices.Audio
     {
         public SoundBank SoundBank { get; set; }
         private AudioCategory _audioCategory { get; }
-        private CuePlayer _cuePlayer { get; }
         private string characterName { get; }
 
         public CharacterAudio(string name, AudioManager audioManager) { 
              SoundBank = new SoundBank(audioManager.AudioEngine, AudioPathHelper.GetGameRelativeAudioPath(audioManager.AudioPath.ToString(), name + ".xsb"));
             _audioCategory = audioManager.AudioEngine.GetCategory(name);
-            _cuePlayer = audioManager.CuePlayer;
             characterName = name;
         }
 
@@ -39,11 +37,6 @@ namespace StardewVoices.Audio
 
             }
             */
-        }
-
-        public void Play(string lineId)
-        {
-            _cuePlayer.Play(lineId, characterName, SoundBank);
         }
     }
 }

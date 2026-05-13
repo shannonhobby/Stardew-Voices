@@ -10,14 +10,12 @@ namespace StardewVoices.Dialogue
         private Dictionary<int, string> eventCommandDict = new Dictionary<int, string>();
         private int lastEventCommand;
         public bool eventCommandsHaveBeenLogged = false;
-        private DialogueManager _dialogueManager { get; }
 
-        public TextBubbleHandler(DialogueManager dialogueManager)
+        public TextBubbleHandler()
         {
-            _dialogueManager = dialogueManager;
         }
 
-        public void CheckForTextAboveHead()
+        public (String commandDialogue, String currentSpeaker)? CheckForTextAboveHead()
         {
             if (!eventCommandsHaveBeenLogged && Game1.CurrentEvent != null)
             {
@@ -42,7 +40,7 @@ namespace StardewVoices.Dialogue
                     if (currentSpeaker.Contains("Could not find"))
                     {
                         this.lastEventCommand = Game1.CurrentEvent.currentCommand;
-                        return;
+                        return null;
                     }
 
                     try
@@ -54,35 +52,24 @@ namespace StardewVoices.Dialogue
                     {
                         //  Monitor.Log($"Error extracting dialogue from textAboveHead event command: {e}", LogLevel.Debug);
                         this.lastEventCommand = Game1.CurrentEvent.currentCommand;
-                        return;
+                        return null;
                     }
 
                     // TODO - remove hardcoded Abigail Logic
                     if (currentCommand.Contains("ClothesTherapyCharacters") && commandDialogue != "It's sweaty in here..." && currentSpeaker == "Abigail")
                     {
                         this.lastEventCommand = Game1.CurrentEvent.currentCommand;
-                        return;
+                        return null;
                     }
 
-                    if (_dialogueManager.GetCurrentEventDict() != null)
-                    {
 
-                        string textAboveHeadLineId = _dialogueManager.getIdFromDialogueString(DialogueHelpers.formatDialogueString(commandDialogue), currentSpeaker);
-
-                        if (textAboveHeadLineId.Contains("not found"))
-                        {
-                            // this.Monitor.Log(textAboveHeadLineId, LogLevel.Debug);
-                            this.lastEventCommand = Game1.CurrentEvent.currentCommand;
-                            return;
-                        }
-
-                            
-                         _dialogueManager.Play(textAboveHeadLineId, currentSpeaker);
-                    }
+                    this.lastEventCommand = Game1.CurrentEvent.currentCommand;
+                    return (commandDialogue, currentSpeaker);
                 }
-
-                this.lastEventCommand = Game1.CurrentEvent.currentCommand;
             }
+
+            this.lastEventCommand = Game1.CurrentEvent.currentCommand;
+            return null;
         }
 
         private void LogEventCommands()

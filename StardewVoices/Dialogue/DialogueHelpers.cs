@@ -52,7 +52,7 @@ namespace StardewVoices.Dialogue
         {
             for (int i = 0; i < Constants.supportedCharacters.Count; i++)
             {
-                string characterName = GetLocalizedName(supportedCharacters[i]);
+                string characterName = GetLocalizedName(Constants.supportedCharacters[i]);
 
 
                 if (input.Contains(characterName))
@@ -67,12 +67,12 @@ namespace StardewVoices.Dialogue
 
         internal static string GetSupportedCharacterFromString(string input)
         {
-            for (int i = 0; i < supportedCharacters.Count; i++)
+            for (int i = 0; i < Constants.supportedCharacters.Count; i++)
             {
-                string characterName = GetLocalizedName(supportedCharacters[i]);
+                string characterName = GetLocalizedName(Constants.supportedCharacters[i]);
                 if (input.Contains(characterName))
                 {
-                    return supportedCharacters[i];
+                    return Constants.supportedCharacters[i];
                 }
             }
 
@@ -132,7 +132,7 @@ namespace StardewVoices.Dialogue
         }
 
 
-        private Dictionary<string, string[]> NormalizeDictionary(Dictionary<string, string[]> dictionary)
+        private static Dictionary<string, string[]> NormalizeDictionary(Dictionary<string, string[]> dictionary)
         {
             Dictionary<string, string[]> normalized = new Dictionary<string, string[]>();
             foreach (var kvp in dictionary)

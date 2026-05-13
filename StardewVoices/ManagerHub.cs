@@ -16,7 +16,7 @@ namespace StardewVoices
         public PathManager PathManager { get; }
         public LocalizationManager LocalizationManager { get; }
         public Menu Menu { get; }
-        public GameEvents GameEventManager { get; }
+        public GameEventsService GameEventManager { get; }
         public CharacterManager CharacterManager { get; }
         public AudioManager AudioManager { get; }
         public DialogueManager DialogueManager { get; }
@@ -27,7 +27,7 @@ namespace StardewVoices
             LocalizationManager = new LocalizationManager(config.Language);
             Menu = new Menu(config, LocalizationManager, helper, manifest);
             PathManager = new PathManager(helper.DirectoryPath, LocalizationManager);
-            GameEventManager = new GameEvents(this);
+            GameEventManager = new GameEventsService(this);
             CharacterManager = new CharacterManager();
             AudioManager = new AudioManager(CharacterManager, PathManager);
             TestingManager = new TestingManager(CharacterManager);

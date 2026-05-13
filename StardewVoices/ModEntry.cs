@@ -1,6 +1,7 @@
 using StardewModdingAPI;
 using StardewValley;
 using StardewVoices.Localization;
+using StardewVoices.Utils;
 using System.IO;
 
 namespace StardewVoices
@@ -16,6 +17,7 @@ namespace StardewVoices
         /// <param name="helper">Provides simplified APIs for writing mods.</param>
         public override void Entry(IModHelper helper)
         {
+            ErrorLogger.Init(this.Monitor);
             this.helper = helper;
 
             managerHub = new ManagerHub(helper, this.ModManifest);

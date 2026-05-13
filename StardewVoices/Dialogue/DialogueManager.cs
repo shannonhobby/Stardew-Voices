@@ -25,8 +25,7 @@ namespace StardewVoices.Dialogue
         private ContinuationDialogue _continuationDialogue { get; }
         private PathManager _pathManager { get; }
         private CharacterManager _characterManager { get; }
-        private AudioManager _audioManager { get; }
-        private GameEvents _gameEvents { get; }
+        private GameEventsService _gameEvents { get; }
         private TestingManager _testingManager { get; }
 
 
@@ -34,11 +33,10 @@ namespace StardewVoices.Dialogue
         // When I have programatically updated the text
 
         public DialogueManager(PathManager pathManager,
-            CharacterManager characterManager, 
-            GameEvents gameEvents,
+            CharacterManager characterManager,
+            GameEventsService gameEvents,
             TestingManager testingManager,
-            LocalizationManager localizationManager,
-            AudioManager audioManager
+            LocalizationManager localizationManager
             ) {
             if (!Directory.Exists(pathManager.GetPath("Characters").ToString()))
                 throw new Exception("Character dialogue folder could not be found");
@@ -47,9 +45,8 @@ namespace StardewVoices.Dialogue
             _characterManager = characterManager;
             _gameEvents = gameEvents;
             _testingManager = testingManager;
-            _audioManager = audioManager;
 
-            textBubbleHandler = new TextBubbleHandler(this);
+            textBubbleHandler = new TextBubbleHandler();
             festivalHandler = new FestivalHandler(pathManager, localizationManager);
             eventHandler = new EventHandler(pathManager);
             characterDialogueHandler = new CharacterDialogueHandler(pathManager, characterManager, _testingManager);
@@ -61,17 +58,6 @@ namespace StardewVoices.Dialogue
             dialogueWithRandomNounOrAdj.Add("I did, but all I remember is that it had something to do with a %adj %noun. Weird.", "Generic Marriage Dialogue-Indoor_Day_3_sv1");
         }
 
-        // Audio Manager Calls
-
-        public void Play(string lineId, string characterName)
-        {
-            _audioManager.Play(lineId, characterName);
-        }
-
-        public void StopAudioCue()
-        {
-            _audioManager.StopCue();
-        }
 
         // Events
 
@@ -122,9 +108,20 @@ namespace StardewVoices.Dialogue
             festivalHandler.ResetFestival();
         }
 
-        public void CheckForTextAboveHead()
+        public (String textAboveHeadLineId, String currentSpeaker)? CheckForTextAboveHead()
         {
-            textBubbleHandler.CheckForTextAboveHead();
+             var textAboveHeadDialogueAndSpeaker = textBubbleHandler.CheckForTextAboveHead();
+
+
+            if (GetCurrentEventDict() != null && textAboveHeadDialogueAndSpeaker != null)
+            {
+
+                string textAboveHeadLineId = getIdFromDialogueString(DialogueHelpers.formatDialogueString(textAboveHeadDialogueAndSpeaker?.commandDialogue), textAboveHeadDialogueAndSpeaker?.currentSpeaker);
+
+                return (textAboveHeadLineId, textAboveHeadDialogueAndSpeaker?.currentSpeaker);
+            }
+
+            return null;
         }
 
         public string getIdFromDialogueString(string dialogueString, string currentSpeaker)

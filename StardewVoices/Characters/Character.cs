@@ -2,6 +2,7 @@ using StardewValley;
 using StardewVoices.Audio;
 using StardewVoices.Dialogue;
 using System.Collections.Generic;
+using Microsoft.Xna.Framework.Audio;
 
 namespace StardewVoices.Characters
 { 
@@ -10,7 +11,7 @@ namespace StardewVoices.Characters
         private string Name { get; }
         private NPC InGameNPC { get; set; }
 
-        private CharacterAudio Audio { get; set; }
+        public CharacterAudio Audio { get; set; }
         private DialogueDictionary DialogueDictionary { get; set; }
         public Character(string name)
         {
@@ -25,6 +26,8 @@ namespace StardewVoices.Characters
         // Dialogue
 
         public DialogueDictionary GetDialogueDictionary() { return DialogueDictionary; }
+
+        public SoundBank GetSoundBank() { return Audio.SoundBank; }
 
         public void SetDialogueDictionary (DialogueDictionary dialogueDictionary )
         {

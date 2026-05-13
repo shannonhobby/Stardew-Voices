@@ -11,7 +11,7 @@ using System.Text;
 
 namespace StardewVoices.EventManager
 {
-    public class GameEvents {
+    public class GameEventsService {
         /// <summary>The in-game location detected on the last update tick.</summary>
         private GameLocation lastLocation { get; set; }
         /// <summary>The in-game event detected on the last update tick.</summary>
@@ -19,17 +19,17 @@ namespace StardewVoices.EventManager
         private WorldDate lastDate { get; set; }
 
         private ManagerHub _managers { get; }
-        private DialogueEventManager _dialogueEventManager { get; }
+        private DialoguePlaybackController _DialoguePlaybackController { get; }
 
-        public GameEvents(ManagerHub managers)
+        public GameEventsService(ManagerHub managers)
         {
-            _managers = managers;
-            _dialogueEventManager = new DialogueEventManager(managers.DialogueManager);
+            _managers = managers;s
+            _DialoguePlaybackController = new DialoguePlaybackController(managers.DialogueManager, managers.LocalizationManager, managers.AudioManager);
         }
 
         public void changeCurrentDialogueBoxString(string dialogueBoxString)
         {
-            _dialogueEventManager.changeCurrentDialogueBoxString(dialogueBoxString);
+            _DialoguePlaybackController.changeCurrentDialogueBoxString(dialogueBoxString);
         }
 
         /// <summary>The method invoked when the game updates its state.</summary>
@@ -39,7 +39,7 @@ namespace StardewVoices.EventManager
         {
             _managers.TestingManager.createModTestingWorld();
 
-            _dialogueEventManager.UpdateCurrentDialogue();
+            _DialoguePlaybackController.UpdateCurrentDialogue();
 
             this.UpdateLastLocationAndEvent();
 
@@ -57,7 +57,7 @@ namespace StardewVoices.EventManager
             {
                 lastDate = Game1.Date;
 
-                _dialogueEventManager.ResetEventsToday();
+                _DialoguePlaybackController.ResetEventsToday();
 
             }
             /**
@@ -105,7 +105,7 @@ namespace StardewVoices.EventManager
                 if (Game1.activeClickableMenu != null)
                 {
                     Game1.activeClickableMenu = null;
-                    _dialogueEventManager.currentlyTalking = false;
+                    _DialoguePlaybackController.currentlyTalking = false;
                 }
 
                 // TODO: solution for testing multiple character at a time?
@@ -145,7 +145,7 @@ namespace StardewVoices.EventManager
 
             if (Game1.CurrentEvent == null && this.lastEvent != null && this.lastLocation != null)
             {
-                _dialogueEventManager.EndEvent();
+                _DialoguePlaybackController.EndEvent();
             }
 
             if (Game1.CurrentEvent != null && !Game1.CurrentEvent.isFestival && this.lastEvent == null)
@@ -159,7 +159,7 @@ namespace StardewVoices.EventManager
 
                     try
                     {
-                        _dialogueEventManager.StartEvent(filePath);
+                        _DialoguePlaybackController.StartEvent(filePath);
 
                     }
                     catch (Exception ex)
@@ -174,9 +174,9 @@ namespace StardewVoices.EventManager
             }
 
             // Festivals are just special events, so get the current festival from the current event.
-            if (_dialogueEventManager.IsFestivalHappening())
+            if (_DialoguePlaybackController.IsFestivalHappening())
             {
-                _dialogueEventManager.StartFestival(Game1.CurrentEvent.FestivalName);
+                _DialoguePlaybackController.StartFestival(Game1.CurrentEvent.FestivalName);
             }
 
             this.lastEvent = Game1.CurrentEvent;
@@ -186,16 +186,16 @@ namespace StardewVoices.EventManager
             // Have I flip flopped the logic? becasue eventResponseDict is set to null in EndEvent()
 
             // Unset Dialogue Dictionary when necessary
-            if ((this.lastEvent == null || this.lastEvent.isFestival) && _dialogueEventManager.GetCurrentEventDict() != null)
+            if ((this.lastEvent == null || this.lastEvent.isFestival) && _DialoguePlaybackController.GetCurrentEventDict() != null)
             {
-                _dialogueEventManager.SetCurrentEventDictToNull();
+                _DialoguePlaybackController.SetCurrentEventDictToNull();
             }
 
 
             // Remember to unset the festival once the event changes!!
-            if ((this.lastEvent == null || !this.lastEvent.isFestival) && _dialogueEventManager.GetLastFestival() != null)
+            if ((this.lastEvent == null || !this.lastEvent.isFestival) && _DialoguePlaybackController.GetLastFestival() != null)
             {
-                _dialogueEventManager.ResetFestival();
+                _DialoguePlaybackController.ResetFestival();
             }
 
         }

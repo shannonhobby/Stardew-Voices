@@ -10,7 +10,7 @@ using StardewVoices.Audio;
 
 namespace StardewVoices.EventManager
 {
-    public class DialogueEventManager
+    public class DialoguePlaybackController
     {
         private DialogueManager _dialogueManager { get; }
         private AudioManager _audioManager { get; }
@@ -22,7 +22,7 @@ namespace StardewVoices.EventManager
         private bool isReplacementDialogueBox = false;
 
 
-        public DialogueEventManager(
+        public DialoguePlaybackController(
             DialogueManager dialogueManager, LocalizationManager localizationManager, AudioManager audioManager) 
         {
             _dialogueManager = dialogueManager;
@@ -99,19 +99,11 @@ namespace StardewVoices.EventManager
             }
         }
 
+        // TODO REFACTOR
         internal void UpdateCurrentDialogue()
         {
 
-            IClickableMenu currentActiveClickableMenu = Game1.activeClickableMenu;
-            string currentDialogueBoxString = "";
-
-            if (
-                currentActiveClickableMenu != null
-                && currentActiveClickableMenu.GetType() == typeof(DialogueBox)
-               )
-            {
-                currentDialogueBoxString = ((DialogueBox)currentActiveClickableMenu).getCurrentString();
-            }
+            string currentDialogueBoxString = GetCurrentDialogueBoxString();
 
             _dialogueManager.CheckForTextAboveHead();
 
@@ -148,9 +140,9 @@ namespace StardewVoices.EventManager
                         return;
                     }
 
-                    this.currentCue = this.getCueFromDialogueId(currentLineId, currentSpeaker);
+                    Cue cue = _audioManager.GetCueFromDialogueId(currentLineId, currentSpeaker);
 
-                    if (this.currentCue == null)
+                    if (cue == null)
                     {
                         // this.Monitor.Log($"Cue could not be found for current line: {this.currentLineId}: {currentDialogueBoxString}", LogLevel.Debug);
                         this.LastDialogueBoxString = currentDialogueBoxString;
@@ -159,23 +151,21 @@ namespace StardewVoices.EventManager
                     else
                     {
 
-                        if (this.lastCue != null && this.lastCue.IsPlaying)
-                        {
-                            this.lastCue.Stop(AudioStopOptions.Immediate);
-                        }
+                        _audioManager.StopLastCue();
 
+                        // TODO - refactor ?? i think this is an attempt to fix the one after another dialogue
                         // If the last cue is still playing current cue probably isn't ready to play yet
-                        if (this.lastCue == null || (this.lastCue != null && !this.lastCue.IsPlaying) && !currentlyTalking)
+                        if (_audioManager.LastCueIsStillPlaying() && !currentlyTalking)
                         {
                             currentlyTalking = true;
-                            this.currentCue.Play();
+                            cue.Play();
 
                             // i THINK events are the only place the right after anotehr dialogue can happen 
                             if ((Game1.CurrentEvent != null && !Game1.CurrentEvent.isFestival)
-                                || this.currentCue.Name.Contains("Gift")
-                                || this.DialogueHasContinuation(this.currentCue.Name)
-                                || this.currentCue.Name.Contains("endDialogue")
-                                || this.currentCue.Name.ToLower().Contains("event"))
+                                || cue.Name.Contains("Gift")
+                                || DialogueHelpers.DialogueHasContinuation(cue.Name)
+                                || cue.Name.Contains("endDialogue")
+                                || cue.Name.ToLower().Contains("event"))
                             {
                                 currentlyTalking = false;
                             }
@@ -206,6 +196,22 @@ namespace StardewVoices.EventManager
             return Game1.activeClickableMenu != null 
                 && Game1.activeClickableMenu.GetType() == typeof(DialogueBox)
                 && ((DialogueBox)Game1.activeClickableMenu).getCurrentString().Length > 0;
+        }
+
+        private string GetCurrentDialogueBoxString()
+        {
+            IClickableMenu currentActiveClickableMenu = Game1.activeClickableMenu;
+
+            if (
+                currentActiveClickableMenu != null
+                && currentActiveClickableMenu.GetType() == typeof(DialogueBox)
+               )
+            {
+               return ((DialogueBox)currentActiveClickableMenu).getCurrentString();
+            } else
+            {
+                return null;
+            }
         }
 
     }
