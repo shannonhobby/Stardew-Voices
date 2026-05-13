@@ -12,15 +12,18 @@ namespace StardewVoices.Audio
 {
     public class AudioManager
     {
-        internal AudioEngine AudioEngine {  get; }
+        internal AudioEngine AudioEngine { get; }
         internal CuePlayer CuePlayer { get; }
         internal PathNode AudioPath { get; }
         public List<CharacterAudio> CharacterAudios { get; }
+        internal CharacterManager CharacterManager { get; } 
 
         public AudioManager(CharacterManager characterManager, PathManager pathManager) {
             AudioPath = pathManager.GetPath("Audio");
 ;           AudioEngine = new AudioEngine(AudioPathHelper.GetGameRelativeAudioPath(AudioPath.ToString(), "Stardew Voices.xgs"));
+            CuePlayer = new CuePlayer();
 
+            CharacterManager = characterManager;
             try
             {
                 foreach (string character in Constants.supportedCharacters)
@@ -35,6 +38,22 @@ namespace StardewVoices.Audio
             {
                 Monitor.Log($"Error loading sound bank, audio cannot play: {e}", LogLevel.Error);
             }
+        }
+
+        public void Play(string lineId, string characterName)
+        {
+            Character character = CharacterManager.GetCharacter(characterName);
+            character.Play(lineId);
+        }
+
+        public void StopCue()
+        {
+            CuePlayer.Stop();
+        }
+
+        public void NextCue()
+        {
+            CuePlayer.NextCue();
         }
     }
 }

@@ -5,17 +5,54 @@ using System;
 using StardewVoices.Localization;
 using StardewModdingAPI;
 using StardewValley;
+using Newtonsoft.Json;
+using System.IO;
 
 namespace StardewVoices.Dialogue
 {
     public static class DialogueHelpers
     {
+        internal static Dictionary<string, string[]> GetDictionaryFromPath(string path)
+        {
+            try
+            {
+                string jsonString = File.ReadAllText(path, Encoding.UTF8);
+                return JsonConvert.DeserializeObject<Dictionary<string, string[]>>(jsonString).ToDictionary(
+                                kvp => DialogueHelpers.Normalize(kvp.Key),
+                                kvp => kvp.Value
+                            );
+            }
+            catch
+            {
+                // error handling
+                return null;
+            }
+
+        }
+
+        internal static Dictionary<string, string> GetEventDictionaryFromPath(string path)
+        {
+            try
+            {
+                string jsonString = File.ReadAllText(path, Encoding.UTF8);
+                return JsonConvert.DeserializeObject<Dictionary<string, string>>(jsonString).ToDictionary(
+                                kvp => DialogueHelpers.Normalize(kvp.Key),
+                                kvp => kvp.Value
+                            );
+            }
+            catch
+            {
+                // error handling
+                return null;
+            }
+
+        }
 
         internal static Boolean StringContainsSupportedCharacter(string input)
         {
             for (int i = 0; i < Constants.supportedCharacters.Count; i++)
             {
-                string characterName = GetLocalizedName(this.supportedCharacters[i]);
+                string characterName = GetLocalizedName(supportedCharacters[i]);
 
 
                 if (input.Contains(characterName))
@@ -30,12 +67,12 @@ namespace StardewVoices.Dialogue
 
         internal static string GetSupportedCharacterFromString(string input)
         {
-            for (int i = 0; i < this.supportedCharacters.Count; i++)
+            for (int i = 0; i < supportedCharacters.Count; i++)
             {
                 string characterName = GetLocalizedName(supportedCharacters[i]);
                 if (input.Contains(characterName))
                 {
-                    return this.supportedCharacters[i];
+                    return supportedCharacters[i];
                 }
             }
 
@@ -56,10 +93,10 @@ namespace StardewVoices.Dialogue
                 if (splitDialogueString.Length - key.Count(word => word == '@') > 1 && splitDialogueString.Intersect(splitKey).Count() > 0 && splitDialogueString.Length - splitDialogueString.Intersect(splitKey).Count() <= Math.Ceiling(splitDialogueString.Length * .25))
                 {
                     // TODO FIX 
-                    /*if (!key.Contains("female_farmer") && this.player.Gender == Gender.Female)
+                    /*if (!key.Contains("female_farmer") && player.Gender == Gender.Female)
                     {
                         return key.Replace("male", "female");
-                    } else if (key.Contains("female_farmer") && this.player.Gender == Gender.Male)
+                    } else if (key.Contains("female_farmer") && player.Gender == Gender.Male)
                     {
                         return key.Replace("female", "male");
                     }
@@ -122,7 +159,7 @@ namespace StardewVoices.Dialogue
 
         internal static bool DialogueHasContinuation(string dialogueId)
         {
-            foreach (string id in this.continuationDialogue)
+            foreach (string id in continuationDialogue)
             {
                 if (dialogueId == id)
                 {
@@ -134,11 +171,11 @@ namespace StardewVoices.Dialogue
         }
 
 
-        private static string formatDialogueString(string dialogueString)
+        internal static string formatDialogueString(string dialogueString)
         {
             dialogueString = dialogueString.Replace(Game1.player.Name, "@");
             dialogueString = dialogueString.Replace(Game1.getFarm().Name, "%farm");
-            if (this.currentEventDict == null)
+            if (currentEventDict == null)
             {
                 dialogueString = dialogueString.Replace("the second baby", "%kid2");
                 dialogueString = dialogueString.Replace("baby", "%kid1");
@@ -158,7 +195,7 @@ namespace StardewVoices.Dialogue
                 dialogueString = dialogueString.Replace(Game1.player.getChildren()[i].Name, $"%kid{i + 1}");
             }
 
-            return this.Normalize(dialogueString);
+            return Normalize(dialogueString);
         }
 
         private static bool IdHasSeasonInIt(string id)
@@ -188,9 +225,9 @@ namespace StardewVoices.Dialogue
                 }
 
                 // If the id has a day of the week and/or season we should check to see if it's right
-                if (Game1.Date != null && (this.IdHasDayOfWeekInIt(id) || this.IdHasSeasonInIt(id)))
+                if (Game1.Date != null && (IdHasDayOfWeekInIt(id) || IdHasSeasonInIt(id)))
                 {
-                    if (this.IdHasSeasonInIt(id))
+                    if (IdHasSeasonInIt(id))
                     {
                         if (!id.Contains(Game1.Date.SeasonKey))
                         {
@@ -198,7 +235,7 @@ namespace StardewVoices.Dialogue
                         }
                     }
 
-                    if (this.IdHasDayOfWeekInIt(id))
+                    if (IdHasDayOfWeekInIt(id))
                     {
                         if (!id.Contains(Game1.Date.DayOfWeek.ToString().Substring(0, 3)) && !id.Contains(Game1.Date.DayOfWeek.ToString().Substring(0, 4)))
                         {
@@ -212,13 +249,13 @@ namespace StardewVoices.Dialogue
 
                 // The last line id will show which event choice was made last and then we can just choose
                 // The new id that continues that event.
-                if (this.lastLineId != null && id.Contains(this.lastLineId))
+                if (lastLineId != null && id.Contains(lastLineId))
                 {
                     return id;
                 }
             }
 
-            this.Monitor.Log("Correct line id not found from list of line ids taking first one: " + String.Join(", ", dialogueIdStrings), LogLevel.Debug);
+            Monitor.Log("Correct line id not found from list of line ids taking first one: " + String.Join(", ", dialogueIdStrings), LogLevel.Debug);
 
             return dialogueIdStrings[0];
 

@@ -18,7 +18,7 @@ namespace StardewVoices
         {
             this.helper = helper;
 
-            managerHub = new ManagerHub(helper);
+            managerHub = new ManagerHub(helper, this.ModManifest);
     
 
             helper.Events.GameLoop.UpdateTicked += managerHub.GameEventManager.OnUpdateTicked;

@@ -10,14 +10,18 @@ namespace StardewVoices.Config
         public IGenericModConfigMenuApi gmcm = null;
         private ModConfig _config { get; set; }
         private LocalizationManager _localizationManager { get; }
+        private IModHelper Helper { get; }
+        private IManifest ModManifest { get; }
 
-        public Menu(ModConfig config, LocalizationManager localization)
+        public Menu(ModConfig config, LocalizationManager localization, IModHelper helper, IManifest manifest)
         {
             _config = config;
             _localizationManager = localization;
+            Helper = helper;
+            ModManifest = manifest;
         }
 
-        public void SetupGMCM(IModHelper Helper, IManifest ModManifest)
+        public void SetupGMCM()
         {
             var api = Helper.ModRegistry.GetApi<IGenericModConfigMenuApi>("spacechase0.GenericModConfigMenu");
 

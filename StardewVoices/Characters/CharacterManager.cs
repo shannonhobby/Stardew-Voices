@@ -11,20 +11,19 @@ namespace StardewVoices.Characters
 {
     public class CharacterManager
     {
-        string characterNameRegex = "";
+        private string characterNameRegex { get; set; }
         private Dictionary<string, Character> characterDictionary = new Dictionary<string, Character>();
 
         public CharacterManager() 
         {
             SetupCharacterDictionary();
-            PopulateCharacterNamesList();
         }
 
         public Character GetCharacter(string characterName)
         {
             return characterDictionary[characterName];
         }
-      
+
 
         private void SetupCharacterDictionary()
         {
@@ -45,9 +44,14 @@ namespace StardewVoices.Characters
             }
         }
 
+        internal string GetCharacterNameRegex()
+        {
+            return characterNameRegex;
+        }
 
 
-        private void PopulateCharacterNamesList()
+
+        public void PopulateCharacterNamesList()
         {
             if (Game1.characterData == null)
             {

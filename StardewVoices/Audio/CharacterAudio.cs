@@ -11,18 +11,20 @@ namespace StardewVoices.Audio
     public class CharacterAudio
     {
         public SoundBank SoundBank { get; set; }
-        private AudioCategory _AudioCategory { get; }
-        private AudioManager _AudioManager { get; }
+        private AudioCategory _audioCategory { get; }
+        private CuePlayer _cuePlayer { get; }
+        private string characterName { get; }
 
         public CharacterAudio(string name, AudioManager audioManager) { 
              SoundBank = new SoundBank(audioManager.AudioEngine, AudioPathHelper.GetGameRelativeAudioPath(audioManager.AudioPath.ToString(), name + ".xsb"));
-            _AudioCategory = audioManager.AudioEngine.GetCategory(name);
-        
+            _audioCategory = audioManager.AudioEngine.GetCategory(name);
+            _cuePlayer = audioManager.CuePlayer;
+            characterName = name;
         }
 
         public void SetVolume(float volume)
         {
-            this._AudioCategory?.SetVolume(volume);
+            this._audioCategory?.SetVolume(volume);
             // access the config from here?
             /*
             var prop = this.Config.GetType().GetProperty($"{character}Volume");
@@ -39,9 +41,9 @@ namespace StardewVoices.Audio
             */
         }
 
-        public void Play(string cueName)
+        public void Play(string lineId)
         {
-            /// TODO
+            _cuePlayer.Play(lineId, characterName, SoundBank);
         }
     }
 }

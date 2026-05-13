@@ -1,28 +1,36 @@
 using Newtonsoft.Json;
 using StardewValley;
+using StardewValley.Util;
+using StardewVoices.Pathing;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using System;
 
 namespace StardewVoices.Dialogue
 {
     public class EventHandler
     {
-        internal List<Dictionary<string, string>> eventsToday = new List<Dictionary<string, string>>();
+        private Dictionary<string, string> _currentEventDict;
+        internal Dictionary<string, string> currentEventDict 
+        {
+            get => _currentEventDict; 
+            set { _currentEventDict = value; if (value != null) { eventsToday.Add(value); }  }
+        }
 
-        /// <summary>The in-game event detected on the last update tick.</summary>
-        internal Event lastEvent = null;
-        internal Dictionary<string, string> currentEventDict = null;
         // TODO - i forget what this is for exactly but it's important
         internal Dictionary<string, string> eventResponseDict = null;
 
-        public EventHandler()
-        {
+        private PathManager _pathManager { get; }
 
+        public List<Dictionary<string, string>> eventsToday = new List<Dictionary<string, string>>();
+
+        public EventHandler(PathManager pathManager)
+        {
+            _pathManager = pathManager;
         }
 
-        public string CheckForDialogueInEvent(string dialogue, string currentSpeaker, CharacterDialogueHandler characterDialogueHandler)
+        internal string CheckForDialogueInEvent(string dialogue, string currentSpeaker, CharacterDialogueHandler characterDialogueHandler)
         {
             if(EventsIsHappening())
             {
@@ -56,6 +64,8 @@ namespace StardewVoices.Dialogue
 
                 return $"Event dialogue not found for {dialogue}";
             }
+
+            return null;
 
         }
 
@@ -92,7 +102,7 @@ namespace StardewVoices.Dialogue
             {
                 if (Game1.currentLocation != null)
                 {
-                    string eventPath = Path.Combine(eventDialogueFolderPath, Game1.currentLocation.Name);
+                    string eventPath = Path.Combine(_pathManager.GetPathString("Events"), Game1.currentLocation.Name);
                     if (!Directory.Exists(eventPath))
                     {
                         return $"Directory not found at {eventPath}";
@@ -126,5 +136,6 @@ namespace StardewVoices.Dialogue
             }
 
         }
+
     }
 }

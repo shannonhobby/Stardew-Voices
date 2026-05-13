@@ -7,17 +7,19 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using StardewVoices.Characters;
-using StardewValley;
+using StardewVoices.Testing;
 
 namespace StardewVoices.Dialogue
 {
-    internal class CharacterDialogueHandler
+    public class CharacterDialogueHandler
     {
 
-        private CharacterManager _characterManageer { get; }
-        public CharacterDialogueHandler(PathManager pathManager, CharacterManager characterManager) 
+        private CharacterManager _characterManager { get; }
+        private TestingManager _testingManager { get; }
+
+        public CharacterDialogueHandler(PathManager pathManager, CharacterManager characterManager, TestingManager testingManager) 
         {
-            _characterManageer = characterManager;
+            _characterManager = characterManager;
             foreach(string characterName in Constants.supportedCharacters)
             {
                 string characterDialoguePath = Path.Combine(
@@ -26,23 +28,43 @@ namespace StardewVoices.Dialogue
                 Character character = characterManager.GetCharacter(characterName);
                 character.SetDialogueDictionary(SetupDialogueDictionaryFromJsonPath(characterDialoguePath));
                 
-                foreach(string dialogueType in Constants.DialogueTypes)
+                // We only need the generic dialogue types because the dialogue and misc dialogue are included in
+                // [characterName].json
+                foreach(string dialogueType in Constants.GenericDialogueTypes)
                 {
                     character.AddDialogueType(
                         dialogueType,
-                        GetDictionaryFromPath(pathManager.GetPathString(Constants.DialogueTypeToFileName[dialogueType])));
+                        DialogueHelpers.GetDictionaryFromPath(pathManager.GetPathString(Constants.GenericDialogueTypeToFileName[dialogueType])));
                 }
             }
         }
 
-        public string CheckAllCharacterDictionariesForDialogue(string currentSpeaker, string dialogue)
+        private DialogueDictionary SetupDialogueDictionaryFromJsonPath(string path)
         {
+            try
+            {
+                string jsonString = File.ReadAllText(path, Encoding.UTF8);
+                return new DialogueDictionary(jsonString);
 
+            }
+            catch (Exception ex)
+            {
+                // error handling
+                return null;
+            }
+
+        }
+
+
+        public string CheckForCharacterDialogueLineId(string currentSpeaker, string dialogue)
+        {
+            DialogueDictionary dialogueDictionary = _characterManager.GetCharacter(currentSpeaker).GetDialogueDictionary();
+            return dialogueDictionary.CheckAllDictionariesForDialogueLine(dialogue, currentSpeaker, _testingManager);
         }
 
         public string CheckEverydayCharacterDictionariesForDialogue(string currentSpeaker, string dialogue)
         {
-            DialogueDictionary currentSpeakerDialogueDict = _characterManageer.GetCharacter(currentSpeaker).GetDialogueDictionary();
+            DialogueDictionary currentSpeakerDialogueDict = _characterManager.GetCharacter(currentSpeaker).GetDialogueDictionary();
 
             string dialogueCheck = currentSpeakerDialogueDict.CheckDictionaryForDialogueLine("dialogue", dialogue, currentSpeaker);
             string miscDialogueCheck = currentSpeakerDialogueDict.CheckDictionaryForDialogueLine("misc", dialogue, currentSpeaker);
@@ -75,38 +97,7 @@ namespace StardewVoices.Dialogue
             } */
         }
 
-        private DialogueDictionary SetupDialogueDictionaryFromJsonPath(string path) 
-        {
-            try
-            {
-                string jsonString = File.ReadAllText(path, Encoding.UTF8);
-                return new DialogueDictionary(jsonString);
-             
-            }catch(Exception ex)
-            {
-                // error handling
-                return null;
-            }
-           
-        }
-
-        private Dictionary<string, string[]> GetDictionaryFromPath(string path)
-        {
-            try
-            {
-                string jsonString = File.ReadAllText(path, Encoding.UTF8);
-                return JsonConvert.DeserializeObject<Dictionary<string, string[]>>(jsonString).ToDictionary(
-                                kvp => DialogueHelpers.Normalize(kvp.Key),
-                                kvp => kvp.Value
-                            );
-            } catch
-            {
-                // error handling
-                return null;
-            }
-        
-        }
-
+   
 
     }
 }

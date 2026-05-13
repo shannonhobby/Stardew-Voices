@@ -6,19 +6,26 @@ using StardewValley.Menus;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Threading;
+using StardewVoices.Characters;
+using StardewVoices.Dialogue;
+using System.Linq;
 
 namespace StardewVoices.Testing
 {
-    public class Testing
+    public class TestingManager
     {
-        private Boolean testingWorldLoaded = false;
+        private Boolean testingWorldLoaded { get; set; }
         private List<string> eventsToTest = new List<string>();
         private int eventsToTestIndex = 0;
         List<string> testDialogue = new List<string>();
 
-        // Mod Testing world stuff
-        private bool testingWorldLoaded = false;
+        private CharacterManager _characterManager { get;}
         private NPC Shane;
+
+        public TestingManager(CharacterManager characterManager) {
+            _characterManager = characterManager;
+            testingWorldLoaded = false;
+        }
 
         private string GetCurrentTestDialogue()
         {
@@ -28,6 +35,10 @@ namespace StardewVoices.Testing
 
         }
 
+        public Boolean IsTestingWorldLoaded()
+        {
+            return testingWorldLoaded;
+        }
 
         public void createModTestingWorld()
         {
@@ -38,8 +49,7 @@ namespace StardewVoices.Testing
             {
                 foreach (string name in Constants.LoveInterests)
                 {
-                    NPC inGameNPC = Game1.getCharacterFromName(name);
-                    characterDictionary[name].InGameNPC = inGameNPC;
+                    NPC inGameNPC = _characterManager.GetCharacter(name).GetNPC();
                     FarmHouse farmHouse = Game1.getLocationFromName("FarmHouse") as FarmHouse;
                     Game1.warpCharacter(inGameNPC, "FarmHouse", farmHouse.getRandomOpenPointInHouse(new Random()));
                     inGameNPC.ignoreScheduleToday = true;
@@ -51,10 +61,62 @@ namespace StardewVoices.Testing
             }
         }
 
-        private void triggerEvent(string eventId, string locationName)
+        public void SetupTestDialogue()
         {
-            GameLocation gameLocation = Game1.getLocationFromName(locationName);
-            Game1.warpFarmer(locationName, 0, 0, true);
+            if (IsTestingWorldLoaded())
+            {
+                // TODO - what's the regex for? is it only for the testing world loaded?
+                if (_characterManager.GetCharacterNameRegex().Length == 0 && Game1.characterData != null)
+                {
+                    _characterManager.PopulateCharacterNamesList();
+                    if (_characterManager.GetCharacterNameRegex().Length == 0)
+                    {
+                        Monitor.Log("Unable to populate character names :(", LogLevel.Debug);
+                    }
+                }
+
+                if (_characterManager.GetCharacterNameRegex().Length > 0 && testDialogue.Count == 0)
+                {
+                    PopulateTestDialogueList();
+                    if (testDialogue.Count == 0)
+                    {
+                        Monitor.Log("Unable to populate test dialogue list :(", LogLevel.Debug);
+                    }
+                }
+
+                SetupEventsToTest();
+            }
+        }
+
+        public Boolean IsTestDialogueSetup()
+        {
+            return testDialogue.Count > 0;
+        }
+
+        public void TriggerEvent()
+        {
+
+            this.Monitor.Log($"K Pressed, starting event", LogLevel.Debug);
+
+            string currentEventToTest = this.eventsToTest[eventsToTestIndex];
+            string eventId = currentEventToTest.Split("_")[0];
+            string location;
+
+            string[] currentEventSplitString = currentEventToTest.Split('_');
+            if (currentEventSplitString.Length > 1)
+            {
+                location = String.Join("_", currentEventSplitString.Skip(1).ToArray());
+            }
+            else
+            {
+                location = currentEventSplitString[1];
+            }
+
+
+
+
+            GameLocation gameLocation = Game1.getLocationFromName(location);
+            Game1.warpFarmer(location, 0, 0, true);
             bool validEvent = true;
             Game1.PlayEvent(eventId, gameLocation, out validEvent, false, false);
 
@@ -62,18 +124,29 @@ namespace StardewVoices.Testing
             {
                 throw new Exception($"Invalid event: {eventId}");
             }
+
+            this.eventsToTestIndex++;
         }
 
-        private void changeCurrentDialogueBoxString(string newDialogueString)
+        public void ResetCharacterDialogue()
         {
-            if (Game1.activeClickableMenu != null && Game1.activeClickableMenu.GetType() == typeof(DialogueBox))
+            this.Monitor.Log($"L Pressed, resetting character dialogue", LogLevel.Debug);
+
+            foreach (string name in Constants.supportedCharacters)
             {
-                //Game1.activeClickableMenu = new DialogueBox(newDialogueString);
-                Shane.CurrentDialogue.Push(new Dialogue(Shane, "translationKey", newDialogueString));
-                Game1.drawDialogue(Shane);
+                NPC inGameCharacter = _characterManager.GetCharacter(name).GetNPC();
+                if (Game1.player != null && inGameCharacter != null)
+                {
+                    Game1.player.friendshipData.TryGetValue(inGameCharacter.Name, out var friendship);
+                    Game1.player.resetFriendshipsForNewDay();
+                    inGameCharacter.checkForNewCurrentDialogue(friendship.Points);
+
+                    Game1.currentLocation?.ResetCharacterDialogues();
+                }
             }
         }
-        
+
+
         private void SetupEventsToTest()
         {
 
@@ -241,11 +314,11 @@ namespace StardewVoices.Testing
             List<Dictionary<string, string[]>> characterDialogueDictionaries = new List<Dictionary<string, string[]>>();
             List<string> dialogueDictionaryNames = new List<string>();
 
-            Dictionary<string, Dictionary<string, string[]>> shaneDictionary;
+            DialogueDictionary shaneDictionary;
 
             try
             {
-                shaneDictionary = characterDictionary["Shane"].DialogueDictionary;
+                shaneDictionary = _characterManager.GetCharacter("Shane").GetDialogueDictionary();
 
             }
             catch (Exception ex)
@@ -255,31 +328,31 @@ namespace StardewVoices.Testing
             }
 
 
-            characterDialogueDictionaries.Add(shaneDictionary["dialogue"]);
+            characterDialogueDictionaries.Add(shaneDictionary.GetType("dialogue"));
             dialogueDictionaryNames.Add("Dialogue-");
 
-            characterDialogueDictionaries.Add(shaneDictionary["engagement"]);
+            characterDialogueDictionaries.Add(shaneDictionary.GetType("engagement"));
             dialogueDictionaryNames.Add("Engagement_Dialogue-");
 
-            characterDialogueDictionaries.Add(shaneDictionary["generic_marriage"]);
+            characterDialogueDictionaries.Add(shaneDictionary.GetType("generic_marriage"));
             dialogueDictionaryNames.Add("Generic_Marriage-");
 
-            characterDialogueDictionaries.Add(shaneDictionary["rainy"]);
+            characterDialogueDictionaries.Add(shaneDictionary.GetType("rainy"));
             dialogueDictionaryNames.Add("Rainy-");
 
-            characterDialogueDictionaries.Add(shaneDictionary["marriage_dialogue"]);
+            characterDialogueDictionaries.Add(shaneDictionary.GetType("marriage_dialogue"));
             dialogueDictionaryNames.Add("Marriage_Dialogue-");
 
-            characterDialogueDictionaries.Add(shaneDictionary["misc"]);
+            characterDialogueDictionaries.Add(shaneDictionary.GetType("misc"));
             dialogueDictionaryNames.Add("Misc-");
 
-            characterDialogueDictionaries.Add(shaneDictionary["schedule"]);
+            characterDialogueDictionaries.Add(shaneDictionary.GetType("schedule"));
             dialogueDictionaryNames.Add("Schedule-");
 
-            characterDialogueDictionaries.Add(shaneDictionary["extra"]);
+            characterDialogueDictionaries.Add(shaneDictionary.GetType("extra"));
             dialogueDictionaryNames.Add("Extra-");
 
-            characterDialogueDictionaries.Add(shaneDictionary["gift_tastes"]);
+            characterDialogueDictionaries.Add(shaneDictionary.GetType("gift_tastes"));
             dialogueDictionaryNames.Add("Gift_Tastes-");
 
             for (int i = 0; i < characterDialogueDictionaries.Count; i++)
@@ -298,7 +371,7 @@ namespace StardewVoices.Testing
                         foreach (string value in characterDialogueDictionaries[i][key])
                         {
 
-                            Match characterNameMatch = Regex.Match(value, characterNameRegex, RegexOptions.IgnoreCase);
+                            Match characterNameMatch = Regex.Match(value, _characterManager.GetCharacterNameRegex(), RegexOptions.IgnoreCase);
                             if ((characterNameMatch.Success && value.Contains("Shane")) || !characterNameMatch.Success)
                             {
                                 confirmedCharacterDialogue = true;

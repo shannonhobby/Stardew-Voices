@@ -46,6 +46,5 @@ namespace StardewVoices.Pathing
         {
             return ModPath.GetChild(name).ToString();
         }
-
     }
 }

@@ -9,34 +9,50 @@ using System.Text;
 using StardewVoices.Pathing;
 using StardewVoices.Characters;
 using StardewVoices.EventManager;
+using StardewVoices.Testing;
+using StardewVoices.Localization;
+using StardewVoices.Audio;
 
 namespace StardewVoices.Dialogue
 {
     public class DialogueManager
     {
         private static Dictionary<string, Dictionary<string, string[]>> genericDialogueDictionariesDictionary = new Dictionary<string, Dictionary<string, string[]>>();
-        private FestivalHandler _festivalHandler { get; }
-        private EventHandler _eventHandler { get; }
-        private CharacterDialogueHandler _characterDialogueHandler { get; }
+        private FestivalHandler festivalHandler { get; }
+        private EventHandler eventHandler { get; }
+        private CharacterDialogueHandler characterDialogueHandler { get; }
+        private TextBubbleHandler textBubbleHandler { get; }
         private ContinuationDialogue _continuationDialogue { get; }
         private PathManager _pathManager { get; }
         private CharacterManager _characterManager { get; }
+        private AudioManager _audioManager { get; }
         private GameEvents _gameEvents { get; }
+        private TestingManager _testingManager { get; }
+
 
         Dictionary<string, string> dialogueWithRandomNounOrAdj = new Dictionary<string, string>();
-        private bool isReplacementDialogueBox = false;
+        // When I have programatically updated the text
 
-        public DialogueManager(PathManager pathManager, CharacterManager characterManager, GameEvents gameEvents) {
+        public DialogueManager(PathManager pathManager,
+            CharacterManager characterManager, 
+            GameEvents gameEvents,
+            TestingManager testingManager,
+            LocalizationManager localizationManager,
+            AudioManager audioManager
+            ) {
             if (!Directory.Exists(pathManager.GetPath("Characters").ToString()))
                 throw new Exception("Character dialogue folder could not be found");
 
             _pathManager = pathManager;
             _characterManager = characterManager;
             _gameEvents = gameEvents;
+            _testingManager = testingManager;
+            _audioManager = audioManager;
 
-            _festivalHandler = new FestivalHandler(pathManager);
-            _eventHandler = new EventHandler();
-            _characterDialogueHandler = new CharacterDialogueHandler(pathManager, characterManager);
+            textBubbleHandler = new TextBubbleHandler(this);
+            festivalHandler = new FestivalHandler(pathManager, localizationManager);
+            eventHandler = new EventHandler(pathManager);
+            characterDialogueHandler = new CharacterDialogueHandler(pathManager, characterManager, _testingManager);
             _continuationDialogue = new ContinuationDialogue(characterManager);
 
 
@@ -45,7 +61,73 @@ namespace StardewVoices.Dialogue
             dialogueWithRandomNounOrAdj.Add("I did, but all I remember is that it had something to do with a %adj %noun. Weird.", "Generic Marriage Dialogue-Indoor_Day_3_sv1");
         }
 
-        private string getIdFromDialogueString(string dialogueString, string currentSpeaker)
+        // Audio Manager Calls
+
+        public void Play(string lineId, string characterName)
+        {
+            _audioManager.Play(lineId, characterName);
+        }
+
+        public void StopAudioCue()
+        {
+            _audioManager.StopCue();
+        }
+
+        // Events
+
+        public void EndEvent()
+        {
+            eventHandler.currentEventDict = null;
+            eventHandler.eventResponseDict = null;
+
+            textBubbleHandler.eventCommandsHaveBeenLogged = false;
+        }
+
+        public void StartEvent(string eventFilePath)
+        {
+            eventHandler.currentEventDict = DialogueHelpers.GetEventDictionaryFromPath(eventFilePath);
+        }
+
+        public Dictionary<string, string> GetCurrentEventDict()
+        {
+            return eventHandler.currentEventDict;
+        }
+
+        public void SetCurrentEventDictToNull()
+        {
+            eventHandler.currentEventDict = null;
+        }
+
+        public void ResetEventsToday()
+        {
+            eventHandler.eventsToday = new List<Dictionary<string, string>>();
+        }
+
+
+        //Festivals
+        public string GetLastFestival()
+        {
+            return festivalHandler.lastFestival;
+        }
+
+        public void SetFestival(string festivalName)
+        {
+            festivalHandler.SetFestival(festivalName);
+            eventHandler.currentEventDict = null;
+
+        }
+
+        public void ResetFestival()
+        {
+            festivalHandler.ResetFestival();
+        }
+
+        public void CheckForTextAboveHead()
+        {
+            textBubbleHandler.CheckForTextAboveHead();
+        }
+
+        public string getIdFromDialogueString(string dialogueString, string currentSpeaker)
         {
 
             if (!Directory.Exists(_pathManager.GetPathString("Dialogue Jsons")))
@@ -63,158 +145,66 @@ namespace StardewVoices.Dialogue
 
             try
             {
-                string eventDialogue = _eventHandler.CheckForDialogueInEvent(formattedDialogueString, currentSpeaker, _characterDialogueHandler);
-                if(eventDialogue != null)
+                string eventDialogueLineId = eventHandler.CheckForDialogueInEvent(formattedDialogueString, currentSpeaker, characterDialogueHandler);
+                if(eventDialogueLineId != null)
                 {
-                    return eventDialogue;
+                    return eventDialogueLineId;
                 }
 
-                string festivalDialogue = _festivalHandler.CheckForDialogueInFestival(formattedDialogueString, currentSpeaker, _characterDialogueHandler);
-                if(festivalDialogue != null)
-                        {
-                    return festivalDialogue;
-                    }
-                  
-                }
-
-                // If not currently in event or festival check all dialogue dictionaries
-                else
+                string festivalDialoguLineId = festivalHandler.CheckForDialogueInFestival(formattedDialogueString, currentSpeaker, characterDialogueHandler);
+                if(festivalDialoguLineId != null)
                 {
-                    // LEFT OFF HERE!!!!!! 5/7
-                    List<Dictionary<string, string[]>> characterDialogueDictionaries = new List<Dictionary<string, string[]>>();
-                    List<string> dialogueDictionaryNames = new List<string>();
-
-
-                    Dictionary<string, string[]> engagementDialogueDict = currentSpeakerDialogue["engagement"];
-                    Dictionary<string, string[]> genericMarriageDialogueDict = currentSpeakerDialogue["generic_marriage"];
-                    Dictionary<string, string[]> extraDialogueDict = currentSpeakerDialogue["extra"];
-                    Dictionary<string, string[]> rainyDialogueDict = currentSpeakerDialogue["rainy"];
-
-
-                    Dictionary<string, string[]> marriageDialogueDict = currentSpeakerDialogue["marriage_dialogue"];
-                    Dictionary<string, string[]> npcGiftTastesDialogueDict = currentSpeakerDialogue["gift_tastes"];
-
-                    if (Game1.player.isEngaged() || testingWorldLoaded)
-                    {
-                        characterDialogueDictionaries.Add(engagementDialogueDict);
-                        dialogueDictionaryNames.Add("Engagement_Dialogue-");
-                    }
-
-                    if (Game1.player.getSpouse()?.getName() == currentSpeaker || testingWorldLoaded)
-                    {
-                        characterDialogueDictionaries.Add(marriageDialogueDict);
-                        dialogueDictionaryNames.Add("Marriage_Dialogue-");
-
-                        characterDialogueDictionaries.Add(genericMarriageDialogueDict);
-                        dialogueDictionaryNames.Add("Generic_Marriage_Dialogue-");
-                    }
-
-                    characterDialogueDictionaries.Add(dialogueDict);
-                    dialogueDictionaryNames.Add("Dialogue-");
-
-                    characterDialogueDictionaries.Add(extraDialogueDict);
-                    dialogueDictionaryNames.Add("Extra_Dialogue-");
-
-                    characterDialogueDictionaries.Add(rainyDialogueDict);
-                    dialogueDictionaryNames.Add("Rainy-");
-
-                    characterDialogueDictionaries.Add(npcGiftTastesDialogueDict);
-                    dialogueDictionaryNames.Add("NpcGiftTastes-");
-
-                    characterDialogueDictionaries.Add(miscDialogueDict);
-                    dialogueDictionaryNames.Add("Internal_Dialogue-");
-
-                    string[] splitDialogueString = formattedDialogueString.Split(" ");
-
-                    for (int i = 0; i < characterDialogueDictionaries.Count; i++)
-                    {
-                        if (characterDialogueDictionaries[i].ContainsKey(formattedDialogueString))
-                        {
-                            if (characterDialogueDictionaries[i][formattedDialogueString].Length > 1)
-                            {
-                                return DialogueHelpers.getCorrectIdFromListOfLineIds(characterDialogueDictionaries[i][formattedDialogueString], currentSpeaker, dialogueDictionaryNames[i]);
-                            }
-
-                            return characterDialogueDictionaries[i][formattedDialogueString][0];
-                        }
-
-                        if (dialogueDictionaryNames[i] == "Extra_Dialogue-" || dialogueDictionaryNames[i] == "Internal_Dialogue-")
-                        {
-                            foreach (string key in characterDialogueDictionaries[i].Keys)
-                            {
-                                if (!key.Contains("{") && !key.Contains("%"))
-                                {
-                                    continue;
-                                }
-
-                                string[] splitKey = key.Split(" ");
-
-
-                                // Check to see if the amount of shared words is ALMOST equivalent to the length minus the number of substitutions possible (i've only seen up to 3)
-                                if (splitDialogueString.Intersect(splitKey).Count() > 0 && splitDialogueString.Length == splitKey.Length && splitDialogueString.Length - splitDialogueString.Intersect(splitKey).Count() <= 3)
-                                {
-                                    // Check for dad / mom / name stuff
-                                    if (splitDialogueString.Contains("Dad") && !splitKey.Contains("Dad")
-                                        || splitDialogueString.Contains("Mom") && !splitKey.Contains("Mom")
-                                        || (!splitDialogueString.Contains("Dad") && !splitDialogueString.Contains("Mom") && splitKey.Contains("Dad") && splitKey.Contains("Mom")))
-                                    {
-                                        continue;
-                                    }
-
-                                    // check for she/ he stuff her/him
-                                    if ((!splitDialogueString.Contains("Dad") && !splitDialogueString.Contains("Mom"))
-                                        && (
-                                               formattedDialogueString.ToLower().Contains("she") && !key.ToLower().Contains("she")
-                                            || formattedDialogueString.ToLower().Contains(" he ") && !key.ToLower().Contains(" he ")
-                                            || formattedDialogueString.ToLower().Contains("him") && !key.ToLower().Contains("him")
-                                            || formattedDialogueString.ToLower().Contains("her") && !key.ToLower().Contains("her")
-                                           )
-                                       )
-                                    {
-                                        continue;
-                                    }
-
-                                    if (characterDialogueDictionaries[i][key].Length > 1)
-                                    {
-                                        return this.getCorrectIdFromListOfLineIds(characterDialogueDictionaries[i][key], currentSpeaker, dialogueDictionaryNames[i]);
-                                    }
-
-                                    return characterDialogueDictionaries[i][key][0];
-
-                                }
-                            }
-                        }
-
-                    }
-
-                    if (_eventHandler.eventsToday.Count > 0)
-                    {
-                        return _eventHandler.checkEventsThatHappenedTodayForDialogue(formattedDialogueString, currentSpeaker);
-                    }
-
-                    // check if it is a %noun %adjective situation
-                    foreach (string randDialogueLine in dialogueWithRandomNounOrAdj.Keys)
-                    {
-                        string[] splitRandDialogueLine = randDialogueLine.Split(" ");
-                        if (splitDialogueString.Length == splitRandDialogueLine.Length && splitDialogueString.Length - splitDialogueString.Intersect(splitRandDialogueLine).Count() <= 3)
-                        {
-                            string newRandDialogueLIne = randDialogueLine.Replace("%noun", "dragon").Replace("%adj", "giant").Replace("%year", "couple");
-
-                            this.changeCurrentDialogueBoxString(newRandDialogueLIne);
-                            isReplacementDialogueBox = true;
-                            return dialogueWithRandomNounOrAdj[randDialogueLine];
-                        }
-
-                    }
-
-                    return $"Line not found for {currentSpeaker}: {formattedDialogueString}";
+                    return festivalDialoguLineId;
                 }
+
+                // If an event happened today there could be "Event End Dialogue" that is
+                // stored in the event but is said after it is complete.
+                if (eventHandler.eventsToday.Count > 0)
+                {
+                    return eventHandler.checkEventsThatHappenedTodayForDialogue(formattedDialogueString, currentSpeaker);
+                }
+
+                // If not currently in event or festival check all character's dialogue dictionaries
+                string foundLineId = characterDialogueHandler.CheckForCharacterDialogueLineId(currentSpeaker, dialogueString);
+                if(foundLineId != null)
+                {
+                    return foundLineId;
+                }
+
+                // check if it is a %noun %adjective situation
+                foundLineId = checkDialogueWithRandVariable(dialogueString);
+                if(foundLineId != null)
+                {
+                    return foundLineId;
+                }
+
+                return $"Line not found for {currentSpeaker}: {formattedDialogueString}";
 
             }
             catch (Exception ex)
             {
                 return $"Line not found for {currentSpeaker}: {formattedDialogueString}. Exception: {ex}";
             }
+        }
+
+        private string checkDialogueWithRandVariable(string dialogueLine)
+        {
+            string[] splitDialogueLine = dialogueLine.Split(" ");
+            foreach (string randDialogueLine in dialogueWithRandomNounOrAdj.Keys)
+            {
+                string[] splitRandDialogueLine = randDialogueLine.Split(" ");
+                // TODO - IS THIS LOGIC ANYTHING??
+                if (splitDialogueLine.Length == splitRandDialogueLine.Length && splitDialogueLine.Length - splitDialogueLine.Intersect(splitRandDialogueLine).Count() <= 3)
+                {
+                    string newRandDialogueLIne = randDialogueLine.Replace("%noun", "dragon").Replace("%adj", "giant").Replace("%year", "couple");
+
+                    _gameEvents.changeCurrentDialogueBoxString(newRandDialogueLIne);
+                    isReplacementDialogueBox = true;
+                    return dialogueWithRandomNounOrAdj[randDialogueLine];
+                }
+            }
+
+            return null;
         }
     }
 }
