@@ -40,6 +40,9 @@ namespace StardewVoices.EventManager
         {
             _managers.TestingManager.createModTestingWorld();
 
+            if (!Context.IsWorldReady)
+                return;
+
             _DialoguePlaybackController.UpdateCurrentDialogue();
 
             this.UpdateLastLocationAndEvent();

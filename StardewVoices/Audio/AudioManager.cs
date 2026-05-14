@@ -14,7 +14,6 @@ namespace StardewVoices.Audio
     {
         internal AudioEngine AudioEngine { get; }
         internal PathNode AudioPath { get; }
-        public List<CharacterAudio> CharacterAudios { get; }
         internal CharacterManager CharacterManager { get; }
 
         private Cue lastCue { get; set; }
@@ -30,7 +29,6 @@ namespace StardewVoices.Audio
                 foreach (string character in Constants.supportedCharacters)
                 {
                     CharacterAudio newCharacterAudio = new CharacterAudio(character, this);
-                    CharacterAudios.Add(newCharacterAudio);
                     characterManager.SetCharacterAudio(character, newCharacterAudio);
                 }
 
