@@ -9,6 +9,7 @@ using System.Threading;
 using StardewVoices.Characters;
 using StardewVoices.Dialogue;
 using System.Linq;
+using StardewVoices.Utils;
 
 namespace StardewVoices.Testing
 {
@@ -53,7 +54,7 @@ namespace StardewVoices.Testing
                     FarmHouse farmHouse = Game1.getLocationFromName("FarmHouse") as FarmHouse;
                     Game1.warpCharacter(inGameNPC, "FarmHouse", farmHouse.getRandomOpenPointInHouse(new Random()));
                     inGameNPC.ignoreScheduleToday = true;
-                    //Monitor.Log($"{name} current location: {inGameNPC.currentLocation}", LogLevel.Debug);
+                    //ErrorLogger.Trace($"{name} current location: {inGameNPC.currentLocation}");
                 }
 
 
@@ -71,7 +72,7 @@ namespace StardewVoices.Testing
                     _characterManager.PopulateCharacterNamesList();
                     if (_characterManager.GetCharacterNameRegex().Length == 0)
                     {
-                        Monitor.Log("Unable to populate character names :(", LogLevel.Debug);
+                        ErrorLogger.Trace("Unable to populate character names :(");
                     }
                 }
 
@@ -80,7 +81,7 @@ namespace StardewVoices.Testing
                     PopulateTestDialogueList();
                     if (testDialogue.Count == 0)
                     {
-                        Monitor.Log("Unable to populate test dialogue list :(", LogLevel.Debug);
+                        ErrorLogger.Trace("Unable to populate test dialogue list :(");
                     }
                 }
 
@@ -96,7 +97,7 @@ namespace StardewVoices.Testing
         public void TriggerEvent()
         {
 
-            this.Monitor.Log($"K Pressed, starting event", LogLevel.Debug);
+            ErrorLogger.Trace($"K Pressed, starting event");
 
             string currentEventToTest = this.eventsToTest[eventsToTestIndex];
             string eventId = currentEventToTest.Split("_")[0];
@@ -130,7 +131,7 @@ namespace StardewVoices.Testing
 
         public void ResetCharacterDialogue()
         {
-            this.Monitor.Log($"L Pressed, resetting character dialogue", LogLevel.Debug);
+            ErrorLogger.Trace($"L Pressed, resetting character dialogue");
 
             foreach (string name in Constants.supportedCharacters)
             {
@@ -323,7 +324,7 @@ namespace StardewVoices.Testing
             }
             catch (Exception ex)
             {
-                Monitor.Log($"Could not find dialogue for Shane in testing. {ex}", LogLevel.Debug);
+                ErrorLogger.Trace($"Could not find dialogue for Shane in testing. {ex}");
                 return;
             }
 

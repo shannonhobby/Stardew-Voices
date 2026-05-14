@@ -8,6 +8,7 @@ using System;
 using Newtonsoft.Json;
 using System.IO;
 using System.Text;
+using StardewVoices.Utils;
 
 namespace StardewVoices.EventManager
 {
@@ -23,8 +24,8 @@ namespace StardewVoices.EventManager
 
         public GameEventsService(ManagerHub managers)
         {
-            _managers = managers;s
-            _DialoguePlaybackController = new DialoguePlaybackController(managers.DialogueManager, managers.LocalizationManager, managers.AudioManager);
+            _managers = managers;
+            _DialoguePlaybackController = new DialoguePlaybackController(managers.DialogueManager, this, managers.AudioManager);
         }
 
         public void changeCurrentDialogueBoxString(string dialogueBoxString)
@@ -90,18 +91,20 @@ namespace StardewVoices.EventManager
 
             if (isTestingWorldLoaded && e.Button == SButton.K)
             {
+                ErrorLogger.Trace("K pressed");
                 _managers.TestingManager.TriggerEvent();
             }
 
             if (isTestingWorldLoaded && e.Button == SButton.L)
             {
+                ErrorLogger.Trace("K pressed L");
                 _managers.TestingManager.ResetCharacterDialogue();
 
             }
 
             if (isTestingWorldLoaded && e.Button == SButton.B)
             {
-                this.Monitor.Log($"B Pressed", LogLevel.Debug);
+                ErrorLogger.Trace("B pressed");
                 if (Game1.activeClickableMenu != null)
                 {
                     Game1.activeClickableMenu = null;
@@ -164,8 +167,7 @@ namespace StardewVoices.EventManager
                     }
                     catch (Exception ex)
                     {
-                        this.Monitor.Log($"Event not found. {ex}", LogLevel.Debug);
-                        this.Monitor.Log($"Attempted to read from filePath: {filePath}", LogLevel.Debug);
+                        ErrorLogger.Debug($"Event not found. {ex}\nAttempted to read from filePath: {filePath}");
 
                     }
 

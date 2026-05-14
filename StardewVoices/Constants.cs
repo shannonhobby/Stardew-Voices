@@ -57,7 +57,8 @@ namespace StardewVoices
             { "rainy", "Rainy-" },
             { "gift_tastes", "NpcGiftTastes-" },
             { "marriage_dialogue", "Marriage_Dialogue-" },
-            { "generic_marriage", "Generic_Marriage_Dialogue-" },
+            { "generic_marriage", "Generic_Marriage_Dialogue-" }
+        };
 
         public static List<string> GenericDialogueTypes = new()
         {

@@ -22,6 +22,7 @@ namespace StardewVoices.Audio
 
         public AudioManager(CharacterManager characterManager, PathManager pathManager) {
             AudioPath = pathManager.GetPath("Audio");
+            ErrorLogger.Debug($"{AudioPath}");
 ;           AudioEngine = new AudioEngine(AudioPathHelper.GetGameRelativeAudioPath(AudioPath.ToString(), "Stardew Voices.xgs"));
             CharacterManager = characterManager;
             try
@@ -43,8 +44,7 @@ namespace StardewVoices.Audio
 
         public void Play(string lineId, string characterName)
         {
-            SoundBank soundBank = CharacterManager.GetCharacter(characterName)?.GetSoundBank();
-            currentCue = getCueFromDialogueId(lineId, soundBank, characterName);
+            currentCue = GetCueFromDialogueId(lineId, characterName);
 
 
             if (lastCue != null && lastCue.IsPlaying)
@@ -54,15 +54,7 @@ namespace StardewVoices.Audio
 
             currentCue.Play();
         }
-
-        public Cue GetCueFromDialogueId(string lineId, string characterName)
-        {
-            Character character = CharacterManager.GetCharacter(characterName);
-            return character.Audio.GetCue(lineId);
-
-        }
-
-
+  
         public void StopCue()
         {
             if (currentCue != null)
@@ -85,7 +77,7 @@ namespace StardewVoices.Audio
         }
 
         public Boolean LastCueIsStillPlaying() {
-            return (this.lastCue == null || (this.lastCue != null && !this.lastCue.IsPlaying);
+            return (this.lastCue == null || (this.lastCue != null && !this.lastCue.IsPlaying));
         }
 
         public void NextCue()
@@ -96,10 +88,13 @@ namespace StardewVoices.Audio
             }
         }
 
-        public Cue getCueFromDialogueId(string lineId, SoundBank soundBank, string characterName)
+
+        public Cue GetCueFromDialogueId(string lineId, string characterName)
         {
             try
             {
+                Character character = CharacterManager.GetCharacter(characterName);
+                SoundBank soundBank = character.GetSoundBank();
                 return soundBank.GetCue(lineId);
             }
             catch (Exception error)

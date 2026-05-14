@@ -78,7 +78,10 @@ namespace StardewVoices.Dialogue
 
                     if (dict[key].Length > 1)
                     {
+                        // TODO
+                        /*
                         return DialogueHelpers.getCorrectIdFromListOfLineIds(dict[key], currentSpeaker, dialogueDictionaryNames[i]);
+                        */
                     }
 
                     return dict[key][0];
@@ -92,7 +95,7 @@ namespace StardewVoices.Dialogue
         {
             return splitDialogueString.Contains("Dad") && !splitKey.Contains("Dad")
                         || splitDialogueString.Contains("Mom") && !splitKey.Contains("Mom")
-                        || (!splitDialogueString.Contains("Dad") && !splitDialogueString.Contains("Mom") && splitKey.Contains("Dad") && splitKey.Contains("Mom"))
+                        || (!splitDialogueString.Contains("Dad") && !splitDialogueString.Contains("Mom") && splitKey.Contains("Dad") && splitKey.Contains("Mom"));
         }
 
         private Boolean CheckForPronounString(string dialogueLine, string key)

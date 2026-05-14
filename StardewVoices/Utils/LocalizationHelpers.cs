@@ -1,19 +1,24 @@
 using System.Collections.Generic;
 
-namespace StardewVoices.Localization
+namespace StardewVoices.Utils
 {
-    public class LocalizationManager
+    public static class LocalizationHelpers
     {
-        public string CurrentLanguage { get; }
-        private static Dictionary<string, string> LocalizedToEnglishNameMap;
+        public static string _currentLanguage;
+        private static Dictionary<string, string> _localizedToEnglishNameMap;
 
-        public LocalizationManager(string currentLanguage)
+        public static void Init(string currentLanguage)
         {
-            CurrentLanguage = currentLanguage;
+            _currentLanguage = currentLanguage;
             SetupLocalizedToEnglishMap();
         }
 
-        private void SetupLocalizedToEnglishMap()
+        public static string GetCurrentLanguage()
+        {
+            return _currentLanguage;
+        }
+
+        private static void SetupLocalizedToEnglishMap()
         {
             var result = new Dictionary<string, string>();
 
@@ -33,15 +38,15 @@ namespace StardewVoices.Localization
                 }
             }
 
-            LocalizedToEnglishNameMap = result;
+            _localizedToEnglishNameMap = result;
         }
 
 
-        public string GetName(string name)
+        public static string GetName(string name)
         {
-            if (Constants.SpecialCharacterLanguages.Contains(CurrentLanguage))
+            if (Constants.SpecialCharacterLanguages.Contains(_currentLanguage))
             {
-                LocalizedToEnglishNameMap.TryGetValue(name, out string localizedCharacterName);
+                _localizedToEnglishNameMap.TryGetValue(name, out string localizedCharacterName);
                 return localizedCharacterName;
             }
             else
@@ -50,23 +55,23 @@ namespace StardewVoices.Localization
             }
         }
 
-        public string GetLanguageJsonExtension()
+        public static string GetLanguageJsonExtension()
         {
-            if (CurrentLanguage == "en")
+            if (_currentLanguage == "en")
             {
                 return "json";
             }
 
-            return $"{CurrentLanguage}-{Constants.languageDict[CurrentLanguage]}.json";
+            return $"{_currentLanguage}-{Constants.languageDict[_currentLanguage]}.json";
 
         }
 
-        public string GetLocalizedName(string name)
+        public static string GetLocalizedName(string name)
         {
-            if (Constants.SpecialCharacterLanguages.Contains(CurrentLanguage))
+            if (Constants.SpecialCharacterLanguages.Contains(_currentLanguage))
             {
                 Constants.LocalizedNpcNames.TryGetValue(name, out Dictionary<string, string> localizedCharacterNames);
-                localizedCharacterNames.TryGetValue(CurrentLanguage, out string localizedCharacterName);
+                localizedCharacterNames.TryGetValue(_currentLanguage, out string localizedCharacterName);
                 return localizedCharacterName;
             }
             else

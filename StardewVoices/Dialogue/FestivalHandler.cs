@@ -6,8 +6,7 @@ using System;
 using StardewVoices.Pathing;
 using System.IO;
 using StardewValley;
-using StardewVoices.Localization;
-
+using StardewVoices.Utils;
 
 namespace StardewVoices.Dialogue
 {
@@ -21,11 +20,9 @@ namespace StardewVoices.Dialogue
         public Dictionary<string, string[]> currentFestivalDict { get; set; }
         private string festivalPath { get; }
 
-        private LocalizationManager _localizationManager {get;}
 
-        public FestivalHandler(PathManager pathManager, LocalizationManager localizationManager)
+        public FestivalHandler(PathManager pathManager)
         {
-            _localizationManager = localizationManager;
             try
             {
                 festivalPath = pathManager.GetPathString("Festivals");
@@ -34,7 +31,7 @@ namespace StardewVoices.Dialogue
             }
             catch (Exception ex)
             {
-                this.Monitor.Log($"Error setting up festival dictionaries: {ex}. Audio will not play.", LogLevel.Error);
+                ErrorLogger.Debug($"Error setting up festival dictionaries: {ex}. Audio will not play.");
 
             }
         }
@@ -48,12 +45,12 @@ namespace StardewVoices.Dialogue
                 if (!Directory.Exists(festivalPath))
                     throw new Exception("Festival dialogue folder could not be found");
 
-                string festivalFileName = (string)festivalNameToDateDict[this.lastFestival] + $".{_localizationManager.GetLanguageJsonExtension()}";
+                string festivalFileName = (string)festivalNameToDateDict[this.lastFestival] + $".{LocalizationHelpers.GetLanguageJsonExtension()}";
                 string filePath = Path.Combine(festivalPath, festivalFileName);
                 this.currentFestivalDict = DialogueHelpers.GetDictionaryFromPath(filePath);
             } catch (Exception ex)
             {
-                this.Monitor.Log($"Couldn't find festival: {this.lastFestival}, {ex}", LogLevel.Debug);
+                ErrorLogger.Trace($"Couldn't find festival: {this.lastFestival}, {ex}");
             }
 
 

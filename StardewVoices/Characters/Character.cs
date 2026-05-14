@@ -11,7 +11,7 @@ namespace StardewVoices.Characters
         private string Name { get; }
         private NPC InGameNPC { get; set; }
 
-        public CharacterAudio Audio { get; set; }
+        private CharacterAudio Audio { get; set; }
         private DialogueDictionary DialogueDictionary { get; set; }
         public Character(string name)
         {
@@ -27,7 +27,7 @@ namespace StardewVoices.Characters
 
         public DialogueDictionary GetDialogueDictionary() { return DialogueDictionary; }
 
-        public SoundBank GetSoundBank() { return Audio.SoundBank; }
+        public SoundBank GetSoundBank() { return Audio.GetSoundBank(); }
 
         public void SetDialogueDictionary (DialogueDictionary dialogueDictionary )
         {
@@ -50,11 +50,5 @@ namespace StardewVoices.Characters
         {
             Audio.SetVolume(volume);
         }
-
-        public void Play(string lineId)
-        {
-            Audio.Play(lineId);
-        }
-
     }
 }

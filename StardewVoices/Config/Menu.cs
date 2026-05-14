@@ -1,7 +1,7 @@
 using StardewModdingAPI;
 using System.Linq;
 using System.Threading;
-using StardewVoices.Localization;
+using StardewVoices.Utils;
 
 namespace StardewVoices.Config
 {
@@ -9,14 +9,12 @@ namespace StardewVoices.Config
     {
         public IGenericModConfigMenuApi gmcm = null;
         private ModConfig _config { get; set; }
-        private LocalizationManager _localizationManager { get; }
         private IModHelper Helper { get; }
         private IManifest ModManifest { get; }
 
-        public Menu(ModConfig config, LocalizationManager localization, IModHelper helper, IManifest manifest)
+        public Menu(ModConfig config, IModHelper helper, IManifest manifest)
         {
             _config = config;
-            _localizationManager = localization;
             Helper = helper;
             ModManifest = manifest;
         }
@@ -80,8 +78,8 @@ namespace StardewVoices.Config
                  ModManifest,
                  () => _config.AbigailVolume,
                  value => _config.AbigailVolume = value,
-                 () => $"{_localizationManager.GetLocalizedName("Abigail")}",
-                 () => $"Volume for {_localizationManager.GetLocalizedName("Abigail")} dialogue",
+                 () => $"{LocalizationHelpers.GetLocalizedName("Abigail")}",
+                 () => $"Volume for {LocalizationHelpers.GetLocalizedName("Abigail")} dialogue",
                  min: 0,
                  max: 100,
                  interval: 1
@@ -91,8 +89,8 @@ namespace StardewVoices.Config
                 ModManifest,
                 () => _config.AlexVolume,
                 value => _config.AlexVolume = value,
-                () => $"{_localizationManager.GetLocalizedName("Alex")}",
-                () => $"Volume for {_localizationManager.GetLocalizedName("Alex")} dialogue",
+                () => $"{LocalizationHelpers.GetLocalizedName("Alex")}",
+                () => $"Volume for {LocalizationHelpers.GetLocalizedName("Alex")} dialogue",
                 min: 0,
                 max: 100,
                 interval: 1
@@ -102,8 +100,8 @@ namespace StardewVoices.Config
                 ModManifest,
                 () => _config.ElliottVolume,
                 value => _config.ElliottVolume = value,
-                () => $"{_localizationManager.GetLocalizedName("Elliott")}",
-                () => $"Volume for {_localizationManager.GetLocalizedName("Elliott")} dialogue",
+                () => $"{LocalizationHelpers.GetLocalizedName("Elliott")}",
+                () => $"Volume for {LocalizationHelpers.GetLocalizedName("Elliott")} dialogue",
                 min: 0,
                 max: 100,
                 interval: 1
@@ -113,8 +111,8 @@ namespace StardewVoices.Config
                 ModManifest,
                 () => _config.EmilyVolume,
                 value => _config.EmilyVolume = value,
-                () => $"{_localizationManager.GetLocalizedName("Emily")}",
-                () => $"Volume for {_localizationManager.GetLocalizedName("Emily")} dialogue",
+                () => $"{LocalizationHelpers.GetLocalizedName("Emily")}",
+                () => $"Volume for {LocalizationHelpers.GetLocalizedName("Emily")} dialogue",
                 min: 0,
                 max: 100,
                 interval: 1
@@ -124,8 +122,8 @@ namespace StardewVoices.Config
                 ModManifest,
                 () => _config.HaleyVolume,
                 value => _config.HaleyVolume = value,
-                () => $"{_localizationManager.GetLocalizedName("Haley")}",
-                () => $"Volume for {_localizationManager.GetLocalizedName("Haley")} dialogue",
+                () => $"{LocalizationHelpers.GetLocalizedName("Haley")}",
+                () => $"Volume for {LocalizationHelpers.GetLocalizedName("Haley")} dialogue",
                 min: 0,
                 max: 100,
                 interval: 1
@@ -135,8 +133,8 @@ namespace StardewVoices.Config
                 ModManifest,
                 () => _config.HarveyVolume,
                 value => _config.HarveyVolume = value,
-                () => $"{_localizationManager.GetLocalizedName("Harvey")}",
-                () => $"Volume for {_localizationManager.GetLocalizedName("Harvey")} dialogue",
+                () => $"{LocalizationHelpers.GetLocalizedName("Harvey")}",
+                () => $"Volume for {LocalizationHelpers.GetLocalizedName("Harvey")} dialogue",
                 min: 0,
                 max: 100,
                 interval: 1
@@ -146,8 +144,8 @@ namespace StardewVoices.Config
                 ModManifest,
                 () => _config.LeahVolume,
                 value => _config.LeahVolume = value,
-                () => $"{_localizationManager.GetLocalizedName("Leah")}",
-                () => $"Volume for {_localizationManager.GetLocalizedName("Leah")} dialogue",
+                () => $"{LocalizationHelpers.GetLocalizedName("Leah")}",
+                () => $"Volume for {LocalizationHelpers.GetLocalizedName("Leah")} dialogue",
                 min: 0,
                 max: 100,
                 interval: 1
@@ -157,8 +155,8 @@ namespace StardewVoices.Config
                 ModManifest,
                 () => _config.MaruVolume,
                 value => _config.MaruVolume = value,
-                () => $"{_localizationManager.GetLocalizedName("Maru")}",
-                () => $"Volume for {_localizationManager.GetLocalizedName("Maru")} dialogue",
+                () => $"{LocalizationHelpers.GetLocalizedName("Maru")}",
+                () => $"Volume for {LocalizationHelpers.GetLocalizedName("Maru")} dialogue",
                 min: 0,
                 max: 100,
                 interval: 1
@@ -168,8 +166,8 @@ namespace StardewVoices.Config
                 ModManifest,
                 () => _config.PennyVolume,
                 value => _config.PennyVolume = value,
-                () => $"{_localizationManager.GetLocalizedName("Penny")}",
-                () => $"Volume for {_localizationManager.GetLocalizedName("Penny")} dialogue",
+                () => $"{LocalizationHelpers.GetLocalizedName("Penny")}",
+                () => $"Volume for {LocalizationHelpers.GetLocalizedName("Penny")} dialogue",
                 min: 0,
                 max: 100,
                 interval: 1
@@ -179,8 +177,8 @@ namespace StardewVoices.Config
                 ModManifest,
                 () => _config.SamVolume,
                 value => _config.SamVolume = value,
-                () => $"{_localizationManager.GetLocalizedName("Sam")}",
-                () => $"Volume for {_localizationManager.GetLocalizedName("Sam")} dialogue",
+                () => $"{LocalizationHelpers.GetLocalizedName("Sam")}",
+                () => $"Volume for {LocalizationHelpers.GetLocalizedName("Sam")} dialogue",
                 min: 0,
                 max: 100,
                 interval: 1
@@ -190,8 +188,8 @@ namespace StardewVoices.Config
                 ModManifest,
                 () => _config.SebastianVolume,
                 value => _config.SebastianVolume = value,
-                () => $"{_localizationManager.GetLocalizedName("Sebastian")}",
-                () => $"Volume for {_localizationManager.GetLocalizedName("Sebastian")} dialogue",
+                () => $"{LocalizationHelpers.GetLocalizedName("Sebastian")}",
+                () => $"Volume for {LocalizationHelpers.GetLocalizedName("Sebastian")} dialogue",
                 min: 0,
                 max: 100,
                 interval: 1
@@ -201,8 +199,8 @@ namespace StardewVoices.Config
                 ModManifest,
                 () => _config.ShaneVolume,
                 value => _config.ShaneVolume = value,
-                () => $"{_localizationManager.GetLocalizedName("Shane")}",
-                () => $"Volume for {_localizationManager.GetLocalizedName("Shane")} dialogue",
+                () => $"{LocalizationHelpers.GetLocalizedName("Shane")}",
+                () => $"Volume for {LocalizationHelpers.GetLocalizedName("Shane")} dialogue",
                 min: 0,
                 max: 100,
                 interval: 1
@@ -223,18 +221,18 @@ namespace StardewVoices.Config
                 );
             }
 
-            AddCastLine(_localizationManager.GetLocalizedName("Emily"), "Ariel Michelle");
-            AddCastLine(_localizationManager.GetLocalizedName("Penny"), "Heidi Tabing");
-            AddCastLine(_localizationManager.GetLocalizedName("Sebastian"), "David Meyers");
-            AddCastLine(_localizationManager.GetLocalizedName("Haley"), "Kemi Haydee Stanton");
-            AddCastLine(_localizationManager.GetLocalizedName("Leah"), "Aiden Dawn");
-            AddCastLine(_localizationManager.GetLocalizedName("Alex"), "Eamon Kinsman");
-            AddCastLine(_localizationManager.GetLocalizedName("Sam"), "Jacob Hopkins");
-            AddCastLine(_localizationManager.GetLocalizedName("Harvey"), "GM Hakim");
-            AddCastLine(_localizationManager.GetLocalizedName("Maru"), "Nia Celeste");
-            AddCastLine(_localizationManager.GetLocalizedName("Elliott"), "Emmanuel \"Menji\" Menjivar");
-            AddCastLine(_localizationManager.GetLocalizedName("Abigail"), "Diana Jurand");
-            AddCastLine(_localizationManager.GetLocalizedName("Shane"), "Jonathan David Bullock");
+            AddCastLine(LocalizationHelpers.GetLocalizedName("Emily"), "Ariel Michelle");
+            AddCastLine(LocalizationHelpers.GetLocalizedName("Penny"), "Heidi Tabing");
+            AddCastLine(LocalizationHelpers.GetLocalizedName("Sebastian"), "David Meyers");
+            AddCastLine(LocalizationHelpers.GetLocalizedName("Haley"), "Kemi Haydee Stanton");
+            AddCastLine(LocalizationHelpers.GetLocalizedName("Leah"), "Aiden Dawn");
+            AddCastLine(LocalizationHelpers.GetLocalizedName("Alex"), "Eamon Kinsman");
+            AddCastLine(LocalizationHelpers.GetLocalizedName("Sam"), "Jacob Hopkins");
+            AddCastLine(LocalizationHelpers.GetLocalizedName("Harvey"), "GM Hakim");
+            AddCastLine(LocalizationHelpers.GetLocalizedName("Maru"), "Nia Celeste");
+            AddCastLine(LocalizationHelpers.GetLocalizedName("Elliott"), "Emmanuel \"Menji\" Menjivar");
+            AddCastLine(LocalizationHelpers.GetLocalizedName("Abigail"), "Diana Jurand");
+            AddCastLine(LocalizationHelpers.GetLocalizedName("Shane"), "Jonathan David Bullock");
 
 
         }

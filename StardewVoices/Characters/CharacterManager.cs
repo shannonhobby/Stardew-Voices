@@ -55,7 +55,7 @@ namespace StardewVoices.Characters
         {
             if (Game1.characterData == null)
             {
-                Monitor.Log($"Error populating character names list: no game character data found?", LogLevel.Debug);
+                ErrorLogger.Trace($"Error populating character names list: no game character data found?");
                 return;
             }
 
@@ -75,7 +75,7 @@ namespace StardewVoices.Characters
             }
             catch (Exception ex)
             {
-                Monitor.Log($"Error populating character names list: {ex}", LogLevel.Debug);
+                ErrorLogger.Trace($"Error populating character names list: {ex}");
                 return;
             }
 

@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using StardewValley;
-using StardewVoices.Localization;
+using StardewVoices.Utils;
 
 namespace StardewVoices.Pathing
 {
@@ -10,14 +10,14 @@ namespace StardewVoices.Pathing
         internal PathNode ModPath { get; }
         internal string FestivalDatesJsonName { get; }
 
-        public PathManager(string modPath, LocalizationManager localizationManager) 
+        public PathManager(string modPath) 
         {
             ModPath = new PathNode("root", modPath);
             ModPath.CreateChild("Audio");
             PathNode InverseDialogueFolderPathNode = ModPath.CreateChild("Dialogue Jsons");
-            if (localizationManager.CurrentLanguage != LocalizedContentManager.LanguageCode.en.ToString())
+            if (LocalizationHelpers.GetCurrentLanguage() != LocalizedContentManager.LanguageCode.en.ToString())
             {
-                InverseDialogueFolderPathNode = InverseDialogueFolderPathNode.CreateChild(localizationManager.CurrentLanguage);
+                InverseDialogueFolderPathNode = InverseDialogueFolderPathNode.CreateChild(LocalizationHelpers.GetCurrentLanguage());
             }
 
             InverseDialogueFolderPathNode.CreateChild("Events");
@@ -25,7 +25,7 @@ namespace StardewVoices.Pathing
 
             // Festival + festival date setup
             PathNode FestivalFolderPathNode = InverseDialogueFolderPathNode.CreateChild("Festivals");
-            FestivalDatesJsonName = $"FestivalDates.{localizationManager.GetLanguageJsonExtension()}";
+            FestivalDatesJsonName = $"FestivalDates.{LocalizationHelpers.GetLanguageJsonExtension()}";
             FestivalFolderPathNode.CreateChild(FestivalDatesJsonName);
             
             

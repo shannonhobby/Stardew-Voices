@@ -5,8 +5,9 @@ using StardewValley;
 using System.Collections.Generic;
 using System;
 using StardewVoices.Dialogue;
-using StardewVoices.Localization;
 using StardewVoices.Audio;
+using StardewVoices.Utils;
+using System.Linq;
 
 namespace StardewVoices.EventManager
 {
@@ -14,8 +15,10 @@ namespace StardewVoices.EventManager
     {
         private DialogueManager _dialogueManager { get; }
         private AudioManager _audioManager { get; }
+        private GameEventsService _gameEventsService { get; }
 
-        private LocalizationManager _localizationManager { get; }
+        Dictionary<string, string> dialogueWithRandomNounOrAdj = new Dictionary<string, string>();
+
 
         public bool currentlyTalking { get => _currentlyTalking; set => _currentlyTalking = value; }
         private bool _currentlyTalking;
@@ -23,11 +26,15 @@ namespace StardewVoices.EventManager
 
 
         public DialoguePlaybackController(
-            DialogueManager dialogueManager, LocalizationManager localizationManager, AudioManager audioManager) 
+            DialogueManager dialogueManager, GameEventsService gameEvents, AudioManager audioManager) 
         {
             _dialogueManager = dialogueManager;
-            _localizationManager = localizationManager;
             _audioManager = audioManager;
+            _gameEventsService = gameEvents;
+
+            // TODO
+            dialogueWithRandomNounOrAdj.Add("Last night I dreamt that my left hand had turned into a gigantic %noun. Does that mean anything?", "Dialogue-fall_Thu_chance_1");
+            dialogueWithRandomNounOrAdj.Add("I did, but all I remember is that it had something to do with a %adj %noun. Weird.", "Generic Marriage Dialogue-Indoor_Day_3_sv1");
         }
 
 
@@ -127,7 +134,7 @@ namespace StardewVoices.EventManager
                         return;
                     }
 
-                    string currentSpeaker = _localizationManager.GetName(Game1.currentSpeaker?.getName());
+                    string currentSpeaker = LocalizationHelpers.GetName(Game1.currentSpeaker?.getName());
 
 
                     string currentLineId = _dialogueManager.getIdFromDialogueString(currentDialogueBoxString, currentSpeaker);
@@ -135,7 +142,7 @@ namespace StardewVoices.EventManager
 
                     if (currentLineId.Contains("not found"))
                     {
-                        this.Monitor.Log(currentLineId, LogLevel.Debug);
+                        ErrorLogger.Trace($"Line not found: {currentLineId}");
                         this.LastDialogueBoxString = currentDialogueBoxString;
                         return;
                     }
@@ -163,7 +170,7 @@ namespace StardewVoices.EventManager
                             // i THINK events are the only place the right after anotehr dialogue can happen 
                             if ((Game1.CurrentEvent != null && !Game1.CurrentEvent.isFestival)
                                 || cue.Name.Contains("Gift")
-                                || DialogueHelpers.DialogueHasContinuation(cue.Name)
+                                || ContinuationDialogueHelper.DialogueHasContinuation(cue.Name)
                                 || cue.Name.Contains("endDialogue")
                                 || cue.Name.ToLower().Contains("event"))
                             {
@@ -212,6 +219,27 @@ namespace StardewVoices.EventManager
             {
                 return null;
             }
+        }
+
+
+        private string checkDialogueWithRandVariable(string dialogueLine)
+        {
+            string[] splitDialogueLine = dialogueLine.Split(" ");
+            foreach (string randDialogueLine in dialogueWithRandomNounOrAdj.Keys)
+            {
+                string[] splitRandDialogueLine = randDialogueLine.Split(" ");
+                // TODO - IS THIS LOGIC ANYTHING??
+                if (splitDialogueLine.Length == splitRandDialogueLine.Length && splitDialogueLine.Length - splitDialogueLine.Intersect(splitRandDialogueLine).Count() <= 3)
+                {
+                    string newRandDialogueLIne = randDialogueLine.Replace("%noun", "dragon").Replace("%adj", "giant").Replace("%year", "couple");
+
+                    _gameEventsService.changeCurrentDialogueBoxString(newRandDialogueLIne);
+                    isReplacementDialogueBox = true;
+                    return dialogueWithRandomNounOrAdj[randDialogueLine];
+                }
+            }
+
+            return null;
         }
 
     }

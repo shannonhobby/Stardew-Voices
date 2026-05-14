@@ -1,6 +1,5 @@
 using StardewModdingAPI;
 using StardewValley;
-using StardewVoices.Localization;
 using StardewVoices.Utils;
 using System.IO;
 

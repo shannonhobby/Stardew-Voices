@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System;
-using StardewVoices.Localization;
+using StardewVoices.Utils;
 using StardewModdingAPI;
 using StardewValley;
 using Newtonsoft.Json;
@@ -52,7 +52,7 @@ namespace StardewVoices.Dialogue
         {
             for (int i = 0; i < Constants.supportedCharacters.Count; i++)
             {
-                string characterName = GetLocalizedName(Constants.supportedCharacters[i]);
+                string characterName = LocalizationHelpers.GetLocalizedName(Constants.supportedCharacters[i]);
 
 
                 if (input.Contains(characterName))
@@ -69,7 +69,7 @@ namespace StardewVoices.Dialogue
         {
             for (int i = 0; i < Constants.supportedCharacters.Count; i++)
             {
-                string characterName = GetLocalizedName(Constants.supportedCharacters[i]);
+                string characterName = LocalizationHelpers.GetLocalizedName(Constants.supportedCharacters[i]);
                 if (input.Contains(characterName))
                 {
                     return Constants.supportedCharacters[i];
@@ -157,30 +157,19 @@ namespace StardewVoices.Dialogue
 
 
 
-        internal static bool DialogueHasContinuation(string dialogueId)
-        {
-            foreach (string id in continuationDialogue)
-            {
-                if (dialogueId == id)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
 
         internal static string formatDialogueString(string dialogueString)
         {
             dialogueString = dialogueString.Replace(Game1.player.Name, "@");
             dialogueString = dialogueString.Replace(Game1.getFarm().Name, "%farm");
-            if (currentEventDict == null)
+
+            // If in event replace baby and the second baby??? what??
+            /*if (currentEventDict == null)
             {
                 dialogueString = dialogueString.Replace("the second baby", "%kid2");
                 dialogueString = dialogueString.Replace("baby", "%kid1");
             }
-
+            */
 
 
             /// TODO: remove hardcoded Abigail stuff!
@@ -208,6 +197,7 @@ namespace StardewVoices.Dialogue
             return id.ToLower().Contains("mon") || id.ToLower().Contains("tue") || id.ToLower().Contains("wed") || id.ToLower().Contains("thur") || id.ToLower().Contains("fri") || id.ToLower().Contains("sat") || id.ToLower().Contains("sun");
         }
 
+        // TODO - major refactor here
         // Abigail has two instances of this: event_grave (I've lived in the valley my whole life, but I've never really done anything memorable. I want to go on an adventure!) 
         // and PurchasedItem_Abigail_QualityLow vs high
         // We're gonna hard code for these situations a lil bit :(
@@ -247,15 +237,18 @@ namespace StardewVoices.Dialogue
                     return id;
                 }
 
+
+                // TODO
                 // The last line id will show which event choice was made last and then we can just choose
                 // The new id that continues that event.
-                if (lastLineId != null && id.Contains(lastLineId))
+                /*if (lastLineId != null && id.Contains(lastLineId))
                 {
                     return id;
                 }
+                */
             }
 
-            Monitor.Log("Correct line id not found from list of line ids taking first one: " + String.Join(", ", dialogueIdStrings), LogLevel.Debug);
+            ErrorLogger.Trace("Correct line id not found from list of line ids taking first one: " + String.Join(", ", dialogueIdStrings));
 
             return dialogueIdStrings[0];
 
