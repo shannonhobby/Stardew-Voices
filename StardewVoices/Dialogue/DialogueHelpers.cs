@@ -81,7 +81,7 @@ namespace StardewVoices.Dialogue
 
         internal static string ContainsCloseEnoughLine(Dictionary<string, string> dictionary, string line)
         {
-            if (dictionary.ContainsKey(line))
+            if (dictionary != null && line != null && dictionary.ContainsKey(line))
             {
                 return line;
             }
@@ -111,7 +111,7 @@ namespace StardewVoices.Dialogue
 
         internal static string DialogueContainsCloseEnoughLine(Dictionary<string, string[]> dictionary, string line)
         {
-            if (dictionary.ContainsKey(line))
+            if (dictionary != null && line != null && dictionary.ContainsKey(line))
             {
                 return line;
             }

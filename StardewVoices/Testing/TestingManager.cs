@@ -67,7 +67,7 @@ namespace StardewVoices.Testing
             if (IsTestingWorldLoaded())
             {
                 // TODO - what's the regex for? is it only for the testing world loaded?
-                if (_characterManager.GetCharacterNameRegex().Length == 0 && Game1.characterData != null)
+                if (_characterManager.GetCharacterNameRegex() == null && Game1.characterData != null)
                 {
                     _characterManager.PopulateCharacterNamesList();
                     if (_characterManager.GetCharacterNameRegex().Length == 0)

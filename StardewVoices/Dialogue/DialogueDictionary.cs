@@ -111,7 +111,7 @@ namespace StardewVoices.Dialogue
             string foundDialogueLine = null;
             foreach (string type in _data.Keys)
             {
-                if (ShouldCheckDialogue(type, currentSpeaker) || testingManager.IsTestingWorldLoaded())
+                if (ShouldCheckDialogue(type, currentSpeaker) || (testingManager?.IsTestingWorldLoaded() ?? false))
                 {
                    foundDialogueLine = CheckDictionaryForDialogueLine(type, dialogueLine, currentSpeaker);
                     if (foundDialogueLine != null)

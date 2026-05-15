@@ -16,12 +16,12 @@ namespace StardewVoices.Characters
         public Character(string name)
         {
             Name = name;
-            InGameNPC = Game1.getCharacterFromName(name);
         }
 
         public string GetName() {  return Name; }
         public NPC GetNPC() { return InGameNPC; }
 
+        public void SetupNpc() { InGameNPC = Game1.getCharacterFromName(Name); }
  
         // Dialogue
 

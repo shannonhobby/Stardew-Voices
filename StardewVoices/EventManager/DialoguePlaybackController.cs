@@ -19,6 +19,15 @@ namespace StardewVoices.EventManager
 
         Dictionary<string, string> dialogueWithRandomNounOrAdj = new Dictionary<string, string>();
 
+        /// <summary>The in-game dialogue line detected on the last update tick.</summary>
+        private Stack<StardewValley.Dialogue> LastDialogue;
+        /// <summary>The in-game dialogue line detected on the last update tick.</summary>
+        private string LastDialogueBoxString = "";
+
+
+        private string currentLineId;
+        private string lastLineId;
+
 
         public bool currentlyTalking { get => _currentlyTalking; set => _currentlyTalking = value; }
         private bool _currentlyTalking;
@@ -39,15 +48,7 @@ namespace StardewVoices.EventManager
 
 
 
-        /// <summary>The in-game dialogue line detected on the last update tick.</summary>
-        private Stack<StardewValley.Dialogue> LastDialogue;
-        /// <summary>The in-game dialogue line detected on the last update tick.</summary>
-        private string LastDialogueBoxString = "";
-
-
-        private string currentLineId;
-        private string lastLineId;
-
+       
         // Event Management
 
         public Dictionary<string, string> GetCurrentEventDict()
@@ -115,10 +116,10 @@ namespace StardewVoices.EventManager
             _dialogueManager.CheckForTextAboveHead();
 
             // If the last dialogue box string stored doesn't equal the current dialogue box string that means there's been a change! (yay!)
-            if (!this.LastDialogueBoxString.Equals(currentDialogueBoxString))
+            if (!string.Equals(LastDialogueBoxString, currentDialogueBoxString))
             {
                 // If dialogue has gone from non-empty to empty stop the audio cues.
-                if (this.LastDialogueBoxString.Length > 0 && !DialogueBoxIsOpen())
+                if (!string.IsNullOrEmpty(this.LastDialogueBoxString) && !DialogueBoxIsOpen())
                 {
                     this.LastDialogueBoxString = "";
                     currentlyTalking = false;

@@ -66,9 +66,9 @@ namespace StardewVoices.Dialogue
                     this.lastEventCommand = Game1.CurrentEvent.currentCommand;
                     return (commandDialogue, currentSpeaker);
                 }
+                this.lastEventCommand = Game1.CurrentEvent.currentCommand;
             }
 
-            this.lastEventCommand = Game1.CurrentEvent.currentCommand;
             return null;
         }
 

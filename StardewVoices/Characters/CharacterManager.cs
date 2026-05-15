@@ -24,6 +24,13 @@ namespace StardewVoices.Characters
             return characterDictionary[characterName];
         }
 
+        public void SetupCharacterInGameNpcs()
+        {
+            foreach (string characterName in Constants.supportedCharacters)
+            {
+                characterDictionary[characterName].SetupNpc();
+            }
+        }
 
         private void SetupCharacterDictionary()
         {

@@ -142,6 +142,11 @@ namespace StardewVoices.EventManager
             _managers.Menu.SetupGMCM();
         }
 
+        public void OnSaveLoaded(object sender, SaveLoadedEventArgs e)
+        {
+           _managers.CharacterManager.SetupCharacterInGameNpcs();
+        }
+
 
         public void UpdateLastLocationAndEvent()
         {

@@ -37,32 +37,32 @@ namespace StardewVoices.Dialogue
                 if (this.currentEventDict.ContainsKey(dialogue))
                 {
                     return this.currentEventDict[dialogue];
-                }
-            } else
-            {
-                // this doesn't really do anything? might be safe to remove
-                string closeEnoughKey = DialogueHelpers.ContainsCloseEnoughLine(this.currentEventDict, dialogue);
-
-                // Check surrounding event files and also the dialogue file to see if the dialogue is there:
-                if (this.eventResponseDict != null && this.eventResponseDict.ContainsKey(dialogue))
+                } else
                 {
-                    return eventResponseDict[dialogue];
+                    // this doesn't really do anything? might be safe to remove
+                    string closeEnoughKey = DialogueHelpers.ContainsCloseEnoughLine(this.currentEventDict, dialogue);
+
+                    // Check surrounding event files and also the dialogue file to see if the dialogue is there:
+                    if (this.eventResponseDict != null && this.eventResponseDict.ContainsKey(dialogue))
+                    {
+                        return eventResponseDict[dialogue];
+                    }
+
+                    string eventDialogue = checkForDialogueInNearbyEvents(dialogue, currentSpeaker, Game1.CurrentEvent.id);
+
+                    // If it's not found in a nearby event it could be in dialogue
+                    if (eventDialogue.Contains("not found"))
+                    {
+
+                        characterDialogueHandler.CheckEverydayCharacterDictionariesForDialogue(currentSpeaker, dialogue);
+                    }
+                    else
+                    {
+                        return eventDialogue;
+                    }
+
+                    return $"Event dialogue not found for {dialogue}";
                 }
-
-                string eventDialogue = checkForDialogueInNearbyEvents(dialogue, currentSpeaker, Game1.CurrentEvent.id);
-
-                // If it's not found in a nearby event it could be in dialogue
-                if (eventDialogue.Contains("not found"))
-                {
-
-                    characterDialogueHandler.CheckEverydayCharacterDictionariesForDialogue(currentSpeaker, dialogue);
-                }
-                else
-                {
-                    return eventDialogue;
-                }
-
-                return $"Event dialogue not found for {dialogue}";
             }
 
             return null;

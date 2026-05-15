@@ -1,16 +1,9 @@
-using StardewValley;
+using StardewVoices.Characters;
+using StardewVoices.Pathing;
+using StardewVoices.Testing;
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System;
-using Newtonsoft.Json;
-using StardewModdingAPI;
-using System.Text;
-using StardewVoices.Pathing;
-using StardewVoices.Characters;
-using StardewVoices.EventManager;
-using StardewVoices.Testing;
-using StardewVoices.Audio;
 
 namespace StardewVoices.Dialogue
 {

@@ -25,6 +25,7 @@ namespace StardewVoices
             helper.Events.GameLoop.UpdateTicked += managerHub.GameEventManager.OnUpdateTicked;
             helper.Events.Input.ButtonPressed += managerHub.GameEventManager.OnButtonPressed;
             helper.Events.GameLoop.GameLaunched += managerHub.GameEventManager.OnGameLaunched;
+            helper.Events.GameLoop.SaveLoaded += managerHub.GameEventManager.OnSaveLoaded;
         }
 
     }
