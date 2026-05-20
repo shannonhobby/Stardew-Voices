@@ -100,7 +100,7 @@ namespace StardewVoices.EventManager
 
             if (isTestingWorldLoaded && e.Button == SButton.L)
             {
-                ErrorLogger.Trace("K pressed L");
+                ErrorLogger.Trace("L pressed");
                 _managers.TestingManager.ResetCharacterDialogue();
 
             }

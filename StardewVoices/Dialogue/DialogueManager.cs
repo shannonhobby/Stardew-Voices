@@ -37,9 +37,6 @@ namespace StardewVoices.Dialogue
             eventHandler = new EventHandler(pathManager);
             characterDialogueHandler = new CharacterDialogueHandler(pathManager, characterManager, _testingManager);
             ContinuationDialogueHelper.Init(characterManager);
-
-
-
         }
 
 

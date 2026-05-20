@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using StardewVoices.Characters;
 using StardewVoices.Testing;
+using StardewVoices.Utils;
 
 namespace StardewVoices.Dialogue
 {
@@ -49,10 +50,9 @@ namespace StardewVoices.Dialogue
             }
             catch (Exception ex)
             {
-                // error handling
+                ErrorLogger.Debug($"Error setting up dialogue dictionary from path {path}.\n{ex} :(");
                 return null;
             }
-
         }
 
 

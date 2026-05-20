@@ -125,8 +125,13 @@ namespace StardewVoices.Dialogue
 
         private Boolean ShouldCheckDialogue(string type, string currentSpeaker)
         {
-            return ShouldCheckEngagementDialogue(type) || ShouldCheckMarriageDialogue(type, currentSpeaker);
+            return ShouldCheckEngagementDialogue(type) || ShouldCheckMarriageDialogue(type, currentSpeaker) || DialogueIsNotMarriageOrEngagement(type);
         }
+
+        private Boolean DialogueIsNotMarriageOrEngagement(string type)
+        {
+            return type != "marriage_dialogue" && type != "generic_marriage" && type != "engagement";
+        } 
 
         private Boolean ShouldCheckMarriageDialogue(string type, string currentSpeaker)
         {

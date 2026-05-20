@@ -21,8 +21,8 @@ namespace StardewVoices.Audio
 
         public AudioManager(CharacterManager characterManager, PathManager pathManager) {
             AudioPath = pathManager.GetPath("Audio");
-            ErrorLogger.Debug($"{AudioPath}");
-;           AudioEngine = new AudioEngine(AudioPathHelper.GetGameRelativeAudioPath(AudioPath.ToString(), "Stardew Voices.xgs"));
+            ErrorLogger.Trace($"Audio path located: {AudioPath}");
+            AudioEngine = new AudioEngine(AudioPathHelper.GetGameRelativeAudioPath(AudioPath.ToString(), "Stardew Voices.xgs"));
             CharacterManager = characterManager;
             try
             {
@@ -39,24 +39,45 @@ namespace StardewVoices.Audio
             }
         }
 
+        public void Play(Cue cue)
+        {
+            StopLastCue();
+
+            if (cue != null)
+            {
+                ErrorLogger.Trace($"Playing cue");
+                currentCue = cue;
+                cue.Play();
+            } else
+            {
+                ErrorLogger.Warn($"Unable to play cue");
+            }
+        }
+
 
         public void Play(string lineId, string characterName)
         {
             currentCue = GetCueFromDialogueId(lineId, characterName);
+            ErrorLogger.Warn($"Current cue set");
 
-
-            if (lastCue != null && lastCue.IsPlaying)
-            {
-                lastCue.Stop(AudioStopOptions.Immediate);
+            if(currentCue == null ) {
+                ErrorLogger.Warn("CURRENT CUE IS NULL AHH");
             }
 
-            currentCue.Play();
+            StopLastCue();
+
+            if(currentCue != null)
+            {
+                ErrorLogger.Trace($"Playing cue: {characterName}: {lineId}");
+                currentCue.Play();
+            }
         }
   
         public void StopCue()
         {
             if (currentCue != null)
             {
+                ErrorLogger.Trace("Current cue stopped");
                 currentCue.Stop(AudioStopOptions.Immediate);
                 currentCue = null;
 
@@ -70,6 +91,7 @@ namespace StardewVoices.Audio
 
             if (lastCue != null && lastCue.IsPlaying)
             {
+                ErrorLogger.Trace("Last cue stopped");
                 lastCue.Stop(AudioStopOptions.Immediate);
             }
         }
@@ -82,6 +104,7 @@ namespace StardewVoices.Audio
         {
             if (this.currentCue != null)
             {
+                ErrorLogger.Trace("Last cue set to current cue");
                 this.lastCue = currentCue;
             }
         }

@@ -121,8 +121,10 @@ namespace StardewVoices.EventManager
                 // If dialogue has gone from non-empty to empty stop the audio cues.
                 if (!string.IsNullOrEmpty(this.LastDialogueBoxString) && !DialogueBoxIsOpen())
                 {
+                    ErrorLogger.Trace("Dialogue Box Closed");
                     this.LastDialogueBoxString = "";
                     currentlyTalking = false;
+                    _audioManager.StopCue();
                 }
 
                 if (Game1.currentSpeaker?.getName() != null && DialogueHelpers.StringContainsSupportedCharacter(Game1.currentSpeaker?.getName())
@@ -166,7 +168,7 @@ namespace StardewVoices.EventManager
                         if (_audioManager.LastCueIsStillPlaying() && !currentlyTalking)
                         {
                             currentlyTalking = true;
-                            cue.Play();
+                            _audioManager.Play(cue);
 
                             // i THINK events are the only place the right after anotehr dialogue can happen 
                             if ((Game1.CurrentEvent != null && !Game1.CurrentEvent.isFestival)
@@ -191,7 +193,6 @@ namespace StardewVoices.EventManager
                 }
 
                 _audioManager.NextCue();
-              
 
                 this.LastDialogueBoxString = currentDialogueBoxString;
 

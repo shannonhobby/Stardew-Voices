@@ -11,11 +11,20 @@ namespace StardewVoices.Audio
     public class CharacterAudio
     {
         private SoundBank _soundBank { get; }
+        private WaveBank _waveBank { get; }
         private AudioCategory _audioCategory { get; }
 
         public CharacterAudio(string name, AudioManager audioManager) {
-            _soundBank = new SoundBank(audioManager.AudioEngine, AudioPathHelper.GetGameRelativeAudioPath(audioManager.AudioPath.ToString(), name + ".xsb"));
-            _audioCategory = audioManager.AudioEngine.GetCategory(name);
+            try
+            {
+                _soundBank = new SoundBank(audioManager.AudioEngine, AudioPathHelper.GetGameRelativeAudioPath(audioManager.AudioPath.ToString(), name + ".xsb"));
+                _waveBank = new WaveBank(audioManager.AudioEngine, AudioPathHelper.GetGameRelativeAudioPath(audioManager.AudioPath.ToString(), name + ".xwb"));
+                _audioCategory = audioManager.AudioEngine.GetCategory(name);
+            } catch (Exception ex)
+            {
+                ErrorLogger.Warn($"Error setting up character audio for {name}\n{ex} :(");
+            }
+        
         }
 
         public void SetVolume(float volume)

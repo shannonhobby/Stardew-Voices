@@ -47,7 +47,7 @@ namespace StardewVoices.Characters
                 characterDictionary[characterName].SetCharacterAudio(audio);
             } catch (Exception e)
             {
-                // LOG ERROR
+                ErrorLogger.Warn($"Error setting character audio for {characterName}. {e}");
             }
         }
 

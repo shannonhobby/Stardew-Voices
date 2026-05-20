@@ -1,5 +1,6 @@
 using StardewModdingAPI;
 using StardewValley;
+using StardewVoices.Testing;
 using StardewVoices.Utils;
 using System.IO;
 
@@ -20,12 +21,29 @@ namespace StardewVoices
             this.helper = helper;
 
             managerHub = new ManagerHub(helper, this.ModManifest);
-    
+
+            DialogueTestingManager.Init(helper, managerHub);
+
+
+            helper.ConsoleCommands.Add(
+                "stardew_voices_validation",
+                "Runs dialogue voice validation",
+                RunVoiceValidationCommand
+            );
+
 
             helper.Events.GameLoop.UpdateTicked += managerHub.GameEventManager.OnUpdateTicked;
             helper.Events.Input.ButtonPressed += managerHub.GameEventManager.OnButtonPressed;
             helper.Events.GameLoop.GameLaunched += managerHub.GameEventManager.OnGameLaunched;
             helper.Events.GameLoop.SaveLoaded += managerHub.GameEventManager.OnSaveLoaded;
+        }
+
+        private void RunVoiceValidationCommand(
+            string command,
+            string[] args
+        )
+        {
+            DialogueTestingManager.RunValidation();
         }
 
     }
