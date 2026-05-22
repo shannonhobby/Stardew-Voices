@@ -14,7 +14,7 @@ namespace StardewVoices.Testing.Validation
     {
         public bool Success { get; set; }
 
-        public List<string> ErrorMessages { get; set; }
+        public List<string> ErrorMessages = new List<string>();
 
         public DialogueTestCase TestCase { get; set; }
 
@@ -25,6 +25,7 @@ namespace StardewVoices.Testing.Validation
         {
             AudioManager = audioManager;
             DialogueManager = dialogueManager;
+            TestCase = testCase;
             Success = RunTests(testCase);
         }
 
@@ -33,19 +34,21 @@ namespace StardewVoices.Testing.Validation
             return CueNameFound(testCase) && CueExists(testCase) && CueAudioPlays(testCase);
         }
 
+        // TODO add a test for checking if the right audio plays? not just that audio plays
+
         public bool CueNameFound(DialogueTestCase testCase)
         {
             try
             {
-                bool cueNameFound = DialogueManager.getIdFromDialogueString(testCase.DialogueLine.getCurrentDialogue(), testCase.CharacterName) != null;
+                bool cueNameFound = DialogueManager.getIdFromDialogueString(testCase.DialogueLine.Text, testCase.CharacterName) != null;
                 if (!cueNameFound)
                 {
-                    ErrorMessages.Add($"[FAILURE] CueExists: Cue name not found for dialogue line {testCase.DialogueLine.getCurrentDialogue()}.");
+                    ErrorMessages.Add($"1. [FAILURE] CueExists: Cue name not found for dialogue line {testCase.DialogueLine.Text}.");
                 }
                 return cueNameFound;
             } catch (Exception e)
             {
-                ErrorMessages.Add($"[FAILURE] CueExists: Cue name not found for dialogue line {testCase.DialogueLine.getCurrentDialogue()}. {e}");
+                ErrorMessages.Add($"1. [FAILURE] CueExists: Cue name not found for dialogue line {testCase.DialogueLine.Text}");
                 return false;
             }
         }
@@ -58,13 +61,13 @@ namespace StardewVoices.Testing.Validation
                 bool CueExists = AudioManager.GetCueFromDialogueId(testCase.CueName, testCase.CharacterName) != null;
                 if (!CueExists)
                 {
-                    ErrorMessages.Add($"[FAILURE] CueExists: Cue not found for ID {testCase.CueName}");
+                    ErrorMessages.Add($"2. [FAILURE] CueExists: Cue not found for ID {testCase.CueName}");
                 }
 
                 return CueExists;
             } catch (Exception e)
             {
-                ErrorMessages.Add($"[FAILURE] CueExists: Cue not found for ID {testCase.CueName}. {e}");
+                ErrorMessages.Add($"2. [FAILURE] CueExists: Cue not found for ID {testCase.CueName}.");
                 return false;
             }
 
@@ -81,7 +84,7 @@ namespace StardewVoices.Testing.Validation
                 return true;
             } catch(Exception e)
             {
-                ErrorMessages.Add($"[FAILURE] CueAudioPlays: {e}");
+                ErrorMessages.Add($"3. [FAILURE] CueAudioPlays: {e}");
                 return false;
             }
         }

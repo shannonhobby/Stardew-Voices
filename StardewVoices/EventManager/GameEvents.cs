@@ -9,6 +9,7 @@ using Newtonsoft.Json;
 using System.IO;
 using System.Text;
 using StardewVoices.Utils;
+using StardewVoices.Testing;
 
 namespace StardewVoices.EventManager
 {
@@ -102,6 +103,13 @@ namespace StardewVoices.EventManager
             {
                 ErrorLogger.Trace("L pressed");
                 _managers.TestingManager.ResetCharacterDialogue();
+
+            }
+
+            if (isTestingWorldLoaded && e.Button == SButton.T)
+            {
+                ErrorLogger.Trace("T pressed");
+                DialogueTestingManager.RunValidation();
 
             }
 

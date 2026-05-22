@@ -58,11 +58,6 @@ namespace StardewVoices.Audio
         public void Play(string lineId, string characterName)
         {
             currentCue = GetCueFromDialogueId(lineId, characterName);
-            ErrorLogger.Warn($"Current cue set");
-
-            if(currentCue == null ) {
-                ErrorLogger.Warn("CURRENT CUE IS NULL AHH");
-            }
 
             StopLastCue();
 

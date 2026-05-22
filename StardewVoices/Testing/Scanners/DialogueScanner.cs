@@ -6,6 +6,11 @@ using System.Text;
 using System.Threading.Tasks;
 using StardewValley;
 using StardewVoices.Utils;
+using System.Text.RegularExpressions;
+using StardewVoices.Characters;
+using System.IO;
+using StardewVoices.Dialogue;
+using StardewVoices.Testing.Models;
 
 namespace StardewVoices.Testing.Scanners
 {
@@ -23,19 +28,28 @@ namespace StardewVoices.Testing.Scanners
         {
 
         }
+  
 
-        public StardewValley.Dialogue[] GetAllDialogueForCharacter(NPC character)
+        public Dictionary<DialogueType, List<StardewValley.Dialogue>> GetAllDialogueForCharacter(NPC character)
         {
-            return character.CurrentDialogue?.ToArray();
+            return new Dictionary<DialogueType, List<StardewValley.Dialogue>>()
+            {
+                { DialogueType.Dialogue, GetCharacterDialogue(character) },
+                { DialogueType.Engagement, GetEngagementDialogueForCharacter(character) },
+                { DialogueType.Rainy, new List<StardewValley.Dialogue>(){GetRainyDialogue(character) } },
+                { DialogueType.Marriage, GetMarriageDialogueForCharacter(character) }
+            };
         }
 
         private List<StardewValley.Dialogue> GetEngagementDialogueForCharacter(NPC character)
         {
             try
             {
-                List<StardewValley.Dialogue> dialogue = new List<StardewValley.Dialogue>();
-                dialogue.Add(character.TryGetDialogue($"{character.Name}0"));
-                dialogue.Add(character.TryGetDialogue($"{character.Name}1"));
+                List<StardewValley.Dialogue> dialogue = new List<StardewValley.Dialogue>
+                {
+                    character.TryGetDialogue($"{character.Name}0"),
+                    character.TryGetDialogue($"{character.Name}1")
+                };
                 return dialogue;
             } catch (Exception e)
             {
@@ -48,8 +62,14 @@ namespace StardewVoices.Testing.Scanners
         {
             try
             {
-                List<StardewValley.Dialogue> dialogue = new List<StardewValley.Dialogue>();
-                
+                List<StardewValley.Dialogue> dialogue = GetDialogueFromGameContent(character, $"Characters/Dialogue/MarriageDialogue{character.name}");
+                if (dialogue.Count == 0)
+                {
+                    ErrorLogger.Warn($"Error retrieving marriage dialogue for {character.Name}");
+                }
+
+                dialogue.AddRange(GetGenericMarriageDialogueForCharacter(character));
+
                 return dialogue;
             }
             catch (Exception e)
@@ -63,9 +83,24 @@ namespace StardewVoices.Testing.Scanners
         {
             try
             {
-                List<StardewValley.Dialogue> dialogue = new List<StardewValley.Dialogue>();
-        
-                return dialogue;
+                Dictionary<string, string> dialogueData = helper.GameContent.Load<Dictionary<string, string>>(
+                           $"Characters/Dialogue/MarriageDialogue"
+                        );
+                List<StardewValley.Dialogue> dialogueList = new List<StardewValley.Dialogue>();
+
+                foreach (string key in dialogueData.Keys)
+                {
+                    // Don't add lines for other characters
+                    if (DialogueHelpers.StringContainsSupportedCharacter(key) && key.Contains(character.getName()) 
+                        || !DialogueHelpers.StringContainsSupportedCharacter(key))
+                    {
+                        dialogueList.Add(character.TryGetDialogue(key));
+
+                    }
+                }
+
+
+                return dialogueList;
             }
             catch (Exception e)
             {
@@ -74,78 +109,58 @@ namespace StardewVoices.Testing.Scanners
             }
         }
 
-        private List<StardewValley.Dialogue> GetAllPossibleGossipDialogues(NPC character)
-        {
 
-        }
 
         private StardewValley.Dialogue GetRainyDialogue(NPC character)
         {
             return StardewValley.Dialogue.TryGetDialogue(character, "Characters\\Dialogue\\rainy:" + character.GetDialogueSheetName());
         }
 
-        private StardewValley.Dialogue GetDivorceDialogue(NPC character)
+        private List<StardewValley.Dialogue> GetCharacterDialogue(NPC character)
         {
-            return StardewValley.Dialogue.TryGetDialogue(character, "Characters\\Dialogue\\" + character.GetDialogueSheetName() + ":divorced");
-        }
+            List<StardewValley.Dialogue> dialogueList = GetDialogueFromGameContent(character, $"Characters/Dialogue/{character.name}");
 
-        private List<StardewValley.Dialogue> GetDailyDialogue(NPC character)
-        {
-            GetSeasonalDialogue(character);
-            GetGenericDialogue(character);
-        }
-
-        private List<StardewValley.Dialogue> GetSeasonalDialogue(NPC character)
-        {
-            List<string> seasons = new List<string>() { "spring", "summer", "fall", "winter" };
-            List<int> heartLevels = new List<int>() { 2, 4, 6, 8, 10 };
-           
-            foreach (string season in seasons)
+            if(dialogueList.Count == 0)
             {
-                // winter_4
-                for (int day = 1; day <= 28 ; day++) {
-                
-                }
+                ErrorLogger.Warn($"Error retrieving character dialogue for {character.Name}");
+            }
 
-                for(int dayOfweek = 0; dayOfweek < 7; dayOfweek++)
+            return dialogueList;
+        }
+
+        private List<StardewValley.Dialogue> GetDialogueFromGameContent(NPC character, string path)
+        {
+            try
+            {
+                Dictionary<string, string> dialogueData = helper.GameContent.Load<Dictionary<string, string>>(
+                           path
+                         );
+                List<StardewValley.Dialogue> dialogueList = new List<StardewValley.Dialogue>();
+
+                foreach (string key in dialogueData.Keys)
                 {
-                    // summer_Wed
-
-                    //  summer_Thu4 {season_dayHeartLevel}
-                    foreach (int heartLevel in heartLevels)
-                    {
-
-                    }
+                    dialogueList.Add(character.TryGetDialogue(key));
                 }
-            
+
+
+                return dialogueList;
             }
-
-
-            for (int dayOfweek = 0; dayOfweek < 7; dayOfweek++)
+            catch (Exception e)
             {
-                // Thur
-
-
-                //  Wed6
-                foreach (int heartLevel in heartLevels)
-                {
-
-                }
+                ErrorLogger.Warn($"Error Retrieving dialogue from: {path} for {character}. {e}");
+                return new List<StardewValley.Dialogue>();
             }
-
-            foreach (int heartLevel in heartLevels)
-            {
-                // Can literally just be "6"
-            }
-
-            // inlaw?? only for certain characters
-
-            // what about eventseen
+         
         }
 
-        private List<StardewValley.Dialogue> GetGenericDialogue(NPC character)
+       /* private List<StardewValley.Dialogue> GetGenericDialogue(NPC character)
         {
 
         }
+
+        private List<StardewValley.Dialogue> GetAllPossibleGossipDialogues(NPC character)
+        {
+
+        }*/
     }
 }
