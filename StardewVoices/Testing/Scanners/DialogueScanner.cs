@@ -11,6 +11,7 @@ using StardewVoices.Characters;
 using System.IO;
 using StardewVoices.Dialogue;
 using StardewVoices.Testing.Models;
+using Microsoft.Xna.Framework.Input;
 
 namespace StardewVoices.Testing.Scanners
 {
@@ -37,7 +38,9 @@ namespace StardewVoices.Testing.Scanners
                 { DialogueType.Dialogue, GetCharacterDialogue(character) },
                 { DialogueType.Engagement, GetEngagementDialogueForCharacter(character) },
                 { DialogueType.Rainy, new List<StardewValley.Dialogue>(){GetRainyDialogue(character) } },
-                { DialogueType.Marriage, GetMarriageDialogueForCharacter(character) }
+                { DialogueType.Marriage, GetMarriageDialogueForCharacter(character) },
+                { DialogueType.Generic, GetGenericDialogue(character) },
+                { DialogueType.Schedule, GetScheduleDialogue(character) }
             };
         }
 
@@ -83,28 +86,11 @@ namespace StardewVoices.Testing.Scanners
         {
             try
             {
-                Dictionary<string, string> dialogueData = helper.GameContent.Load<Dictionary<string, string>>(
-                           $"Characters/Dialogue/MarriageDialogue"
-                        );
-                List<StardewValley.Dialogue> dialogueList = new List<StardewValley.Dialogue>();
-
-                foreach (string key in dialogueData.Keys)
-                {
-                    // Don't add lines for other characters
-                    if (DialogueHelpers.StringContainsSupportedCharacter(key) && key.Contains(character.getName()) 
-                        || !DialogueHelpers.StringContainsSupportedCharacter(key))
-                    {
-                        dialogueList.Add(character.TryGetDialogue(key));
-
-                    }
-                }
-
-
-                return dialogueList;
+                return GetOnlyDialogueWithCharacterNameInId(character, "Characters/Dialogue/MarriageDialogue");
             }
             catch (Exception e)
             {
-                ErrorLogger.Error($"Error getting Marriage dialogue. {e}");
+                ErrorLogger.Error($"Error getting Generic Marriage dialogue. {e}");
                 return null;
             }
         }
@@ -118,7 +104,7 @@ namespace StardewVoices.Testing.Scanners
 
         private List<StardewValley.Dialogue> GetCharacterDialogue(NPC character)
         {
-            List<StardewValley.Dialogue> dialogueList = GetDialogueFromGameContent(character, $"Characters/Dialogue/{character.name}");
+            List<StardewValley.Dialogue> dialogueList = GetDialogueFromGameContent(character, $"Characters/Dialogue/{character.getName()}");
 
             if(dialogueList.Count == 0)
             {
@@ -153,14 +139,127 @@ namespace StardewVoices.Testing.Scanners
          
         }
 
-       /* private List<StardewValley.Dialogue> GetGenericDialogue(NPC character)
+        private List<StardewValley.Dialogue> GetOnlyDialogueWithCharacterNameInId(NPC character, string path)
         {
+            try
+            {
+                Dictionary<string, string> dialogueData = helper.GameContent.Load<Dictionary<string, string>>(
+                           path
+                        );
+                List<StardewValley.Dialogue> dialogueList = new List<StardewValley.Dialogue>();
+
+                foreach (string key in dialogueData.Keys)
+                {
+                    // Don't add lines for other characters
+                    if (StringContainsCharacter(key, character.getName()))
+                    {
+                        dialogueList.Add(character.TryGetDialogue(key));
+
+                    }
+                }
+
+                return dialogueList;
+            }
+            catch (Exception e)
+            {
+                ErrorLogger.Warn($"Error Retrieving dialogue from: {path} for {character}. {e}");
+                return new List<StardewValley.Dialogue>();
+            }
 
         }
 
+        private List<StardewValley.Dialogue> GetGenericDialogue(NPC character)
+        {
+            try
+            {
+                List<StardewValley.Dialogue> dialogue = GetMovieDialogue(character);
+                if (dialogue.Count == 0)
+                {
+                    ErrorLogger.Warn($"Error retrieving movie dialogue for {character.Name}");
+                }
+
+                dialogue.AddRange(GetExtraDialogue(character));
+
+
+                return dialogue;
+            }
+            catch (Exception e)
+            {
+                ErrorLogger.Error($"Error getting Marriage dialogue. {e}");
+                return null;
+            }
+        }
+
+        // For dialogue lines from Data/ExtraDialogue.json
+        private List<StardewValley.Dialogue> GetExtraDialogue(NPC character)
+        {
+            Dictionary<string, string> dialogueData = helper.GameContent.Load<Dictionary<string, string>>(
+                         "Data/ExtraDialogue"
+                      );
+            List<StardewValley.Dialogue> dialogueList = new List<StardewValley.Dialogue>();
+
+            foreach (string key in dialogueData.Keys)
+            {
+                // Don't add lines for other characters
+                if (StringContainsCharacter(key, character.getName())
+                    || StringContainsSpouse(key, character.getName()) 
+                    || key.Contains("NewChild") 
+                    || key.Contains("LostItemQuest")
+                    || key.Equals("Town_DumpsterDiveComment_Teen") 
+                    ||key.Equals("Town_DumpsterDiveComment_Adult"))
+                {
+                    dialogueList.Add(character.TryGetDialogue(key));
+
+                }
+            }
+
+            return dialogueList;
+        }
+
+        private bool StringContainsSpouse(string str, string characterName)
+        {
+            // Mines_PlayerKilled_Maru_Spouse is possible and shouldn't trigger for all NPCs
+            return !DialogueHelpers.StringContainsSupportedCharacter(str) && str.Contains("Spouse");
+
+        }
+
+        private bool StringContainsCharacter(string str, string characterName)
+        {
+            return DialogueHelpers.StringContainsSupportedCharacter(str) && str.Contains(characterName)
+                    || !DialogueHelpers.StringContainsSupportedCharacter(str);
+        }
+
+        private List<StardewValley.Dialogue> GetMovieDialogue(NPC character)
+        {
+            List<StardewValley.Dialogue> dialogueList = GetOnlyDialogueWithCharacterNameInId(character, $"Strings/MovieReactions");
+
+            if (dialogueList.Count == 0)
+            {
+                ErrorLogger.Warn($"Error retrieving movie dialogue for {character.Name}");
+            }
+
+            return dialogueList; 
+        }
+
+        private List<StardewValley.Dialogue> GetScheduleDialogue(NPC character)
+        {
+            List<StardewValley.Dialogue> dialogueList = GetDialogueFromGameContent(character, $"Strings/schedules/{character.getName()}");
+
+            if (dialogueList.Count == 0)
+            {
+                ErrorLogger.Warn($"Error retrieving schedule dialogue for {character.Name}");
+            }
+
+            return dialogueList;
+        }
+
+        // TODO
+        /*
         private List<StardewValley.Dialogue> GetAllPossibleGossipDialogues(NPC character)
         {
-
+            // Get character's list of friends / family
+            // Get friend's / family likes / dislikes
+            // Get all possible permutations?
         }*/
     }
 }

@@ -105,6 +105,18 @@ namespace StardewVoices.Audio
         }
 
 
+        public void MuteAll()
+        {
+            foreach (string name in Constants.supportedCharacters)
+                CharacterManager.GetCharacter(name).SetVolume(0);
+        }
+
+        public void UnmuteAll()
+        {
+            foreach (string name in Constants.supportedCharacters)
+                CharacterManager.GetCharacter(name).SetVolume(1);
+        }
+
         public Cue GetCueFromDialogueId(string lineId, string characterName)
         {
             try

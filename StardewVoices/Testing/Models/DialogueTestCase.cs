@@ -16,14 +16,16 @@ namespace StardewVoices.Testing.Models
         Marriage,
         Generic,
         Engagement,
+        Schedule,
         Rainy,
+        Event,
+        Festival
     }
     public class DialogueTestCase
     {
         public string CharacterName { get; }
         public StardewValley.DialogueLine DialogueLine { get; }
         public string CueName { get; set; }
-        public string EventId { get; set; } // optional
 
         public DialogueType DialogueType { get; set; }
 
