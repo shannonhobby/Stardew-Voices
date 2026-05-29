@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 // Reference: https://github.com/CJBok/SDV-Mods/blob/master/CJBCheatsMenu/Framework/Models/ModConfig.cs
-namespace StardewVoices
+namespace StardewVoices.Config
 {
     /// <summary>The mod configuration model.</summary>
     public class ModConfig

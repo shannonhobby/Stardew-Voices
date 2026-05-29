@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "StardewVoices": {
+      "commandName": "Project",
+      "commandLineArgs": "--developer-mode"
+    }
+  }
+}
