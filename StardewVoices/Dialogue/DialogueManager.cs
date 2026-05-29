@@ -81,7 +81,6 @@ namespace StardewVoices.Dialogue
         {
             festivalHandler.SetFestival(festivalName);
             eventHandler.currentEventDict = null;
-
         }
 
         public void ResetFestival()
@@ -122,36 +121,34 @@ namespace StardewVoices.Dialogue
 
             try
             {
-                string eventDialogueLineId = eventHandler.CheckForDialogueInEvent(formattedDialogueString, currentSpeaker, characterDialogueHandler);
+                string eventDialogueLineId = eventHandler.CheckForDialogueInEvent(formattedDialogueString, currentSpeaker, characterDialogueHandler, _testingManager.ValidationIsRunning);
                 if(eventDialogueLineId != null)
                 {
                     return eventDialogueLineId;
                 }
 
-                string festivalDialoguLineId = festivalHandler.CheckForDialogueInFestival(formattedDialogueString, currentSpeaker, characterDialogueHandler);
+                string festivalDialoguLineId = festivalHandler.CheckForDialogueInFestival(formattedDialogueString, currentSpeaker, characterDialogueHandler, _testingManager.ValidationIsRunning);
                 if(festivalDialoguLineId != null)
                 {
                     return festivalDialoguLineId;
                 }
+
+
+                // If not currently in event or festival check all character's dialogue dictionaries
+                string foundLineId = characterDialogueHandler.CheckForCharacterDialogueLineId(currentSpeaker, dialogueString);
+               
+
+                if(foundLineId != null)
+                {
+                    return foundLineId;
+                }
+
 
                 // If an event happened today there could be "Event End Dialogue" that is
                 // stored in the event but is said after it is complete.
                 if (eventHandler.eventsToday.Count > 0)
                 {
                     return eventHandler.checkEventsThatHappenedTodayForDialogue(formattedDialogueString, currentSpeaker);
-                }
-
-                // If not currently in event or festival check all character's dialogue dictionaries
-                string foundLineId = characterDialogueHandler.CheckForCharacterDialogueLineId(currentSpeaker, dialogueString);
-                if(foundLineId != null)
-                {
-                    return foundLineId;
-                }
-
-
-                if(foundLineId != null)
-                {
-                    return foundLineId;
                 }
 
                 return $"Line not found for {currentSpeaker}: {formattedDialogueString}";

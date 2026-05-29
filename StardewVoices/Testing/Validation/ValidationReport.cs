@@ -12,6 +12,7 @@ namespace StardewVoices.Testing.Validation
     public class ValidationReport
     {
         public int TotalTestCount { get; }
+        public int FailedTestCount => GetCountOfFailedTests();
         public Dictionary<string, List<string>> failedTests = new Dictionary<string, List<string>>();
         public DialogueType DialogueType;
 
@@ -31,16 +32,9 @@ namespace StardewVoices.Testing.Validation
                     PrintCharacterTestInfo(lastCharacter);
                 }
 
-                if(!result.Success)
+                if (!result.Success)
                 {
-                    if(failedTests.TryGetValue(result.TestCase.CharacterName, out List<string> failedTestForCharacter))
-                    {
-                        failedTestForCharacter.Add(result.TestCase.CueName);
-                    } else
-                    {
-                        failedTests.Add(result.TestCase.CharacterName, new List<string> () { result.TestCase.CueName });
-                    }
-
+                    AddFailedTest(result.TestCase.CharacterName, result.TestCase.CueName);
                     PrintFailedTestCase(result);
                 }
             }
@@ -48,16 +42,23 @@ namespace StardewVoices.Testing.Validation
             PrintReportStats();
         }
 
-        private void PrintCharacterTestInfo(string characterName) 
+        private void AddFailedTest(string characterName, string cueIdentifier)
+        {
+            if (failedTests.TryGetValue(characterName, out List<string> existing))
+                existing.Add(cueIdentifier);
+            else
+                failedTests.Add(characterName, new List<string>() { cueIdentifier });
+        }
+
+        private void PrintCharacterTestInfo(string characterName)
         {
             ErrorLogger.Trace($"~~TESTING {characterName.ToUpper()}'S {DialogueType.ToString().ToUpper()} LINES~~" );
         }
-        private void PrintFailedTestCase (ValidationResult result) {
-            ErrorLogger.Error($"[FAILED D:]: {result.TestCase.CueName}: {result.TestCase.DialogueLine.Text}");
+        private void PrintFailedTestCase(ValidationResult result)
+        {
+            ErrorLogger.Error($"[FAILED D:]: {result.TestCase.CueName ?? "EMPTY CUE NAME"}: {result.TestCase.DialogueText}");
             foreach (string errorMessage in result.ErrorMessages)
-            {
                 ErrorLogger.Warn(errorMessage);
-            }
         }
 
 

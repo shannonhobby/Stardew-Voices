@@ -24,7 +24,7 @@ namespace StardewVoices.Dialogue
             }
             catch
             {
-                // error handling
+                ErrorLogger.Error($"Could not find dictionary from path: {path}");
                 return null;
             }
 
@@ -42,7 +42,7 @@ namespace StardewVoices.Dialogue
             }
             catch
             {
-                // TODO error handling
+                ErrorLogger.Error($"Could not find dictionary from path: {path}");
                 return null;
             }
 

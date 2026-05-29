@@ -20,6 +20,8 @@ namespace StardewVoices.Testing
         private int eventsToTestIndex = 0;
         List<string> testDialogue = new List<string>();
 
+        public bool ValidationIsRunning = false;
+
         private CharacterManager _characterManager { get;}
         private NPC Shane;
 

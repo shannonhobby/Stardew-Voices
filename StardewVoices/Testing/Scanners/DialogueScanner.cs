@@ -12,6 +12,10 @@ using System.IO;
 using StardewVoices.Dialogue;
 using StardewVoices.Testing.Models;
 using Microsoft.Xna.Framework.Input;
+using StardewValley.BellsAndWhistles;
+using StardewValley.GameData.Characters;
+using StardewValley.ItemTypeDefinitions;
+using StardewValley.TokenizableStrings;
 
 namespace StardewVoices.Testing.Scanners
 {
@@ -40,7 +44,7 @@ namespace StardewVoices.Testing.Scanners
                 { DialogueType.Rainy, new List<StardewValley.Dialogue>(){GetRainyDialogue(character) } },
                 { DialogueType.Marriage, GetMarriageDialogueForCharacter(character) },
                 { DialogueType.Generic, GetGenericDialogue(character) },
-                { DialogueType.Schedule, GetScheduleDialogue(character) }
+                { DialogueType.Schedule, GetScheduleDialogue(character) },
             };
         }
 
@@ -202,7 +206,7 @@ namespace StardewVoices.Testing.Scanners
             {
                 // Don't add lines for other characters
                 if (StringContainsCharacter(key, character.getName())
-                    || StringContainsSpouse(key, character.getName()) 
+                    || StringContainsSpouse(key) 
                     || key.Contains("NewChild") 
                     || key.Contains("LostItemQuest")
                     || key.Equals("Town_DumpsterDiveComment_Teen") 
@@ -216,7 +220,7 @@ namespace StardewVoices.Testing.Scanners
             return dialogueList;
         }
 
-        private bool StringContainsSpouse(string str, string characterName)
+        private bool StringContainsSpouse(string str)
         {
             // Mines_PlayerKilled_Maru_Spouse is possible and shouldn't trigger for all NPCs
             return !DialogueHelpers.StringContainsSupportedCharacter(str) && str.Contains("Spouse");
@@ -252,14 +256,5 @@ namespace StardewVoices.Testing.Scanners
 
             return dialogueList;
         }
-
-        // TODO
-        /*
-        private List<StardewValley.Dialogue> GetAllPossibleGossipDialogues(NPC character)
-        {
-            // Get character's list of friends / family
-            // Get friend's / family likes / dislikes
-            // Get all possible permutations?
-        }*/
     }
 }

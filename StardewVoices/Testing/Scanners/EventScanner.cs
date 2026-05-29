@@ -34,9 +34,9 @@ namespace StardewVoices.Testing.Scanners
             this.dialogueManager = dialogueManager;
         }
 
-        public List<EventDialogueTestCase> GetEventTestCasesForCharacter(string characterName)
+        public List<DialogueTestCase> GetEventTestCasesForCharacter(string characterName)
         {
-            var testCases = new List<EventDialogueTestCase>();
+            var testCases = new List<DialogueTestCase>();
 
             foreach (string locationName in EventLocations)
             {
@@ -52,21 +52,19 @@ namespace StardewVoices.Testing.Scanners
                     if (speakLines.Count == 0) continue;
                     foreach (string rawLine in speakLines)
                     {
-            
                         string[] parsedString = DialogueParsingHelper.ParseDialogue(rawLine);
-                    
-                
+
                         if (parsedString != null && parsedString.Length > 0)
                         {
-                            foreach(string splitLine in parsedString)
+                            foreach (string splitLine in parsedString)
                             {
-                                testCases.Add(new EventDialogueTestCase(characterName, eventId, locationName, splitLine, dialogueManager));
+                                testCases.Add(new DialogueTestCase(characterName, DialogueType.Event, splitLine, $"{locationName}/{eventId}", dialogueManager, helper));
                             }
-                        } else
+                        }
+                        else
                         {
                             ErrorLogger.Warn($"Error parsing dialogue: {rawLine}");
                         }
-                      
                     }
                 }
             }

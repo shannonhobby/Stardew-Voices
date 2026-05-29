@@ -44,6 +44,7 @@ namespace StardewVoices
         )
         {
             DialogueTestingManager.RunValidation();
+
         }
 
     }

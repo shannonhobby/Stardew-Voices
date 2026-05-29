@@ -29,13 +29,13 @@ namespace StardewVoices.Testing.Scanners
             this.dialogueManager = dialogueManager;
         }
 
-        public List<FestivalDialogueTestCase> GetFestivalTestCasesForCharacter(string characterName)
+        public List<DialogueTestCase> GetFestivalTestCasesForCharacter(string characterName)
         {
-            var testCases = new List<FestivalDialogueTestCase>();
+            var testCases = new List<DialogueTestCase>();
 
             foreach (string festivalDate in FestivalDates)
             {
-                
+
                 Dictionary<string, string> festivalDict = LoadGameFestivalData(festivalDate);
                 if (festivalDict == null)
                 {
@@ -57,7 +57,7 @@ namespace StardewVoices.Testing.Scanners
                             {
                                 foreach (string splitLine in parsedString)
                                 {
-                                    testCases.Add(new FestivalDialogueTestCase(characterName, festivalDate, splitLine, dialogueManager));
+                                    testCases.Add(new DialogueTestCase(characterName, DialogueType.Festival, splitLine, festivalDate, dialogueManager, helper));
                                 }
                             }
                             else
@@ -65,11 +65,11 @@ namespace StardewVoices.Testing.Scanners
                                 ErrorLogger.Warn($"Error parsing dialogue: {line}");
                             }
                         }
-                      
+
                     }
                 }
             }
-         
+
             return testCases;
         }
 

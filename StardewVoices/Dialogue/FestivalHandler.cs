@@ -62,11 +62,10 @@ namespace StardewVoices.Dialogue
             currentFestivalDict = null;
         }
 
-        public string CheckForDialogueInFestival(string dialogue, string currentSpeaker, CharacterDialogueHandler characterDialogueHandler)
+        public string CheckForDialogueInFestival(string dialogue, string currentSpeaker, CharacterDialogueHandler characterDialogueHandler, bool validationIsRunning)
         {
-            if (IsInFestival())
+            if (IsInFestival() || (validationIsRunning && currentFestivalDict != null))
             {
-
                 if (this.currentFestivalDict.ContainsKey(dialogue))
                 {
                     if (this.currentFestivalDict[dialogue].Length > 1)

@@ -2,6 +2,7 @@ using Newtonsoft.Json;
 using StardewValley;
 using StardewValley.Util;
 using StardewVoices.Pathing;
+using StardewVoices.Utils;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -25,14 +26,17 @@ namespace StardewVoices.Dialogue
 
         public List<Dictionary<string, string>> eventsToday = new List<Dictionary<string, string>>();
 
+        private List<Dictionary<string, string>> eventIdsToday = new List<Dictionary<string, string>>();
+
+
         public EventHandler(PathManager pathManager)
         {
             _pathManager = pathManager;
         }
 
-        internal string CheckForDialogueInEvent(string dialogue, string currentSpeaker, CharacterDialogueHandler characterDialogueHandler)
+        internal string CheckForDialogueInEvent(string dialogue, string currentSpeaker, CharacterDialogueHandler characterDialogueHandler, bool validationIsRunning)
         {
-            if(EventsIsHappening())
+            if(EventsIsHappening() || (validationIsRunning && currentEventDict != null))
             {
                 if (this.currentEventDict.ContainsKey(dialogue))
                 {
@@ -48,7 +52,9 @@ namespace StardewVoices.Dialogue
                         return eventResponseDict[dialogue];
                     }
 
-                    string eventDialogue = checkForDialogueInNearbyEvents(dialogue, currentSpeaker, Game1.CurrentEvent.id);
+               
+                     string eventDialogue = checkForDialogueInNearbyEvents(dialogue, currentSpeaker);
+
 
                     // If it's not found in a nearby event it could be in dialogue
                     if (eventDialogue.Contains("not found"))
@@ -95,7 +101,7 @@ namespace StardewVoices.Dialogue
 
         }
 
-        private string checkForDialogueInNearbyEvents(string dialogueString, string currentSpeaker, string currentEventId)
+        private string checkForDialogueInNearbyEvents(string dialogueString, string currentSpeaker)
         {
 
             try

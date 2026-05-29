@@ -24,9 +24,12 @@ namespace StardewVoices.Testing
 
         public static void RunValidation()
         {
+            Managers.TestingManager.ValidationIsRunning = true;
+
             ValidationManager validation = new ValidationManager(Helper, Managers);
             validation.RunValidation();
+
         }
-    
+
     }
 }

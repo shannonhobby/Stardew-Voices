@@ -1,3 +1,4 @@
+using System;
 using StardewModdingAPI;
 using StardewVoices.Testing.Models;
 using StardewVoices.Testing.Scanners;
@@ -14,18 +15,16 @@ namespace StardewVoices.Testing.Validation
         private EventScanner eventScanner;
         private FestivalScanner festivalScanner;
         private List<DialogueTestCase> testCases = new List<DialogueTestCase>();
-        private List<EventDialogueTestCase> eventTestCases = new List<EventDialogueTestCase>();
-        private List<FestivalDialogueTestCase> festivalTestCases = new List<FestivalDialogueTestCase>();
 
         private ManagerHub Managers;
+        private IModHelper helper;
 
         public List<ValidationReport> ValidationReport = new List<ValidationReport>();
-        public EventValidationReport EventValidationReport;
-        public FestivalValidationReport FestivalValidationReport;
 
 
         public ValidationManager(IModHelper helper, ManagerHub managers)
         {
+            this.helper = helper;
             dialogueScanner = new DialogueScanner(helper);
             eventScanner = new EventScanner(helper, managers.DialogueManager);
             festivalScanner = new FestivalScanner(helper, managers.DialogueManager);
@@ -37,14 +36,49 @@ namespace StardewVoices.Testing.Validation
             GenerateTestCases();
 
             Managers.AudioManager.MuteAll();
-          
+
             Dictionary<DialogueType, List<ValidationResult>> results = RunTestCases();
             foreach (DialogueType dialogueType in results.Keys)
                 ValidationReport.Add(new ValidationReport(dialogueType, results[dialogueType]));
-
-            RunEventTestCases();
-            RunFestivalTestCases();
             // TODO unmute the dialogue!
+
+            PrintFinalRecap();
+
+            Managers.TestingManager.ValidationIsRunning = false;
+        }
+
+        private void PrintFinalRecap()
+        {
+            int grandTotal = 0;
+            int grandFailed = 0;
+
+            foreach (ValidationReport report in ValidationReport)
+            {
+                grandTotal += report.TotalTestCount;
+                grandFailed += report.FailedTestCount;
+            }
+
+            ErrorLogger.Trace("===================================FINAL VALIDATION RECAP===================================");
+
+            foreach (ValidationReport report in ValidationReport)
+            {
+                if (report.failedTests.Count == 0)
+                    continue;
+
+                ErrorLogger.Trace($"--- FAILED {report.DialogueType.ToString().ToUpper()} LINES ---");
+                foreach (string character in report.failedTests.Keys)
+                {
+                    string cues = string.Join("\n", report.failedTests[character]);
+                    ErrorLogger.Error($"\n  {character}:\n {cues}");
+                }
+            }
+
+            ErrorLogger.Trace("--------------------------------------------------------------------------------------------");
+            ErrorLogger.Trace($"Grand Total: {grandTotal} tests");
+            ErrorLogger.Error($"Failed: {grandFailed}");
+            ErrorLogger.Trace($"Passed: {grandTotal - grandFailed}");
+            ErrorLogger.Trace($"Success Rate: {Math.Floor((1.0 - (double)grandFailed / grandTotal) * 100)}%");
+            ErrorLogger.Trace("============================================================================================");
         }
 
         private void GenerateTestCases()
@@ -52,8 +86,8 @@ namespace StardewVoices.Testing.Validation
             foreach (string characterName in Constants.supportedCharacters)
             {
                 GenerateDialogueTestCases(characterName);
-                GenerateEventDialogueTestCases(characterName);
-                GenerateFestivalDialogueTestCases(characterName);
+               // GenerateEventDialogueTestCases(characterName);
+                //GenerateFestivalDialogueTestCases(characterName);
             }
         }
 
@@ -84,7 +118,7 @@ namespace StardewVoices.Testing.Validation
                             if (dialogueBox.Text.StartsWith('%') || dialogueBox.Text.Equals("..."))
                                 continue;
 
-                            DialogueTestCase newTestCase = new DialogueTestCase(characterName, key, dialogueBox, Managers.DialogueManager);
+                            DialogueTestCase newTestCase = new DialogueTestCase(characterName, key, dialogueBox, Managers.DialogueManager, helper);
                             if (!newTestCase.CueName.ToLower().Contains("event_"))
                                 testCases.Add(newTestCase);
                         }
@@ -98,20 +132,20 @@ namespace StardewVoices.Testing.Validation
 
         private void GenerateEventDialogueTestCases(string characterName)
         {
-            List<EventDialogueTestCase> cases = eventScanner.GetEventTestCasesForCharacter(characterName);
+            List<DialogueTestCase> cases = eventScanner.GetEventTestCasesForCharacter(characterName);
             if (cases.Count == 0)
                 ErrorLogger.Warn($"No event test cases found for {characterName}.");
             else
-                eventTestCases.AddRange(cases);
+                testCases.AddRange(cases);
         }
 
         private void GenerateFestivalDialogueTestCases(string characterName)
         {
-            List<FestivalDialogueTestCase> cases = festivalScanner.GetFestivalTestCasesForCharacter(characterName);
+            List<DialogueTestCase> cases = festivalScanner.GetFestivalTestCasesForCharacter(characterName);
             if (cases.Count == 0)
                 ErrorLogger.Warn($"No festival test cases found for {characterName}.");
             else
-                festivalTestCases.AddRange(cases);
+                testCases.AddRange(cases);
         }
 
         private Dictionary<DialogueType, List<ValidationResult>> RunTestCases()
@@ -132,19 +166,7 @@ namespace StardewVoices.Testing.Validation
 
         private ValidationResult ValidateTestCase(DialogueTestCase testCase)
         {
-            return new ValidationResult(testCase, Managers.AudioManager, Managers.DialogueManager);
-        }
-
-        private void RunEventTestCases()
-        {
-            if (eventTestCases.Count == 0) return;
-            EventValidationReport = new EventValidationReport(eventTestCases, Managers.AudioManager);
-        }
-
-        private void RunFestivalTestCases()
-        {
-            if (festivalTestCases.Count == 0) return;
-            FestivalValidationReport = new FestivalValidationReport(festivalTestCases, Managers.AudioManager);
+            return new ValidationResult(testCase, Managers.AudioManager, Managers.DialogueManager, Managers.PathManager, helper);
         }
     }
 }

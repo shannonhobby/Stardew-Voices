@@ -1,4 +1,6 @@
-﻿using StardewValley;
+﻿using StardewModdingAPI;
+using StardewModdingAPI.Events;
+using StardewValley;
 using StardewValley.GameData.Characters;
 using StardewVoices.Dialogue;
 using System;
@@ -19,23 +21,41 @@ namespace StardewVoices.Testing.Models
         Schedule,
         Rainy,
         Event,
-        Festival
+        Festival,
+        Gossip,
     }
     public class DialogueTestCase
     {
         public string CharacterName { get; }
         public StardewValley.DialogueLine DialogueLine { get; }
+        public string DialogueText { get; }
+        public string Context { get; }
         public string CueName { get; set; }
-
         public DialogueType DialogueType { get; set; }
+        private IModHelper helper { get; }
+        private DialogueManager dialogueManager { get; }
 
-        public DialogueTestCase(string characterName, DialogueType dialogueType, StardewValley.DialogueLine dialogueLine, DialogueManager dialogueManager)
+        public DialogueTestCase(string characterName, DialogueType dialogueType, StardewValley.DialogueLine dialogueLine, DialogueManager dialogueManager, IModHelper helper)
         {
             CharacterName = characterName;
             DialogueLine = dialogueLine;
             DialogueType = dialogueType;
-            CueName = dialogueManager.getIdFromDialogueString(ParseDialogueString(dialogueLine.Text), characterName);
+            DialogueText = ParseDialogueString(dialogueLine.Text);
+            this.helper = helper;
+            this.dialogueManager = dialogueManager;
+            CueName = dialogueManager.getIdFromDialogueString(DialogueText, characterName);
         }
+
+        public DialogueTestCase(string characterName, DialogueType dialogueType, string dialogueText, string context, DialogueManager dialogueManager, IModHelper helper)
+        {
+            CharacterName = characterName;
+            DialogueType = dialogueType;
+            DialogueText = dialogueText;
+            Context = context;
+            this.helper = helper;
+            this.dialogueManager = dialogueManager;
+        }
+
 
         private string ParseDialogueString(string dialogue)
         {
