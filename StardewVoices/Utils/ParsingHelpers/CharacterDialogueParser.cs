@@ -1,38 +1,27 @@
-﻿using StardewVoices.Dialogue;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+using StardewVoices.Dialogue;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
-namespace StardewVoices.Testing.Scanners
+namespace StardewVoices.Utils.ParsingHelpers
 {
-    internal static class DialogueParsingHelper
+    public static class DialogueParsingHelper
     {
         public static string[] ParseDialogue(string s)
         {
-            string parsedString = s;
-            parsedString = ParseQuestionDialogue(s);
-            parsedString = ParsePDialogue(parsedString);
-            parsedString = StripEmotionCodes(parsedString);
-            parsedString = DialogueHelpers.Normalize(parsedString);
+            string parsed = ParseQuestionDialogue(s);
+            parsed = ParsePDialogue(parsed);
+            parsed = StripEmotionCodes(parsed);
+            parsed = DialogueHelpers.Normalize(parsed);
 
-            string[] splitString = null;
-            if (HasGenderVariants(parsedString))
-            {
-                splitString = GenerateGenderVariants(parsedString);
-            }
-            else if (parsedString.Contains("|"))
-            {
-                splitString = parsedString.Split("|");
-            }
-            else if (parsedString.Contains("^"))
-            {
-                splitString = parsedString.Split("^");
-            }
+            if (HasGenderVariants(parsed))
+                return GenerateGenderVariants(parsed);
 
-            return splitString != null ? splitString : new string[] {parsedString} ;
+            if (parsed.Contains("|"))
+                return parsed.Split("|");
+
+            if (parsed.Contains("^"))
+                return parsed.Split("^");
+
+            return new string[] { parsed };
         }
 
         private static string ParseQuestionDialogue(string s)
@@ -41,20 +30,16 @@ namespace StardewVoices.Testing.Scanners
             {
                 Match match = Regex.Match(s, @"\$q(?:[^#]*)#(.*?)#");
                 if (match.Success)
-                {
-                   return match.Groups[1].Value;
-                }
+                    return match.Groups[1].Value;
             }
-
             return s;
         }
 
         // $p 38#First dialogue line.|Second dialogue line
         private static string ParsePDialogue(string s)
         {
-            if (s.Contains("$p")) {
+            if (s.Contains("$p"))
                 return s.Split("#")[1];
-            }
             return s;
         }
 
@@ -66,10 +51,8 @@ namespace StardewVoices.Testing.Scanners
         private static string[] GenerateGenderVariants(string input)
         {
             var pattern = @"\$\{([^}^]+)\^([^}^]+)\}\$";
-
             string first = Regex.Replace(input, pattern, m => m.Groups[1].Value);
             string second = Regex.Replace(input, pattern, m => m.Groups[2].Value);
-
             return new string[] { first, second };
         }
 

@@ -1,19 +1,14 @@
 using StardewModdingAPI;
-using StardewVoices.Dialogue;
-using StardewVoices.Pathing;
-using StardewVoices.Testing.Models;
-using StardewVoices.Utils;
+using StardewVoices.Utils.ParsingHelpers;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Text.RegularExpressions;
 
-namespace StardewVoices.Testing.Scanners
+namespace StardewVoices.Utils.GameDialogueExtraction
 {
-    internal class EventScanner
+    public class EventDialogueExtractor
     {
         private readonly IModHelper helper;
-        private readonly DialogueManager dialogueManager;
 
         // All locations that contain love interest events.
         private static readonly List<string> EventLocations = new()
@@ -28,15 +23,15 @@ namespace StardewVoices.Testing.Scanners
 
         private static readonly string[] PageBreakTokens = { "#$b#" };
 
-        public EventScanner(IModHelper helper, DialogueManager dialogueManager)
+        public EventDialogueExtractor(IModHelper helper)
         {
             this.helper = helper;
-            this.dialogueManager = dialogueManager;
         }
 
-        public List<DialogueTestCase> GetEventTestCasesForCharacter(string characterName)
+        // Returns (Text, Context) pairs where Context is "{locationName}/{eventId}".
+        public List<(string Text, string Context)> GetEventDialogueForCharacter(string characterName)
         {
-            var testCases = new List<DialogueTestCase>();
+            var results = new List<(string Text, string Context)>();
 
             foreach (string locationName in EventLocations)
             {
@@ -46,30 +41,26 @@ namespace StardewVoices.Testing.Scanners
                 foreach (var kvp in gameEventData)
                 {
                     string eventId = kvp.Key.Split('/')[0];
-                    string eventScript = kvp.Value;
-
-                    List<string> speakLines = ParseSpeakLines(eventScript, characterName);
+                    List<string> speakLines = ParseSpeakLines(kvp.Value, characterName);
                     if (speakLines.Count == 0) continue;
+
                     foreach (string rawLine in speakLines)
                     {
-                        string[] parsedString = DialogueParsingHelper.ParseDialogue(rawLine);
-
-                        if (parsedString != null && parsedString.Length > 0)
+                        string[] parsedLines = DialogueParsingHelper.ParseDialogue(rawLine);
+                        if (parsedLines != null && parsedLines.Length > 0)
                         {
-                            foreach (string splitLine in parsedString)
-                            {
-                                testCases.Add(new DialogueTestCase(characterName, DialogueType.Event, splitLine, $"{locationName}/{eventId}", dialogueManager, helper));
-                            }
+                            foreach (string line in parsedLines)
+                                results.Add((line, $"{locationName}/{eventId}"));
                         }
                         else
                         {
-                            ErrorLogger.Warn($"Error parsing dialogue: {rawLine}");
+                            ErrorLogger.Warn($"Error parsing event dialogue: {rawLine}");
                         }
                     }
                 }
             }
 
-            return testCases;
+            return results;
         }
 
         private Dictionary<string, string> LoadGameEventData(string locationName)
@@ -80,13 +71,13 @@ namespace StardewVoices.Testing.Scanners
             }
             catch
             {
-                ErrorLogger.Warn($"Error finding event data for location: {locationName}");
+                ErrorLogger.Warn($"Could not load event data for location: {locationName}");
                 return null;
             }
         }
 
         // Extracts the displayed text from every `speak {characterName} "..."` command.
-        // Splits on the Stardew page-break token so each page becomes its own test case.
+        // Splits on the Stardew page-break token so each page becomes its own entry.
         private List<string> ParseSpeakLines(string eventScript, string characterName)
         {
             var lines = new List<string>();

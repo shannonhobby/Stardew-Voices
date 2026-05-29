@@ -22,6 +22,18 @@ namespace StardewVoices.Pathing
             ChildNodes = new List<PathNode>();
         }
 
+        internal void CreateFile(string fileName)
+        {
+            this.CreateChild(fileName);
+            FileManipulationHelpers.CreateNewFile(this.GetChild(fileName).FullPath);
+        }
+
+        internal void CreateFolder(string folderName)
+        {
+            this.CreateChild(folderName);
+            FileManipulationHelpers.CreateNewFolder(this.GetChild(folderName).FullPath);
+        }
+
         internal PathNode CreateChild(string folderName)
         {
 
@@ -64,12 +76,6 @@ namespace StardewVoices.Pathing
             }
             
             return null;
-        }
-
-
-        internal void UpdatePathAndChildren(string newBasePath)
-        {
-            // TODO
         }
 
         public override string ToString() => FullPath;

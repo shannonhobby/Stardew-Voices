@@ -2,7 +2,6 @@ using StardewModdingAPI;
 using StardewValley.Locations;
 using StardewValley;
 using System;
-using StardewValley.Menus;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Threading;

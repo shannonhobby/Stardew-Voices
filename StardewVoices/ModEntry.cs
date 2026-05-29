@@ -2,6 +2,7 @@ using StardewModdingAPI;
 using StardewValley;
 using StardewVoices.Testing;
 using StardewVoices.Utils;
+using StardewVoices.Tools;
 using System.IO;
 
 namespace StardewVoices
@@ -26,10 +27,19 @@ namespace StardewVoices
 
 
             helper.ConsoleCommands.Add(
-                "stardew_voices_validation",
-                "Runs dialogue voice validation",
+                "sv_validation",
+                "Runs dialogue voice validation.",
                 RunVoiceValidationCommand
             );
+
+            helper.ConsoleCommands.Add(
+              "sv_generation",
+              "Generates Dialogue JSONs and Scripts." +
+              "\n\nUsage: sv_generation [fileToGenerate]" +
+              "\n- filesToGenerate: \"json\", \"script\", \"both\" (default: both)",
+              GenerateFiles
+          );
+
 
 
             helper.Events.GameLoop.UpdateTicked += managerHub.GameEventManager.OnUpdateTicked;
@@ -45,6 +55,14 @@ namespace StardewVoices
         {
             DialogueTestingManager.RunValidation();
 
+        }
+
+        private void GenerateFiles(
+            string command,
+            string[] args
+        )
+        {
+            DialogueTestingManager.RunValidation();
         }
 
     }

@@ -12,18 +12,6 @@ using System.Threading.Tasks;
 
 namespace StardewVoices.Testing.Models
 {
-    public enum DialogueType
-    {
-        Dialogue,
-        Marriage,
-        Generic,
-        Engagement,
-        Schedule,
-        Rainy,
-        Event,
-        Festival,
-        Gossip,
-    }
     public class DialogueTestCase
     {
         public string CharacterName { get; }
