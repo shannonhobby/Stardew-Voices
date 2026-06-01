@@ -4,6 +4,8 @@ namespace StardewVoices
 {
     public static class Constants
     {
+        public static string GENERATED_FILES_FOLDER_NAME = "Generated Files";
+
         public static List<string> supportedCharacters = new()
         {
             "Abigail",

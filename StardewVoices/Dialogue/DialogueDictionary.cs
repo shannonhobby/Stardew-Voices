@@ -6,7 +6,9 @@ using StardewVoices.Characters;
 using StardewValley;
 using StardewVoices.Testing;
 using System.Linq;
+using StardewVoices.Utils;
 using Microsoft.Xna.Framework.Input;
+using Newtonsoft.Json.Serialization;
 
 namespace StardewVoices.Dialogue
 {
@@ -22,6 +24,11 @@ namespace StardewVoices.Dialogue
         public DialogueDictionary(string jsonString)
         {
             _data = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, string[]>>>(jsonString);
+        }
+
+        public DialogueDictionary()
+        {
+            _data = new Dictionary<string, Dictionary<string, string[]>>();
         }
 
         public string CheckDictionaryForDialogueLine(string type, string dialogueLine, string currentSpeaker)
@@ -148,7 +155,7 @@ namespace StardewVoices.Dialogue
         {
             _data[type] = dialogue;
         }
-
+        
         public Dictionary<string, string[]> GetType(string type) 
         {
             return _data[type];

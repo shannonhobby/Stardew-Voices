@@ -1,18 +1,61 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.IO;
+using StardewModdingAPI;
+using StardewVoices.Utils;
 
 namespace StardewVoices.Pathing
 {
     internal static class FileManipulationHelpers
     {
-        public static void CreateNewFolder(string path)
-        {
+        private static IModHelper _helper;
 
+        public static void Init(IModHelper helper)
+        {
+            _helper = helper;
         }
 
-        public static void CreateNewFile(string path) { }
+        public static void CreateNewFolder(string path)
+        {
+            if (Directory.Exists(path)) return;
+            try
+            {
+                Directory.CreateDirectory(path);
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.Error($"Failed to create folder at '{path}'", ex);
+            }
+        }
+
+        public static void CreateNewFile(string path)
+        {
+            if (File.Exists(path)) return;
+            try
+            {
+                File.WriteAllText(path, string.Empty);
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.Error($"Failed to create file at '{path}'", ex);
+            }
+        }
+
+        public static void CreateNewJsonFile<T>(string path, T model) where T : class
+        {
+            if (File.Exists(path)) return;
+            if (_helper is null)
+            {
+                ErrorLogger.Error("FileManipulationHelpers not initialized — call Init() before generating JSON files.");
+                return;
+            }
+            try
+            {
+                _helper.Data.WriteJsonFile(path, model);
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.Error($"Failed to create JSON file at '{path}'", ex);
+            }
+        }
     }
 }

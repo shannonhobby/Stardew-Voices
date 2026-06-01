@@ -9,8 +9,8 @@ namespace StardewVoices.Utils
 {
     internal static class ErrorLogger
     {
-        private static IMonitor? _monitor;
-
+        private static IMonitor _monitor;
+        /// <SHANNON NOTE>Claude helped implement this file</SHANNON>
         /// <summary>
         /// Call this once from ModEntry.Entry() to initialize the logger.
         /// </summary>

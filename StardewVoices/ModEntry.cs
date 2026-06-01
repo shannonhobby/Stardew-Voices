@@ -2,7 +2,6 @@ using StardewModdingAPI;
 using StardewValley;
 using StardewVoices.Testing;
 using StardewVoices.Utils;
-using StardewVoices.Tools;
 using System.IO;
 
 namespace StardewVoices
@@ -35,8 +34,9 @@ namespace StardewVoices
             helper.ConsoleCommands.Add(
               "sv_generation",
               "Generates Dialogue JSONs and Scripts." +
-              "\n\nUsage: sv_generation [fileToGenerate]" +
-              "\n- filesToGenerate: \"json\", \"script\", \"both\" (default: both)",
+              "\n\nUsage: sv_generate_files [filesToGenerate] [scriptFormat]" +
+              "\n- filesToGenerate: \"json\", \"script\", \"both\" (default: both)" +
+              "\n- scriptFormat: \"txt\", \"md\", \"both\" (default: both)",
               GenerateFiles
           );
 
@@ -62,7 +62,6 @@ namespace StardewVoices
             string[] args
         )
         {
-            DialogueTestingManager.RunValidation();
         }
 
     }

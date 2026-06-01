@@ -6,7 +6,7 @@ using StardewValley.TokenizableStrings;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace .StardewVoices.Utils.GameDialogueExtraction
+namespace StardewVoices.Utils.GameDialogueExtraction
 {
     public class GossipDialogueExtractor
     {

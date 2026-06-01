@@ -22,6 +22,12 @@ namespace StardewVoices.Pathing
             ChildNodes = new List<PathNode>();
         }
 
+        internal void CreateJsonFile<T>(string fileName, T model) where T : class
+        {
+            this.CreateChild(fileName);
+            FileManipulationHelpers.CreateNewJsonFile(this.GetChild(fileName).FullPath, model);
+        }
+
         internal void CreateFile(string fileName)
         {
             this.CreateChild(fileName);
