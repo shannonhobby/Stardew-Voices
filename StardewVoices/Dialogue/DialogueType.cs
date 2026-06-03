@@ -11,5 +11,6 @@ namespace StardewVoices.Dialogue
         Event,
         Festival,
         Gossip,
+        SpeechBubble
     }
 }

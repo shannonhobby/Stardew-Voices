@@ -79,6 +79,37 @@ namespace StardewVoices.Dialogue
             return "Could not find supported character in string :I";
         }
 
+        internal static Boolean StringContainAnyCharacter(string input)
+        {
+            for (int i = 0; i < Constants.AllCharacterNames.Count; i++)
+            {
+                string characterName = LocalizationHelpers.GetLocalizedName(Constants.AllCharacterNames[i]);
+
+
+                if (input.Contains(characterName))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+
+        internal static string GetAnyCharacterFromString(string input)
+        {
+            for (int i = 0; i < Constants.AllCharacterNames.Count; i++)
+            {
+                string characterName = LocalizationHelpers.GetLocalizedName(Constants.AllCharacterNames[i]);
+                if (input.Contains(characterName))
+                {
+                    return Constants.AllCharacterNames[i];
+                }
+            }
+
+            return "Could not find supported character in string :I";
+        }
+
         internal static string ContainsCloseEnoughLine(Dictionary<string, string> dictionary, string line)
         {
             if (dictionary != null && line != null && dictionary.ContainsKey(line))

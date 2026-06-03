@@ -2,6 +2,7 @@ using StardewModdingAPI;
 using StardewVoices.Utils.ParsingHelpers;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace StardewVoices.Utils.GameDialogueExtraction
 {
@@ -9,16 +10,20 @@ namespace StardewVoices.Utils.GameDialogueExtraction
     {
         private readonly IModHelper helper;
 
-        private static readonly List<string> FestivalDates = new()
-        {
-            "spring13", "spring24", "summer11", "summer28", "fall16", "fall27", "winter8", "winter25"
-        };
+        private string[] FestivalDates { get; }
 
         private static readonly string[] PageBreakTokens = { "#$b#", "#$e#" };
 
         public FestivalDialogueExtractor(IModHelper helper)
         {
             this.helper = helper;
+            FestivalDates = GetAllFestivalDates();
+        }
+
+        public string[] GetAllFestivalDates()
+        {
+            Dictionary<string, string> festivalDates = helper.GameContent.Load<Dictionary<string, string>>($"Data/Festivals/FestivalDates");
+            return festivalDates.Keys.ToArray();
         }
 
         // Returns (Text, Context) pairs where Context is the festival date (e.g. "spring13").
@@ -59,7 +64,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             return results;
         }
 
-        private Dictionary<string, string> LoadGameFestivalData(string festivalDate)
+        public Dictionary<string, string> LoadGameFestivalData(string festivalDate)
         {
             try
             {

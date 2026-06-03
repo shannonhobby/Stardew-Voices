@@ -66,15 +66,37 @@ namespace StardewVoices.FileGenerator.Models
         /// <summary>Returns the complete, ready-to-save Markdown script.</summary>
         public string GetMarkdown() => BuildMarkdownHeader() + MarkDownScript;
 
-        /// <summary>
-        /// Appends a labelled section with its dialogue lines.
-        /// Lines are output in dictionary iteration order.
-        /// </summary>
-        public void AddScriptSection(string sectionTitle, Dictionary<string, string> lines)
+        /// <summary>Adds formatted section header to plain-text and Markdown script.</summary>
+        public void AppendSectionHeader(string title)
         {
-            AppendSectionHeader(sectionTitle);
-            foreach (var kvp in lines)
-                AddLine(kvp.Key, kvp.Value);
+            // Plain text full-width rule:
+            // "✿── " (4) + TITLE + " " (1) + dashes + "✿" (1) = PageWidth
+            // => dashCount = PageWidth - 6 - title.Length
+            string upper = title.ToUpper();
+            int dashCount = Math.Max(2, PageWidth - 6 - upper.Length);
+            PlainTextScript += $"\n\n✿── {upper} {new string('─', dashCount)}✿\n\n";
+
+            // Markdown: h3 keeps section below the character-name h2 in the hierarchy
+            MarkDownScript += $"\n---\n\n### ✿ {title}\n\n";
+        }
+
+        /// <summary>
+        /// Adds a line to plain-text and Markdown script.
+        /// Set <paramref name="grouped"/> to <c>true</c> when this line immediately follows
+        /// the previous in the same context (e.g. consecutive lines of one dialogue sequence).
+        /// Grouped lines appear tight with no gap; ungrouped lines are separated by two blank lines.
+        /// </summary>
+        public void AddLine(string lineId, string dialogue, bool grouped = false)
+        {
+            LineCount++;
+            if (LineCount > 1)
+            {
+                PlainTextScript += grouped ? "" : "\n\n";
+                MarkDownScript  += grouped ? "" : "\n";
+            }
+            PlainTextScript += CenterLine($"[ {lineId} ]") + "\n";
+            PlainTextScript += BuildQuotedBlock(dialogue);
+            MarkDownScript  += $"**`{lineId}`**\n\n> {dialogue}\n\n";
         }
 
         /// <summary>
@@ -139,27 +161,6 @@ namespace StardewVoices.FileGenerator.Models
                 "---",
                 "", ""
             );
-        }
-
-        protected void AppendSectionHeader(string title)
-        {
-            // Plain text full-width rule:
-            // "✿── " (4) + TITLE + " " (1) + dashes + "✿" (1) = PageWidth
-            // => dashCount = PageWidth - 6 - title.Length
-            string upper = title.ToUpper();
-            int dashCount = Math.Max(2, PageWidth - 6 - upper.Length);
-            PlainTextScript += $"\n\n✿── {upper} {new string('─', dashCount)}✿\n\n";
-
-            // Markdown: h3 keeps section below the character-name h2 in the hierarchy
-            MarkDownScript += $"\n---\n\n### ✿ {title}\n\n";
-        }
-
-        private void AddLine(string lineId, string dialogue)
-        {
-            LineCount++;
-            PlainTextScript += CenterLine($"[ {lineId} ]") + "\n";
-            PlainTextScript += BuildQuotedBlock(dialogue) + "\n";
-            MarkDownScript += $"**`{lineId}`**\n\n> {dialogue}\n\n";
         }
 
         // ── Helpers ──────────────────────────────────────────────────────────────────

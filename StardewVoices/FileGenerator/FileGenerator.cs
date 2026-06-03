@@ -3,18 +3,27 @@ using StardewVoices.FileGenerator.Models;
 using StardewVoices.Pathing;
 using StardewVoices.Utils.GameDialogueExtraction;
 using System.Collections.Generic;
+using StardewVoices.Dialogue;
+using StardewValley;
+using StardewVoices.Utils.ParsingHelpers;
+using Microsoft.VisualBasic;
 
 namespace StardewVoices.FileGenerator
 {
     internal class FileGenerator
     {
         private IModHelper Helper;
-        private  ManagerHub Managers;
+        private ManagerHub Managers;
         private Dictionary<string, DialogueJson> Jsons = new Dictionary<string, DialogueJson>();
         private Dictionary<string, EventDialogueJson> EventJsons = new Dictionary<string, EventDialogueJson>();
 
         private Dictionary<string, Script> Scripts = new Dictionary<string, Script>();
         private Dictionary<string, EventScript> EventScripts = new Dictionary<string, EventScript>();
+
+        private CharacterDialogueExtractor characterDialogueExtractor { get; set; }
+        private FestivalDialogueExtractor festivalDialogueExtractor { get; set; }
+        private GossipDialogueExtractor gossipDialogueExtractor { get; set; }
+        private EventDialogueExtractor eventDialogueExtractor { get; set; }
 
         public FileGenerator(IModHelper helper, ManagerHub managers)
         {
@@ -29,10 +38,10 @@ namespace StardewVoices.FileGenerator
             Managers.TestingManager.ValidationIsRunning = true;
 
             // Setup extractor class instances
-            CharacterDialogueExtractor characterDialogueExtractor= new CharacterDialogueExtractor(Helper);
-            EventDialogueExtractor eventDialogueExtractor = new EventDialogueExtractor(Helper);
-            FestivalDialogueExtractor festivalDialogueExtractor = new FestivalDialogueExtractor(Helper);
-            GossipDialogueExtractor gossipDialogueExtractor = new GossipDialogueExtractor();
+            characterDialogueExtractor= new CharacterDialogueExtractor(Helper);
+            eventDialogueExtractor = new EventDialogueExtractor(Helper);
+            festivalDialogueExtractor = new FestivalDialogueExtractor(Helper);
+            gossipDialogueExtractor = new GossipDialogueExtractor();
 
             // Events
             if (generateJson)
@@ -42,10 +51,25 @@ namespace StardewVoices.FileGenerator
 
             foreach(string characterName in Constants.supportedCharacters)
             {
-                GenerateFilesForCharacter(characterName);
+                if(generateJson)
+                {
+                    Jsons.Add(characterName, new DialogueJson(characterName, DialogueParentFolder.Characters, Managers.PathManager));
+                }
+                if(generateScript)
+                {
+                    Scripts.Add(characterName, new Script(characterName));
+                }
+
+                GenerateCharacterDialogueFiles(characterName, generateJson, generateScript);
+
+                GenerateGenericDialogueFiles();
+
+                GenerateFestivalDialogueFiles(generateJson, generateScript);
+
             }
         }
 
+        // might be obsoltete if i do it in GenerateFilesForCharacter
         private void GenerateEventDialogueJsons(EventDialogueExtractor eventDialogueExtractor)
         {
             // Context is "{locationName}/{eventId}/{characterName}".
@@ -72,39 +96,101 @@ namespace StardewVoices.FileGenerator
             return s;
         }
 
-        private void GenerateFestivalDialogueJsons(FestivalDialogueExtractor festivalDialogueExtractor) { }
-
-        private void GenerateGenericDialogueJsons()
+        private void GenerateCharacterDialogueFiles(string characterName, bool generateJson, bool generateScript)
         {
+            NPC character = Game1.getCharacterFromName(characterName);
 
+            // Get all character dialogue
+            Dictionary<DialogueType, List<StardewValley.Dialogue>> characterDialogue
+                = characterDialogueExtractor.GetAllDialogueForCharacter(character);
+
+            foreach (DialogueType type in characterDialogue.Keys)
+            {
+                if (generateScript)
+                {
+                    Scripts[characterName].AppendSectionHeader(type + "lines");
+                }
+
+                foreach (StardewValley.Dialogue line in characterDialogue[type])
+                {
+                    if (line != null)
+                    {
+                        // Used to track spacing between lines.
+                        bool firstInGroup = true;
+                        foreach (DialogueLine dialogue in line.dialogues)
+                        {
+                            if (generateJson)
+                            {
+                                // AddLine already takes care of adding the dialogue type to the json correctly
+                                Jsons[characterName].AddLine(GetLineId(dialogue.Text), dialogue.Text, type.ToString());
+                            }
+
+                            if (generateScript)
+                            {
+                                Scripts[characterName].AddLine(GetLineId(dialogue.Text), dialogue.Text, grouped: !firstInGroup);
+                                firstInGroup = false;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private void GenerateFestivalDialogueFiles(bool generateJson, bool generateScript)
+        {
+            string[] festivalDates = festivalDialogueExtractor.GetAllFestivalDates();
+            foreach (string date in festivalDates)
+            {
+                Dictionary<string, string> festivalDict = festivalDialogueExtractor.LoadGameFestivalData(date);
+                
+                if (generateScript)
+                {
+                    foreach (Script script in Scripts.Values)
+                    {
+                        script.AppendSectionHeader(festivalDict["name"] + "Festival!!!");
+                    }
+                }
+
+                if (generateJson)
+                {
+                    Jsons.Add(date, new DialogueJson(date, DialogueParentFolder.Festivals, Managers.PathManager));
+                }
+
+                foreach (string lineId in festivalDict.Keys )
+                {
+                    if (DialogueHelpers.StringContainsSupportedCharacter(lineId))
+                    {
+                        string[] parsedLines = DialogueParsingHelper.ParseDialogue(festivalDict[lineId]);
+                        if (generateJson)
+                        {
+                            Jsons[date].AddMiscLine(GetLineId(lineId), festivalDict[lineId]);
+                        }
+
+                        if (generateScript)
+                        {
+                            string characterName = lineId.Split("_")[0];
+                            bool firstInGroup = true;
+                            foreach (string line in parsedLines)
+                            {
+                                Scripts[characterName].AddLine(GetLineId(lineId), line, firstInGroup);
+                                firstInGroup = false;
+                            }
+                        }
+                    }
+                }
+            }
         }
 
 
 
-        private void GenerateFilesForCharacter(string characterName)
+        private void GenerateGenericDialogueFiles(string characterName)
         {
-            // Get all character dialogue
 
-            // Iterate through each line
-                // Add to dialogue json
-                // Add to script
+        }
 
-            // Get All Festival Dialogue
-                // Add to Script 
-                // Add to appropriate Festival dialogue json 
+        private void GenerateEventDialogueFiles()
+        {
 
-            // Get All Generic Dialogue 
-                // Add to Script 
-                // (I've already added it  to the dialogue json if necessary
-
-            // Events???
-                // My original thought is that it would be easiest just to do the json events seperately
-                // but I suppose I could iterate through the events the character shows up in
-                // And then just get all lines for all characters this way?
-
-                // THEN - iterate through each supported character in the scene and create their 
-                // individual script
-                    // Different method though?
         }
 
     }
