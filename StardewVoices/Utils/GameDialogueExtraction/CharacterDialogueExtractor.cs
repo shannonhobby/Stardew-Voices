@@ -1,7 +1,9 @@
 using Microsoft.VisualBasic;
+using Microsoft.Xna.Framework.Graphics;
 using StardewModdingAPI;
 using StardewValley;
 using StardewValley.GameData.Characters;
+using StardewValley.Quests;
 using StardewVoices.Dialogue;
 using System;
 using System.Collections.Generic;
@@ -12,6 +14,54 @@ namespace StardewVoices.Utils.GameDialogueExtraction
     public class CharacterDialogueExtractor
     {
         private readonly IModHelper helper;
+
+        private readonly Dictionary<string, List<string>> stringsFromCsFileRules = new Dictionary<string, List<string>>()
+        {
+            {"Abigail", new List<string>() {"AbigailGame.cs.11896-11917", "ItemDeliveryQuest.cs.13597-13602"} },
+            {"Maru", new List<string>() { "ItemDeliveryQuest.cs.13585-13587" } },
+            {"Sam", new List<string>() { "ItemDeliveryQuest.cs.13577" } },
+            {"Haley", new List<string>() { "ItemDeliveryQuest.cs.13566" } },
+            {"Elliott", new List<string>() { "Event.cs.1257-1260" } },
+            {"Grandpa", new List<string>() { "Event.cs.1306-1318", "GrandpaStory.cs.12026-12055" } },
+            {"Marnie", new List<string>() {
+                "Event.cs.1798",
+                "PurchaseAnimalsMenu.cs.11311-11314",
+                "ShopMenu.cs.11507-11508"
+            } },
+            {"Gus", new List<string>() { "ShopMenu.cs.11512-11514" } },
+            {"Marlon", new List<string>() { "ShopMenu.cs.11517-11525",
+                "SlayMonsterQuest.cs.13730-13744",
+                "ItemRecovery_Description",
+                "ItemRecovery_Engaged",
+                "ItemRecovery_Engaged_Stack",
+            } },
+            {"Robin", new List<string>() { "NPC.cs.3926-3927", "ShopMenu.cs.11460-11464", "ResourceCollectionQuest.cs.13677-13683" } },
+            {"Clint", new List<string>() { "ShopMenu.cs.11469-11474", "ResourceCollectionQuest.cs.13655-13673", "Tool.cs.14317" } },
+            {"Willy", new List<string>() { "ShopMenu.cs.11477-11478", "FishingQuest.cs.13256-13268" } },
+            {"Pierre", new List<string>() { "ShopMenu.cs.11481-11489" } },
+            {"Wizard", new List<string>() { "ItemDeliveryQuest.cs.13555", "SlayMonsterQuest.cs.13760" } },
+            {"Krobus", new List<string>() { "NPC.cs.3990", "Krobus_Engaged", "Krobus_AfterWedding" } },
+            {"Lewis", new List<string>() { "Utility.cs.5367-5379" } },
+            {"EVERYONE", new List<string>() {
+                "ItemDeliveryQuest.cs.13526-13528",
+                "ItemDeliveryQuest.cs.13530-13544",
+                "NPC.cs.4274-4281",
+                "NPC.cs.4293-4294",
+            } },
+            {"LOVE INTERESTS", new List<string>() {
+                "Event.cs.1632-1635",
+                "Game1.cs.2782", 
+                // Rejection / Accept proposals
+                "NPC.cs.3956-3980", 
+                // TODO:"I heard you secretly gave {0} a gift today": Add different names
+                "NPC.cs.3985",
+                "NPC.cs.4001",
+                "NPC.cs.4406-4500",
+                "MultiplePetBowls_watered",
+            } },
+            {"CHILDREN", new List<string>() {"Event.cs.1497-1498"} },
+
+        };
 
         public CharacterDialogueExtractor(IModHelper helper)
         {
@@ -211,10 +261,49 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             return true;
         }
 
-        private List<StardewValley.Dialogue> GetLinesFromStringsFromCsFile(string lineId, NPC character)
+        private List<StardewValley.Dialogue> GetLinesFromStringsFromCsFile(NPC character)
         {
-            // Hardcoded for love interests
+
+            // This one is a little different - strings from cs files contains a lot of random string
+            // Instead of iterating through all of the file we're going to pull from my 
+            // "strings from cs files rules" dictionary I made
+            try
+            {
+                Dictionary<string, string> dialogueData = helper.GameContent.Load<Dictionary<string, string>>("Strings/StringsFromCsFiles");
+                List<StardewValley.Dialogue> dialogueList = new List<StardewValley.Dialogue>();
+
+                // Get character specific dialogue
+                stringsFromCsFileRules.TryGetValue(character.Name, out List<string> characterSpecificDialogueIds);
+                if (characterSpecificDialogueIds != null)
+                {
+                    foreach (string rule in characterSpecificDialogueIds)
+                    {
+                        if(rule.Contains("-"))
+                        {
+                            // add range
+                        } else
+                        {
+                            // add one
+                        }
+                    }
+                }
+
+                // Get everyone dialogue
+                
+                // Get group dialogue (love interest / child?)
+
+                return dialogueList;
+            }
+            catch (Exception e)
+            {
+                ErrorLogger.Warn($"Could not load dialogue from 'Strings / StringsFromCsFiles' for {character}. {e}");
+                return new List<StardewValley.Dialogue>();
+            }
         }
+
+
+        private List<string> 
+
 
         private List<StardewValley.Dialogue> GetSpeechBubbleDialogue(NPC character)
         {

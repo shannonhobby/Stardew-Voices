@@ -105,6 +105,13 @@ namespace StardewVoices
             "gift_tastes",
         };
 
+        public static Dictionary<string, string> ElliottBookTitles = new Dictionary<string, string>() {
+            { "mystery", "Blue Tower"},
+            { "romance", "Camellia Station"},
+            { "default", "The Rise And Fall Of Planet Yazzo"},
+
+        };
+
         public static Dictionary<string, string> DialogueTypeToDialogueDictName = new()
         {
             { "dialogue", "Dialogue-" },
