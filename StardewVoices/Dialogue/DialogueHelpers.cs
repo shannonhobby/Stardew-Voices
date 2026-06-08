@@ -7,6 +7,7 @@ using StardewModdingAPI;
 using StardewValley;
 using Newtonsoft.Json;
 using System.IO;
+using System.Text.RegularExpressions;
 
 namespace StardewVoices.Dialogue
 {
@@ -193,6 +194,7 @@ namespace StardewVoices.Dialogue
         {
             dialogueString = dialogueString.Replace(Game1.player.Name, "@");
             dialogueString = dialogueString.Replace(Game1.getFarm().Name, "%farm");
+            dialogueString = Regex.Replace(dialogueString, @"\[.*?\]", "").Trim();
 
             // If in event replace baby and the second baby??? what??
             /*if (currentEventDict == null)
@@ -236,7 +238,7 @@ namespace StardewVoices.Dialogue
         {
             foreach (string id in dialogueIdStrings)
             {
-                if (dialogueContext == "Extra Dialogue-" || dialogueContext == "Generic Marriage Dialogue")
+                if (dialogueContext == "extra" || dialogueContext == "generic_marriage")
                 {
                     // Right now just hard code quality low vs high to high
                     if (id.Contains("QualityHigh") && id.Contains(currentSpeaker))

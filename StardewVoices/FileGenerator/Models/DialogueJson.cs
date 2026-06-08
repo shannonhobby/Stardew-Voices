@@ -84,6 +84,19 @@ namespace StardewVoices.FileGenerator.Models
             }
         }
 
+        public void AddContinuationDialogue(string continuationLineId)
+        {
+
+            if (DialogueDictionary.ContainsKey("continuation_dialogue"))
+            {
+                DialogueDictionary["continuation_dialogue"].Add(continuationLineId);
+            }
+            else
+            {
+                DialogueDictionary.Add("continuation_dialogue", new List<string>() { continuationLineId });
+            }
+        }
+
         public void AddMiscLine(LabelledDialogueLine dialogueLine)
         {
 

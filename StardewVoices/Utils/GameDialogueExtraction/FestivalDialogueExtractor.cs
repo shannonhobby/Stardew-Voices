@@ -47,7 +47,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                     string[] rawLines = kvp.Value.Split(PageBreakTokens, StringSplitOptions.RemoveEmptyEntries);
                     foreach (string rawLine in rawLines)
                     {
-                        string[] parsedLines = DialogueParsingHelper.ParseDialogue(rawLine);
+                        string[] parsedLines = CharacterDialogueParser.ParseDialogue(rawLine);
                         if (parsedLines != null && parsedLines.Length > 0)
                         {
                             foreach (string line in parsedLines)

@@ -92,11 +92,11 @@ namespace StardewVoices.Dialogue
                     }
                 }
 
-                return $"Event end dialogue not found for {currentSpeaker}: {dialogueString}";
+                return null;
             }
             catch (Exception ex)
             {
-                return $"Event end dialogue not found for {currentSpeaker}: {dialogueString}, Exception: {ex}";
+                return null;
             }
 
         }

@@ -72,6 +72,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 { DialogueType.Engagement,      GetEngagementDialogue(character) },
                 { DialogueType.Rainy,           GetRainyDialogue(character) },
                 { DialogueType.Marriage,        GetMarriageDialogue(character) },
+                { DialogueType.Extra,           GetExtraDialogue(character) },
                 { DialogueType.GenericMarriage, GetGenericMarriageDialogue(character) },
                 { DialogueType.Generic,         GetGenericDialogue(character) },
                 { DialogueType.Schedule,        GetScheduleDialogue(character) },
@@ -129,7 +130,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 // Rainy uses a static TryGetDialogue overload with a colon-separated path
                 var sdvDialogue = StardewValley.Dialogue.TryGetDialogue(
                     character, "Characters\\Dialogue\\rainy:" + sheetName);
-                var labelledLines = DialogueParsingHelper.ParseRawValueToLines(rawValue, $"rainy_{sheetName}", DialogueType.Rainy);
+                var labelledLines = CharacterDialogueParser.ParseRawValueToLines(rawValue, $"rainy_{sheetName}", DialogueType.Rainy);
 
                 return new List<LabelledDialogue>
                 {
@@ -166,11 +167,8 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         {
             try
             {
-                var lines = GetLabelledLinesWithoutCharacterNameInId(
+                return GetLabelledLinesWithoutCharacterNameInId(
                     character, "Characters/Dialogue/MarriageDialogue", DialogueType.GenericMarriage);
-                lines.AddRange(GetLabelledLinesWithCharacterNameInId(
-                    character, "Characters/Dialogue/MarriageDialogue", DialogueType.GenericMarriage));
-                return lines;
             }
             catch (Exception e)
             {
@@ -187,7 +185,6 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 if (lines.Count == 0)
                     ErrorLogger.Warn($"No movie dialogue found for {character.Name}.");
 
-                lines.AddRange(GetExtraDialogue(character));
                 lines.AddRange(Get16Strings(character));
                 lines.AddRange(GetStringsFromCharactersFiles(character));
                 lines.AddRange(GetLinesFromStringsFromCsFile(character));
@@ -397,8 +394,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
 
         private bool StringContainsCharacter(string str, string characterName)
         {
-            return DialogueHelpers.StringContainsSupportedCharacter(str) && str.Contains(characterName)
-                || !DialogueHelpers.StringContainsSupportedCharacter(str);
+            return DialogueHelpers.StringContainsSupportedCharacter(str) && str.Contains(characterName);
         }
 
         private bool StringContainsSpouse(string str)
@@ -488,7 +484,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             NPC character, string key, string rawValue, DialogueType type)
         {
             var sdvDialogue = character.TryGetDialogue(key);
-            var labelledLines = DialogueParsingHelper.ParseRawValueToLines(rawValue, key, type);
+            var labelledLines = CharacterDialogueParser.ParseRawValueToLines(rawValue, key, type);
             return new LabelledDialogue(sdvDialogue, labelledLines, key, type);
         }
 

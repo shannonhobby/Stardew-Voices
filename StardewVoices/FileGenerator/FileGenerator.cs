@@ -33,14 +33,19 @@ namespace StardewVoices.FileGenerator
 
         }
 
+        private List<string> SeparateJsonFiles = new List<string>() { "EngagementDialogue", "ExtraDialogue", "rainy", "Marriage Dialogue Generic"};
+
         private Dictionary<DialogueType, string> typeMap = new Dictionary<DialogueType, string>()
         {
             {DialogueType.Marriage, "marriage_dialogue" },
             {DialogueType.Dialogue, "dialogue" },
             {DialogueType.Schedule, "schedule" },
-            {DialogueType.Schedule, "misc" },
             {DialogueType.Generic, "misc" },
             {DialogueType.Gossip, "misc" },
+            {DialogueType.Engagement, "EngagementDialogue" },
+            {DialogueType.Extra, "ExtraDialogue" },
+            {DialogueType.Rainy, "rainy" },
+            {DialogueType.GenericMarriage, "Marriage Dialogue Generic" },
         };
 
         public void GenerateFiles(bool generateJson, bool generateScript, string scriptFormat)
@@ -56,7 +61,13 @@ namespace StardewVoices.FileGenerator
             // Events
             if (generateJson)
             {
-                GenerateEventDialogueJsons(eventDialogueExtractor);
+                //GenerateEventDialogueJsons(eventDialogueExtractor);
+
+                // Initialize dialogue JSONs for generic files
+                foreach (string jsonFileName in SeparateJsonFiles)
+                {
+                    Jsons.Add(jsonFileName, new DialogueJson(jsonFileName, DialogueParentFolder.Generic, Managers.PathManager));
+                }
             }
 
             foreach(string characterName in Constants.supportedCharacters)
@@ -72,13 +83,12 @@ namespace StardewVoices.FileGenerator
 
                 GenerateCharacterDialogueFiles(characterName, generateJson, generateScript);
 
-                GenerateGenericDialogueFiles();
-
                 GenerateFestivalDialogueFiles(generateJson, generateScript);
 
             }
         }
 
+        /*
         // might be obsoltete if i do it in GenerateFilesForCharacter
         private void GenerateEventDialogueJsons(EventDialogueExtractor eventDialogueExtractor)
         {
@@ -97,20 +107,11 @@ namespace StardewVoices.FileGenerator
 
                 EventJsons[lastEventId].AddLine(GetLineId(Text), Text);
             }
-        }
+        }*/
 
-        private string GetLineId(string s)
-        {
-            // TODO
-            // LEFT OFF HERE!! - line id logic has to live in the parser so that's going to need a refactor
-            return s;
-        }
-
-
-        // TODO: continuation dialogue???
         private void GenerateCharacterDialogueFiles(string characterName, bool generateJson, bool generateScript)
         {
-            NPC character = Game1.getCharacterFromName(characterName);
+            NPC character = Game1.getCharacterFromName(characterName); 
 
             // Get all character dialogue
             Dictionary<DialogueType, List<LabelledDialogue>> characterDialogue
@@ -120,7 +121,7 @@ namespace StardewVoices.FileGenerator
             {
                 if (generateScript)
                 {
-                    Scripts[characterName].AppendSectionHeader(type + "lines");
+                    Scripts[characterName].AppendSectionHeader(type + "lines!");
                 }
 
                 foreach (LabelledDialogue line in characterDialogue[type])
@@ -135,13 +136,19 @@ namespace StardewVoices.FileGenerator
                             {
                                 typeMap.TryGetValue(type, out string jsonTypeLabel);
 
-                                if(jsonTypeLabel == null)
+                                if(SeparateJsonFiles.Contains(jsonTypeLabel))
                                 {
-                                    // Add to generic json files
+                                    Jsons[jsonTypeLabel].AddLine(dialogue);
+                                } else
+                                {
+                                    // AddLine already takes care of adding the dialogue type to the json correctly
+                                    Jsons[characterName].AddLine(dialogue, jsonTypeLabel);
                                 }
 
-                                // AddLine already takes care of adding the dialogue type to the json correctly
-                                Jsons[characterName].AddLine(dialogue, jsonTypeLabel);
+                                if (dialogue.IsContinuation)
+                                {
+                                    Jsons[characterName].AddContinuationDialogue(dialogue.LineId);
+                                }
                             }
 
                             if (generateScript)
@@ -180,10 +187,13 @@ namespace StardewVoices.FileGenerator
                     if (DialogueHelpers.StringContainsSupportedCharacter(lineId))
                     {
                         List<LabelledDialogueLine> parsedLines = 
-                            DialogueParsingHelper.ParseRawValueToLines(festivalDict[lineId], lineId, DialogueType.Festival);
+                            CharacterDialogueParser.ParseRawValueToLines(festivalDict[lineId], lineId, DialogueType.Festival);
                         if (generateJson)
                         {
-                            Jsons[date].AddMiscLine(GetLineId(lineId), festivalDict[lineId]);
+                            foreach (LabelledDialogueLine line in parsedLines)
+                            {
+                                Jsons[date].AddMiscLine(line);
+                            }
                         }
 
                         if (generateScript)
@@ -199,13 +209,6 @@ namespace StardewVoices.FileGenerator
                     }
                 }
             }
-        }
-
-
-
-        private void GenerateGenericDialogueFiles(string characterName)
-        {
-
         }
 
         private void GenerateEventDialogueFiles()

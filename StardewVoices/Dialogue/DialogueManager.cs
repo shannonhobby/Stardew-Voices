@@ -1,6 +1,7 @@
 using StardewVoices.Characters;
 using StardewVoices.Pathing;
 using StardewVoices.Testing;
+using StardewVoices.Utils;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -93,7 +94,7 @@ namespace StardewVoices.Dialogue
              var textAboveHeadDialogueAndSpeaker = textBubbleHandler.CheckForTextAboveHead();
 
 
-            if (GetCurrentEventDict() != null && textAboveHeadDialogueAndSpeaker != null)
+            if (GetCurrentEventDict() != null && textAboveHeadDialogueAndSpeaker != null && textAboveHeadDialogueAndSpeaker?.commandDialogue != null)
             {
 
                 string textAboveHeadLineId = getIdFromDialogueString(DialogueHelpers.formatDialogueString(textAboveHeadDialogueAndSpeaker?.commandDialogue), textAboveHeadDialogueAndSpeaker?.currentSpeaker);
@@ -113,6 +114,11 @@ namespace StardewVoices.Dialogue
             if (currentSpeaker == null)
             {
                 return $"Current speaker is null for {dialogueString}";
+            }
+
+            if (dialogueString == null)
+            {
+                return $"Dialogue String is null.";
             }
 
 
@@ -142,13 +148,22 @@ namespace StardewVoices.Dialogue
                 {
                     return foundLineId;
                 }
+                else
+                {
+                    ErrorLogger.Error($"Couldnt find dialogue: {currentSpeaker}, {dialogueString}");
+                }
 
 
                 // If an event happened today there could be "Event End Dialogue" that is
                 // stored in the event but is said after it is complete.
                 if (eventHandler.eventsToday.Count > 0)
                 {
-                    return eventHandler.checkEventsThatHappenedTodayForDialogue(formattedDialogueString, currentSpeaker);
+                    foundLineId = eventHandler.checkEventsThatHappenedTodayForDialogue(formattedDialogueString, currentSpeaker);
+                }
+
+                if (foundLineId != null)
+                {
+                    return foundLineId;
                 }
 
                 return $"Line not found for {currentSpeaker}: {formattedDialogueString}";

@@ -14,13 +14,15 @@ namespace StardewVoices.Utils.ParsingHelpers
         public string Text { get; }
         public string OriginalKey { get; }
         public DialogueType Type { get; }
+        public bool IsContinuation { get; }
 
-        public LabelledDialogueLine(string lineId, string text, string originalKey, DialogueType type)
+        public LabelledDialogueLine(string lineId, string text, string originalKey, DialogueType type, bool isContinuation = false)
         {
             LineId = lineId;
             Text = text;
             OriginalKey = originalKey;
             Type = type;
+            IsContinuation = isContinuation;
         }
 
         public override string ToString() => $"[{Type}] {LineId}: {Text}";

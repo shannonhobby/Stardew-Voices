@@ -48,7 +48,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
 
                     foreach ((string rawLine, string characterName) in speakLines)
                     {
-                        string[] parsedLines = DialogueParsingHelper.ParseDialogue(rawLine);
+                        string[] parsedLines = CharacterDialogueParser.ParseDialogue(rawLine);
                         if (parsedLines != null && parsedLines.Length > 0)
                         {
                             foreach (string line in parsedLines)
@@ -83,7 +83,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
 
                     foreach (string rawLine in speakLines)
                     {
-                        string[] parsedLines = DialogueParsingHelper.ParseDialogue(rawLine);
+                        string[] parsedLines = CharacterDialogueParser.ParseDialogue(rawLine);
                         if (parsedLines != null && parsedLines.Length > 0)
                         {
                             foreach (string line in parsedLines)

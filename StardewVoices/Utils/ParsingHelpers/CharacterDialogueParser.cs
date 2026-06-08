@@ -6,7 +6,7 @@ using System.Linq;
 
 namespace StardewVoices.Utils.ParsingHelpers
 {
-    public static class DialogueParsingHelper
+    public static class CharacterDialogueParser
     {
         private static string[] GenerateGenderVariants(string input)
         {
@@ -52,9 +52,10 @@ namespace StardewVoices.Utils.ParsingHelpers
         }
 
         // $p 38#First dialogue line.|Second dialogue line
+        // $d 38#First dialogue line.|Second dialogue line
         private static string ParsePDialogue(string s)
         {
-            if (s.Contains("$p"))
+            if (s.Contains("$p") || s.Contains("$d"))
                 return s.Split("#")[1];
             return s;
         }
@@ -63,7 +64,9 @@ namespace StardewVoices.Utils.ParsingHelpers
         {
             return Regex.Replace(text, @"\$\w+", "").Trim();
         }
-    
+
+        public static bool IsContinuationDialogue(string rawValue)
+            => rawValue.Contains("$q") || rawValue.Contains("$b");
 
         // ── Line ID generation ───────────────────────────────────────────────
 
@@ -106,9 +109,38 @@ namespace StardewVoices.Utils.ParsingHelpers
                 return results.ToArray();
             }
 
-            // $p prerequisite — two (or more) mutually exclusive variants
-            if (s.Contains("$p"))
+            // $p/$d prerequisite — two (or more) mutually exclusive variants
+            if (s.Contains("$p") || s.Contains("$d"))
                 return ParsePDialogueWithIds(s, baseId);
+
+            // $c chance dialogue — _chance_1 / _chance_2
+            if (s.Contains("$c"))
+                return ParseCDialogueWithIds(s, baseId);
+
+            // $1 only-once dialogue
+            if (s.Contains("$1") && s.Contains("#$1"))
+                return ParseOnlyOnceDialogueWithIds(s, baseId);
+
+            // # multi-page break — $b# and plain # both split into sequential lines
+            if (s.Contains("#"))
+            {
+                string[] pages = s.Split('#');
+                var results = new List<(string, string)>();
+                string currentId = baseId;
+
+                foreach (string page in pages)
+                {
+                    string cleaned = Clean(page);
+                    if (cleaned.Length > 0)
+                    {
+                        results.Add((currentId, cleaned));
+                        currentId = IncrementLineId(currentId);
+                    }
+                }
+
+                if (results.Count > 0)
+                    return results.ToArray();
+            }
 
             string parsed = Clean(s);
 
@@ -154,14 +186,15 @@ namespace StardewVoices.Utils.ParsingHelpers
         }
 
         /// <summary>
-        /// $p prerequisite: strips the condition token and returns one
+        /// $p/$d prerequisite: strips the condition token and returns one
         /// (LineId, Text) pair per variant.
         /// Format: $p {condition}#{line_if_met}|{line_if_not_met}
+        ///         $d {condition}#{line_if_met}|{line_if_not_met}
         /// </summary>
         private static (string LineId, string Text)[] ParsePDialogueWithIds(string s, string baseId)
         {
-            // Strip "$p {condition}#" to leave just the dialogue parts
-            string stripped = Regex.Replace(s, @"\$p[^#]*#", "");
+            // Strip "$p {condition}#" or "$d {condition}#" to leave just the dialogue parts
+            string stripped = Regex.Replace(s, @"\$[pd][^#]*#", "");
             string[] parts = stripped.Split('|');
 
             var results = new List<(string, string)>();
@@ -170,6 +203,66 @@ namespace StardewVoices.Utils.ParsingHelpers
                 string text = Clean(parts[i]);
                 if (text.Length > 0)
                     results.Add(($"{baseId}_prereq_{i + 1}", text));
+            }
+            return results.ToArray();
+        }
+
+        /// <summary>
+        /// $c chance dialogue: may or may not play → _chance_1 / _chance_2.
+        /// Format: $c {probability}#{text_if_yes}#{text_if_no}
+        ///      or {text_before}#$c {probability}#{text_if_yes}#{text_if_no}
+        /// </summary>
+        private static (string LineId, string Text)[] ParseCDialogueWithIds(string s, string baseId)
+        {
+            var results = new List<(string, string)>();
+            string currentId = baseId;
+
+            // Split on the $c marker to separate any text before it from the chance options
+            string[] outerSplit = Regex.Split(s, @"#?\$c[^#]*#");
+
+            if (outerSplit[0].Trim().Length > 0)
+            {
+                results.Add((currentId, Clean(outerSplit[0])));
+                currentId = IncrementLineId(currentId);
+            }
+
+            for (int i = 1; i < outerSplit.Length; i++)
+            {
+                string chunk = outerSplit[i];
+                string[] parts = chunk.Contains("#$e#")
+                    ? chunk.Split(new[] { "#$e#" }, StringSplitOptions.None)
+                    : chunk.Split('#');
+
+                for (int j = 0; j < parts.Length; j++)
+                {
+                    string cleaned = Clean(parts[j]);
+                    if (cleaned.Length == 0) continue;
+                    string id = j < 2 ? $"{currentId}_chance_{j + 1}" : IncrementLineId(currentId);
+                    results.Add((id, cleaned));
+                }
+            }
+            return results.ToArray();
+        }
+
+
+        /// <summary>
+        /// $1 only-once dialogue: shown once then replaced → _chance_1 / _chance_2.
+        /// Format: {shown_once_text}#$1#{text_after}
+        /// </summary>
+        private static (string LineId, string Text)[] ParseOnlyOnceDialogueWithIds(string s, string baseId)
+        {
+            string stripped = Regex.Replace(s, @"#?\$1#?", "");
+            string[] parts = stripped.Contains("#$e#")
+                ? stripped.Split(new[] { "#$e#" }, StringSplitOptions.None)
+                : stripped.Split('#');
+
+            var results = new List<(string, string)>();
+            for (int i = 0; i < parts.Length; i++)
+            {
+                string cleaned = Clean(parts[i]);
+                if (cleaned.Length == 0) continue;
+                string id = i >= 2 ? IncrementLineId(baseId) : $"{baseId}_chance_{i + 1}";
+                results.Add((id, cleaned));
             }
             return results.ToArray();
         }
@@ -202,12 +295,12 @@ namespace StardewVoices.Utils.ParsingHelpers
         /// (e.g. rainy dialogue).
         /// </summary>
         public static List<LabelledDialogueLine> ParseRawValueToLines(
-            string rawValue, string key, DialogueType type)
-        {
-            return DialogueParsingHelper
-                .ParseDialogueWithIds(rawValue, key)
-                .Select(pair => new LabelledDialogueLine(pair.LineId, pair.Text, key, type))
-                .ToList();
-        }
+          string rawValue, string key, DialogueType type)
+            {
+                bool isContinuation = IsContinuationDialogue(rawValue);
+                return ParseDialogueWithIds(rawValue, key)
+                    .Select(pair => new LabelledDialogueLine(pair.LineId, pair.Text, key, type, isContinuation))
+                    .ToList();
+            }
     }
 }

@@ -34,16 +34,16 @@ namespace StardewVoices.Dialogue
         public string CheckDictionaryForDialogueLine(string type, string dialogueLine, string currentSpeaker)
         {
             Dictionary<string, string[]> dialogueDict = GetType(type);
-        
+
             if (dialogueDict.ContainsKey(dialogueLine))
             {
                 if (dialogueDict[dialogueLine].Length > 1) {
-                    return DialogueHelpers.getCorrectIdFromListOfLineIds(dialogueDict[dialogueLine], currentSpeaker, "Dialogue-");
+                    return DialogueHelpers.getCorrectIdFromListOfLineIds(dialogueDict[dialogueLine], currentSpeaker, type);
                 }
 
                 return dialogueDict[dialogueLine][0];
             }
-            else if (type == "misc" || type == "extra")
+            else if (type == "misc" || type == "extra" || type =="generic_marriage")
             {
                 string foundLine = CheckDictionaryForVariableLines(dialogueDict, dialogueLine, currentSpeaker, type);
                 if(foundLine != null)
@@ -172,6 +172,15 @@ namespace StardewVoices.Dialogue
                    categories.TryGetValue(line, out var list)
                 ? list
                 : Array.Empty<string>();
+        }
+
+
+        private void PrintDictionary(Dictionary<string, string[]> dictionary)
+        {
+            foreach (string key in dictionary.Keys)
+            {
+                ErrorLogger.Trace($"{key}: {String.Join(",", dictionary[key])}");
+            }
         }
     }
 }
