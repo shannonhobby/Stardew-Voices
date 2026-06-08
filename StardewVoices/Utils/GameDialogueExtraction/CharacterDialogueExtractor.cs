@@ -1,13 +1,11 @@
-using Microsoft.VisualBasic;
-using Microsoft.Xna.Framework.Graphics;
-using StardewModdingAPI;
+﻿using StardewModdingAPI;
 using StardewValley;
 using StardewValley.GameData.Characters;
-using StardewValley.Quests;
 using StardewVoices.Dialogue;
+using StardewVoices.Utils.ParsingHelpers;
 using System;
 using System.Collections.Generic;
-using System.IO;
+using System.Linq;
 
 namespace StardewVoices.Utils.GameDialogueExtraction
 {
@@ -15,52 +13,41 @@ namespace StardewVoices.Utils.GameDialogueExtraction
     {
         private readonly IModHelper helper;
 
-        private readonly Dictionary<string, List<string>> stringsFromCsFileRules = new Dictionary<string, List<string>>()
+        private readonly Dictionary<string, List<string>> stringsFromCsFileRules = new()
         {
-            {"Abigail", new List<string>() {"AbigailGame.cs.11896-11917", "ItemDeliveryQuest.cs.13597-13602"} },
-            {"Maru", new List<string>() { "ItemDeliveryQuest.cs.13585-13587" } },
-            {"Sam", new List<string>() { "ItemDeliveryQuest.cs.13577" } },
-            {"Haley", new List<string>() { "ItemDeliveryQuest.cs.13566" } },
-            {"Elliott", new List<string>() { "Event.cs.1257-1260" } },
-            {"Grandpa", new List<string>() { "Event.cs.1306-1318", "GrandpaStory.cs.12026-12055" } },
-            {"Marnie", new List<string>() {
-                "Event.cs.1798",
-                "PurchaseAnimalsMenu.cs.11311-11314",
-                "ShopMenu.cs.11507-11508"
-            } },
-            {"Gus", new List<string>() { "ShopMenu.cs.11512-11514" } },
-            {"Marlon", new List<string>() { "ShopMenu.cs.11517-11525",
-                "SlayMonsterQuest.cs.13730-13744",
-                "ItemRecovery_Description",
-                "ItemRecovery_Engaged",
-                "ItemRecovery_Engaged_Stack",
-            } },
-            {"Robin", new List<string>() { "NPC.cs.3926-3927", "ShopMenu.cs.11460-11464", "ResourceCollectionQuest.cs.13677-13683" } },
-            {"Clint", new List<string>() { "ShopMenu.cs.11469-11474", "ResourceCollectionQuest.cs.13655-13673", "Tool.cs.14317" } },
-            {"Willy", new List<string>() { "ShopMenu.cs.11477-11478", "FishingQuest.cs.13256-13268" } },
-            {"Pierre", new List<string>() { "ShopMenu.cs.11481-11489" } },
-            {"Wizard", new List<string>() { "ItemDeliveryQuest.cs.13555", "SlayMonsterQuest.cs.13760" } },
-            {"Krobus", new List<string>() { "NPC.cs.3990", "Krobus_Engaged", "Krobus_AfterWedding" } },
-            {"Lewis", new List<string>() { "Utility.cs.5367-5379" } },
-            {"EVERYONE", new List<string>() {
+            { "Abigail",  new() { "AbigailGame.cs.11896-11917", "ItemDeliveryQuest.cs.13597-13602" } },
+            { "Maru",     new() { "ItemDeliveryQuest.cs.13585-13587" } },
+            { "Sam",      new() { "ItemDeliveryQuest.cs.13577" } },
+            { "Haley",    new() { "ItemDeliveryQuest.cs.13566" } },
+            { "Elliott",  new() { "Event.cs.1257-1260" } },
+            { "Grandpa",  new() { "Event.cs.1306-1318", "GrandpaStory.cs.12026-12055" } },
+            { "Marnie",   new() { "Event.cs.1798", "PurchaseAnimalsMenu.cs.11311-11314", "ShopMenu.cs.11507-11508" } },
+            { "Gus",      new() { "ShopMenu.cs.11512-11514" } },
+            { "Marlon",   new() { "ShopMenu.cs.11517-11525", "SlayMonsterQuest.cs.13730-13744",
+                                  "ItemRecovery_Description", "ItemRecovery_Engaged", "ItemRecovery_Engaged_Stack" } },
+            { "Robin",    new() { "NPC.cs.3926-3927", "ShopMenu.cs.11460-11464", "ResourceCollectionQuest.cs.13677-13683" } },
+            { "Clint",    new() { "ShopMenu.cs.11469-11474", "ResourceCollectionQuest.cs.13655-13673", "Tool.cs.14317" } },
+            { "Willy",    new() { "ShopMenu.cs.11477-11478", "FishingQuest.cs.13256-13268" } },
+            { "Pierre",   new() { "ShopMenu.cs.11481-11489" } },
+            { "Wizard",   new() { "ItemDeliveryQuest.cs.13555", "SlayMonsterQuest.cs.13760" } },
+            { "Krobus",   new() { "NPC.cs.3990", "Krobus_Engaged", "Krobus_AfterWedding" } },
+            { "Lewis",    new() { "Utility.cs.5367-5379" } },
+            { "EVERYONE", new() {
                 "ItemDeliveryQuest.cs.13526-13528",
                 "ItemDeliveryQuest.cs.13530-13544",
                 "NPC.cs.4274-4281",
-                "NPC.cs.4293-4294",
-            } },
-            {"LOVE INTERESTS", new List<string>() {
+                "NPC.cs.4293-4294" } },
+            { "LOVE INTERESTS", new() {
                 "Event.cs.1632-1635",
-                "Game1.cs.2782", 
-                // Rejection / Accept proposals
-                "NPC.cs.3956-3980", 
-                // TODO:"I heard you secretly gave {0} a gift today": Add different names
+                "Game1.cs.2782",
+                // Rejection / accept proposals
+                "NPC.cs.3956-3980",
+                // TODO: "I heard you secretly gave {0} a gift today" - add different names
                 "NPC.cs.3985",
                 "NPC.cs.4001",
                 "NPC.cs.4406-4500",
-                "MultiplePetBowls_watered",
-            } },
-            {"CHILDREN", new List<string>() {"Event.cs.1497-1498"} },
-
+                "MultiplePetBowls_watered" } },
+            { "CHILDREN", new() { "Event.cs.1497-1498" } },
         };
 
         public CharacterDialogueExtractor(IModHelper helper)
@@ -68,367 +55,344 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             this.helper = helper;
         }
 
-        public Dictionary<DialogueType, List<StardewValley.Dialogue>> GetAllDialogueForCharacter(NPC character)
+
+        // ── Public API ───────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns all dialogue for a character grouped by type. Each
+        /// LabelledDialogue holds the original StardewValley.Dialogue (for
+        /// game-engine consumers) and a parsed list of LabelledDialogueLines
+        /// (for file generation / audio lookup).
+        /// </summary>
+        public Dictionary<DialogueType, List<LabelledDialogue>> GetAllDialogueForCharacter(NPC character)
         {
-            return new Dictionary<DialogueType, List<StardewValley.Dialogue>>()
+            return new Dictionary<DialogueType, List<LabelledDialogue>>
             {
-                { DialogueType.Dialogue,    GetCharacterDialogue(character) },
-                { DialogueType.Engagement,  GetEngagementDialogue(character) },
-                { DialogueType.Rainy,       new List<StardewValley.Dialogue>() { GetRainyDialogue(character) } },
-                { DialogueType.Marriage,    GetMarriageDialogue(character) },
-                { DialogueType.GenericMarriage,    GetGenericMarriageDialogue(character) },
-                { DialogueType.Generic,     GetGenericDialogue(character) },
-                { DialogueType.Schedule,    GetScheduleDialogue(character) },
-                { DialogueType.SpeechBubble, GetSpeechBubbleDialogue(character) }
+                { DialogueType.Dialogue,        GetCharacterDialogue(character) },
+                { DialogueType.Engagement,      GetEngagementDialogue(character) },
+                { DialogueType.Rainy,           GetRainyDialogue(character) },
+                { DialogueType.Marriage,        GetMarriageDialogue(character) },
+                { DialogueType.GenericMarriage, GetGenericMarriageDialogue(character) },
+                { DialogueType.Generic,         GetGenericDialogue(character) },
+                { DialogueType.Schedule,        GetScheduleDialogue(character) },
+                { DialogueType.SpeechBubble,    GetSpeechBubbleDialogue(character) },
             };
         }
 
-        private List<StardewValley.Dialogue> GetEngagementDialogue(NPC character)
+
+        // ── Dialogue type extractors ─────────────────────────────────────────
+
+        private List<LabelledDialogue> GetCharacterDialogue(NPC character)
+        {
+            var lines = GetLabelledDialogueFromGameContent(
+                character, $"Characters/Dialogue/{character.getName()}", DialogueType.Dialogue);
+
+            if (lines.Count == 0)
+                ErrorLogger.Warn($"No character dialogue found for {character.Name}.");
+
+            return lines;
+        }
+
+        private List<LabelledDialogue> GetEngagementDialogue(NPC character)
         {
             try
             {
-                return new List<StardewValley.Dialogue>
+                Dictionary<string, string> data =
+                    helper.GameContent.Load<Dictionary<string, string>>("Data/EngagementDialogue");
+
+                var lines = new List<LabelledDialogue>();
+                foreach (string key in new[] { $"{character.Name}0", $"{character.Name}1" })
                 {
-                    character.TryGetDialogue($"{character.Name}0"),
-                    character.TryGetDialogue($"{character.Name}1"),
-                };
+                    if (data.TryGetValue(key, out string rawValue))
+                        lines.Add(BuildLabelledDialogue(character, key, rawValue, DialogueType.Engagement));
+                }
+                return lines;
             }
             catch (Exception e)
             {
                 ErrorLogger.Error($"Error getting engagement dialogue for {character.Name}. {e}");
-                return null;
+                return new List<LabelledDialogue>();
             }
         }
 
-        private List<StardewValley.Dialogue> GetMarriageDialogue(NPC character)
+        private List<LabelledDialogue> GetRainyDialogue(NPC character)
         {
             try
             {
-                List<StardewValley.Dialogue> dialogue = GetDialogueFromGameContent(character, $"Characters/Dialogue/MarriageDialogue{character.name}");
-                if (dialogue.Count == 0)
+                Dictionary<string, string> data =
+                    helper.GameContent.Load<Dictionary<string, string>>("Characters\\Dialogue\\rainy");
+
+                string sheetName = character.GetDialogueSheetName();
+                if (!data.TryGetValue(sheetName, out string rawValue))
+                    return new List<LabelledDialogue>();
+
+                // Rainy uses a static TryGetDialogue overload with a colon-separated path
+                var sdvDialogue = StardewValley.Dialogue.TryGetDialogue(
+                    character, "Characters\\Dialogue\\rainy:" + sheetName);
+                var labelledLines = DialogueParsingHelper.ParseRawValueToLines(rawValue, $"rainy_{sheetName}", DialogueType.Rainy);
+
+                return new List<LabelledDialogue>
+                {
+                    new LabelledDialogue(sdvDialogue, labelledLines, sheetName, DialogueType.Rainy)
+                };
+            }
+            catch (Exception e)
+            {
+                ErrorLogger.Error($"Error getting rainy dialogue for {character.Name}. {e}");
+                return new List<LabelledDialogue>();
+            }
+        }
+
+        private List<LabelledDialogue> GetMarriageDialogue(NPC character)
+        {
+            try
+            {
+                var lines = GetLabelledDialogueFromGameContent(
+                    character, $"Characters/Dialogue/MarriageDialogue{character.Name}", DialogueType.Marriage);
+
+                if (lines.Count == 0)
                     ErrorLogger.Warn($"No marriage dialogue found for {character.Name}.");
 
-                return dialogue;
+                return lines;
             }
             catch (Exception e)
             {
                 ErrorLogger.Error($"Error getting marriage dialogue for {character.Name}. {e}");
-                return null;
+                return new List<LabelledDialogue>();
             }
         }
 
-        private List<StardewValley.Dialogue> GetGenericMarriageDialogue(NPC character)
+        private List<LabelledDialogue> GetGenericMarriageDialogue(NPC character)
         {
             try
             {
-                List<StardewValley.Dialogue> dialogueList = GetOnlyDialogueWithoutAnyCharacterNameInId(character, "Characters/Dialogue/MarriageDialogue");
-                dialogueList.AddRange(GetOnlyDialogueWithCharacterNameInId(character, "Characters/Dialogue/MarriageDialogue"));
-                return dialogueList;
+                var lines = GetLabelledLinesWithoutCharacterNameInId(
+                    character, "Characters/Dialogue/MarriageDialogue", DialogueType.GenericMarriage);
+                lines.AddRange(GetLabelledLinesWithCharacterNameInId(
+                    character, "Characters/Dialogue/MarriageDialogue", DialogueType.GenericMarriage));
+                return lines;
             }
             catch (Exception e)
             {
                 ErrorLogger.Error($"Error getting generic marriage dialogue for {character.Name}. {e}");
-                return null;
+                return new List<LabelledDialogue>();
             }
         }
 
-        private StardewValley.Dialogue GetRainyDialogue(NPC character)
-        {
-            return StardewValley.Dialogue.TryGetDialogue(character, "Characters\\Dialogue\\rainy:" + character.GetDialogueSheetName());
-        }
-
-        private List<StardewValley.Dialogue> GetCharacterDialogue(NPC character)
-        {
-            List<StardewValley.Dialogue> dialogueList = GetDialogueFromGameContent(character, $"Characters/Dialogue/{character.getName()}");
-            if (dialogueList.Count == 0)
-                ErrorLogger.Warn($"No character dialogue found for {character.Name}.");
-            return dialogueList;
-        }
-
-        private List<StardewValley.Dialogue> GetGenericDialogue(NPC character)
+        private List<LabelledDialogue> GetGenericDialogue(NPC character)
         {
             try
             {
-                List<StardewValley.Dialogue> dialogue = GetMovieDialogue(character);
-                if (dialogue.Count == 0)
+                var lines = GetMovieDialogue(character);
+                if (lines.Count == 0)
                     ErrorLogger.Warn($"No movie dialogue found for {character.Name}.");
-                
-                dialogue.AddRange(GetExtraDialogue(character));
 
-                dialogue.AddRange(Get16strings(character));
+                lines.AddRange(GetExtraDialogue(character));
+                lines.AddRange(Get16Strings(character));
+                lines.AddRange(GetStringsFromCharactersFiles(character));
+                lines.AddRange(GetLinesFromStringsFromCsFile(character));
 
-                dialogue.AddRange(GetStringsFromCharactersFiles(character));
-
-                dialogue.AddRange(GetLinesFromStringsFromCsFile(character));
-
-                return dialogue;
+                return lines;
             }
             catch (Exception e)
             {
                 ErrorLogger.Error($"Error getting generic dialogue for {character.Name}. {e}");
-                return null;
+                return new List<LabelledDialogue>();
             }
         }
 
-        private List<StardewValley.Dialogue> GetMovieDialogue(NPC character)
+        private List<LabelledDialogue> GetMovieDialogue(NPC character)
         {
-            List<StardewValley.Dialogue> dialogueList = GetOnlyDialogueWithCharacterNameInId(character, "Strings/MovieReactions");
-            if (dialogueList.Count == 0)
+            var lines = GetLabelledLinesWithCharacterNameInId(
+                character, "Strings/MovieReactions", DialogueType.Generic);
+
+            if (lines.Count == 0)
                 ErrorLogger.Warn($"No movie reaction dialogue found for {character.Name}.");
-            return dialogueList;
+
+            return lines;
         }
 
-        private List<StardewValley.Dialogue> GetExtraDialogue(NPC character)
-        {
-            Dictionary<string, string> dialogueData = helper.GameContent.Load<Dictionary<string, string>>("Data/ExtraDialogue");
-            List<StardewValley.Dialogue> dialogueList = new List<StardewValley.Dialogue>();
-
-            foreach (string key in dialogueData.Keys)
-            {
-                if (StringContainsCharacter(key, character.getName())
-                    || StringContainsSpouse(key)
-                    || key.Contains("NewChild")
-                    || key.Contains("LostItemQuest")
-                    || key.Equals("Town_DumpsterDiveComment_Teen")
-                    || key.Equals("Town_DumpsterDiveComment_Adult"))
-                {
-                    dialogueList.Add(character.TryGetDialogue(key));
-                }
-            }
-
-            return dialogueList;
-        }
-
-        private List<StardewValley.Dialogue> Get16strings(NPC character)
-        {
-            List<StardewValley.Dialogue> dialogueList = GetOnlyDialogueWithCharacterNameInId(character, "Strings/1_6_Strings");
-            if (dialogueList.Count == 0)
-                ErrorLogger.Warn($"No 1.6 dialogue found for {character.Name}.");
-            return dialogueList;
-        }
-
-        private List<StardewValley.Dialogue> GetStringsFromCharactersFiles(NPC character)
+        private List<LabelledDialogue> GetExtraDialogue(NPC character)
         {
             try
             {
-                Dictionary<string, string> dialogueData = helper.GameContent.Load<Dictionary<string, string>>("Strings/Characters");
-                List<StardewValley.Dialogue> dialogueList = new List<StardewValley.Dialogue>();
+                Dictionary<string, string> data =
+                    helper.GameContent.Load<Dictionary<string, string>>("Data/ExtraDialogue");
 
-                foreach (string key in dialogueData.Keys)
+                var lines = new List<LabelledDialogue>();
+                foreach (var (key, value) in data)
                 {
-                    if (ShouldAddLineFromCharactersFiles(key, character))
-                        dialogueList.Add(character.TryGetDialogue(key));
+                    if (StringContainsCharacter(key, character.getName())
+                        || StringContainsSpouse(key)
+                        || key.Contains("NewChild")
+                        || key.Contains("LostItemQuest")
+                        || key.Equals("Town_DumpsterDiveComment_Teen")
+                        || key.Equals("Town_DumpsterDiveComment_Adult"))
+                    {
+                        lines.Add(BuildLabelledDialogue(character, key, value, DialogueType.Generic));
+                    }
                 }
-
-                return dialogueList;
+                return lines;
             }
             catch (Exception e)
             {
-                ErrorLogger.Warn($"Could not load dialogue from 'Strings / Characters' for {character}. {e}");
-                return new List<StardewValley.Dialogue>();
+                ErrorLogger.Warn($"Could not load ExtraDialogue for {character.Name}. {e}");
+                return new List<LabelledDialogue>();
             }
         }
 
+        private List<LabelledDialogue> Get16Strings(NPC character)
+        {
+            var lines = GetLabelledLinesWithCharacterNameInId(
+                character, "Strings/1_6_Strings", DialogueType.Generic);
+
+            if (lines.Count == 0)
+                ErrorLogger.Warn($"No 1.6 dialogue found for {character.Name}.");
+
+            return lines;
+        }
+
+        private List<LabelledDialogue> GetStringsFromCharactersFiles(NPC character)
+        {
+            try
+            {
+                Dictionary<string, string> data =
+                    helper.GameContent.Load<Dictionary<string, string>>("Strings/Characters");
+
+                var lines = new List<LabelledDialogue>();
+                foreach (var (key, value) in data)
+                {
+                    if (ShouldAddLineFromCharactersFiles(key, character))
+                        lines.Add(BuildLabelledDialogue(character, key, value, DialogueType.Generic));
+                }
+                return lines;
+            }
+            catch (Exception e)
+            {
+                ErrorLogger.Warn($"Could not load 'Strings/Characters' for {character.Name}. {e}");
+                return new List<LabelledDialogue>();
+            }
+        }
+
+        private List<LabelledDialogue> GetLinesFromStringsFromCsFile(NPC character)
+        {
+            try
+            {
+                Dictionary<string, string> data =
+                    helper.GameContent.Load<Dictionary<string, string>>("Strings/StringsFromCsFiles");
+
+                var lines = new List<LabelledDialogue>();
+
+                AddStringsFromCsFilesGroup(character.Name, data, character, lines);
+                AddStringsFromCsFilesGroup("EVERYONE", data, character, lines);
+
+                if (character.datable.Value)
+                    AddStringsFromCsFilesGroup("LOVE INTERESTS", data, character, lines);
+
+                if (character.GetData().Age == NpcAge.Child)
+                    AddStringsFromCsFilesGroup("CHILDREN", data, character, lines);
+
+                return lines;
+            }
+            catch (Exception e)
+            {
+                ErrorLogger.Warn($"Could not load 'Strings/StringsFromCsFiles' for {character.Name}. {e}");
+                return new List<LabelledDialogue>();
+            }
+        }
+
+        private List<LabelledDialogue> GetSpeechBubbleDialogue(NPC character)
+        {
+            var lines = GetLabelledLinesWithCharacterNameInId(
+                character, "Strings/SpeechBubbles", DialogueType.Generic);
+
+            if (lines.Count == 0)
+                ErrorLogger.Warn($"No speech bubble dialogue found for {character.Name}.");
+
+            return lines;
+        }
+
+        private List<LabelledDialogue> GetScheduleDialogue(NPC character)
+        {
+            var lines = GetLabelledDialogueFromGameContent(
+                character, $"Strings/schedules/{character.getName()}", DialogueType.Schedule);
+
+            if (lines.Count == 0)
+                ErrorLogger.Warn($"No schedule dialogue found for {character.Name}.");
+
+            return lines;
+        }
+
+
+        // ── stringsFromCsFile helpers ────────────────────────────────────────
+
+        private void AddStringsFromCsFilesGroup(
+            string group,
+            Dictionary<string, string> data,
+            NPC character,
+            List<LabelledDialogue> lines)
+        {
+            if (!stringsFromCsFileRules.TryGetValue(group, out List<string> rules))
+                return;
+
+            foreach (string rule in rules)
+            {
+                if (rule.Contains("-"))
+                    lines.AddRange(GetDialogueRange(data, rule, character));
+                else if (data.TryGetValue(rule, out string value))
+                    lines.Add(BuildLabelledDialogue(character, rule, value, DialogueType.Generic));
+            }
+        }
+
+        /// <summary>
+        /// Fetches all keys in the range "File.cs.1234-1333" from <paramref name="data"/>.
+        /// </summary>
+        private List<LabelledDialogue> GetDialogueRange(
+            Dictionary<string, string> data, string range, NPC character)
+        {
+            var lines = new List<LabelledDialogue>();
+
+            // range format: "File.cs.1234-1333"
+            string[] rangeSections = range.Split('.');
+            string[] bounds = rangeSections[2].Split('-');
+            string prefix = rangeSections[0] + "." + rangeSections[1] + ".";
+
+            if (!int.TryParse(bounds[0], out int current) ||
+                !int.TryParse(bounds[1], out int end))
+                return lines;
+
+            while (current <= end)
+            {
+                string key = prefix + current;
+                if (data.TryGetValue(key, out string value))
+                    lines.Add(BuildLabelledDialogue(character, key, value, DialogueType.Generic));
+                current++;
+            }
+
+            return lines;
+        }
+
+
+        // ── Filter helpers ───────────────────────────────────────────────────
+
         private bool ShouldAddLineFromCharactersFiles(string lineId, NPC character)
         {
-            /*
-             * Should add line from StringFromCsFiles.json if:
-             * 1. Character's name is in the line id
-             * 2. The line id is "WipedMemory" or "Divorced" and the character is romanceable
-             * 3. The line id contains "Saloon" and the character is Alex, Kent, or George (maybe?? not sure TODO)
-             * 4. The line id is a MovieInvite line for the appropriate person (see helper function below)
-             */
             return StringContainsCharacter(lineId, character.Name)
-                || (lineId.Contains("WipedMemory") || lineId.Contains("Divorced")) && character.datable.Value == true
+                || ((lineId.Contains("WipedMemory") || lineId.Contains("Divorced")) && character.datable.Value)
                 || (lineId.Contains("Saloon") && (character.Name == "Kent" || character.Name == "Alex" || character.Name == "George"))
                 || ShouldAddMovieInviteLineForCharacter(lineId, character);
         }
 
         private bool ShouldAddMovieInviteLineForCharacter(string lineId, NPC character)
         {
-            /**
-             * Add MovieInvite line iff:
-             * 1. MovieInvite is in id.
-             * 2. "child" classifier is not in the id if the character is not a child.
-             * 3. The line id has a different character in it.
-             * 4. "Rude" classifier is in the id and the character is not rude.
-             */
-
-            if (!lineId.Contains("MovieInvite") 
+            if (!lineId.Contains("MovieInvite")
                 || (lineId.Contains("Child") && character.GetData().Age != NpcAge.Child)
                 || (lineId.Contains("Rude") && character.GetData().Manner != NpcManner.Rude)
                 || (DialogueHelpers.StringContainAnyCharacter(lineId) && !lineId.Contains(character.Name)))
             {
                 return false;
             }
-
             return true;
-        }
-
-        private List<StardewValley.Dialogue> GetLinesFromStringsFromCsFile(NPC character)
-        {
-
-            // This one is a little different - strings from cs files contains a lot of random string
-            // Instead of iterating through all of the file we're going to pull from my 
-            // "strings from cs files rules" dictionary I made
-            try
-            {
-                List<StardewValley.Dialogue> dialogueList = new List<StardewValley.Dialogue>();
-
-                AddStringsFromCsFilesGroup(character.Name);
-                AddStringsFromCsFilesGroup("EVERYONE");
-
-
-                if (character.datable.Value == true)
-                {
-                    AddStringsFromCsFilesGroup("LOVE INTERESTS");
-                }
-
-                if (character.GetData().Age == NpcAge.Child)
-                {
-                    AddStringsFromCsFilesGroup("CHILDREN");
-
-                }
-)
-
-                return dialogueList;
-            }
-            catch (Exception e)
-            {
-                ErrorLogger.Warn($"Could not load dialogue from 'Strings / StringsFromCsFiles' for {character}. {e}");
-                return new List<StardewValley.Dialogue>();
-            }
-        }
-
-        private void AddStringsFromCsFilesGroup(string group, NPC character, List<StardewValley.Dialogue> dialogueList)
-        {
-            stringsFromCsFileRules.TryGetValue(group, out List<string> dialogueIds);
-            if (dialogueIds != null)
-            {
-                foreach (string rule in dialogueIds)
-                {
-                    if (rule.Contains("-"))
-                    {
-                        dialogueList.AddRange(AddDialogueRange(dialogueData, rule, character);
-                    }
-                    else
-                    {
-                        character.TryGetDialogue(range, out StardewValley.Dialogue dialogue);
-                        if (dialogue != null)
-                        {
-                            dialogueList.Add(dialogue);
-                        }
-                    }
-                }
-            }
-        }
-
-        // Range: Line.cs.1234-1333
-        private List<StardewValley.Dialogue> AddDialogueRange(string range, NPC character)
-        {
-            List<StardewValley.Dialogue> dialogueList = new List<StardewValley.Dialogue>();
-
-            //1234 - 1333
-            string lineRange = range.Split(".")[2];
-            int currentId = (int)lineRange.Split("-")[0];
-            int endingRange = (int)lineRange.Split("-")[1];
-
-            while ( currentId <= endingRange )
-            {
-                character.TryGetDialogue(GetLineIdFromRange(range) + currentId.ToString(), out StardewValley.Dialogue dialogue);
-                if (dialogue != null)
-                {
-                    dialogueList.Add(dialogue);
-                }
-                currentId++;
-            }
-
-            return dialogueList;
-
-        }
-
-        private string GetLineIdFromRange (string range)
-        {
-           List<string> lineIdSections = range.Split("-")[0].Split(".");
-           return lineIdSections[0] + "." + lineIdSections[1] + ".";
-        }
-
-
-        private List<StardewValley.Dialogue> GetSpeechBubbleDialogue(NPC character)
-        {
-            List<StardewValley.Dialogue> dialogueList = GetOnlyDialogueWithCharacterNameInId(character, "Strings/SpeechBubbles");
-            if (dialogueList.Count == 0)
-                ErrorLogger.Warn($"No Speech Bubble dialogue found for {character.Name}.");
-            return dialogueList;
-        }
-
-        private List<StardewValley.Dialogue> GetScheduleDialogue(NPC character)
-        {
-            List<StardewValley.Dialogue> dialogueList = GetDialogueFromGameContent(character, $"Strings/schedules/{character.getName()}");
-            if (dialogueList.Count == 0)
-                ErrorLogger.Warn($"No schedule dialogue found for {character.Name}.");
-            return dialogueList;
-        }
-
-        private List<StardewValley.Dialogue> GetDialogueFromGameContent(NPC character, string path)
-        {
-            try
-            {
-                Dictionary<string, string> dialogueData = helper.GameContent.Load<Dictionary<string, string>>(path);
-                List<StardewValley.Dialogue> dialogueList = new List<StardewValley.Dialogue>();
-                foreach (string key in dialogueData.Keys)
-                    dialogueList.Add(character.TryGetDialogue(key));
-                return dialogueList;
-            }
-            catch (Exception e)
-            {
-                ErrorLogger.Warn($"Could not load dialogue from '{path}' for {character}. {e}");
-                return new List<StardewValley.Dialogue>();
-            }
-        }
-
-        private List<StardewValley.Dialogue> GetOnlyDialogueWithoutAnyCharacterNameInId(NPC character, string path)
-        {
-            try
-            {
-                Dictionary<string, string> dialogueData = helper.GameContent.Load<Dictionary<string, string>>(path);
-                List<StardewValley.Dialogue> dialogueList = new List<StardewValley.Dialogue>();
-
-                foreach (string key in dialogueData.Keys)
-                {
-                    if (DialogueHelpers.StringContainAnyCharacter(key))
-                        dialogueList.Add(character.TryGetDialogue(key));
-                }
-
-                return dialogueList;
-            }
-            catch (Exception e)
-            {
-                ErrorLogger.Warn($"Could not load dialogue from '{path}' for {character}. {e}");
-                return new List<StardewValley.Dialogue>();
-            }
-        }
-
-        private List<StardewValley.Dialogue> GetOnlyDialogueWithCharacterNameInId(NPC character, string path)
-        {
-            try
-            {
-                Dictionary<string, string> dialogueData = helper.GameContent.Load<Dictionary<string, string>>(path);
-                List<StardewValley.Dialogue> dialogueList = new List<StardewValley.Dialogue>();
-
-                foreach (string key in dialogueData.Keys)
-                {
-                    if (StringContainsCharacter(key, character.getName()))
-                        dialogueList.Add(character.TryGetDialogue(key));
-                }
-
-                return dialogueList;
-            }
-            catch (Exception e)
-            {
-                ErrorLogger.Warn($"Could not load dialogue from '{path}' for {character}. {e}");
-                return new List<StardewValley.Dialogue>();
-            }
         }
 
         private bool StringContainsCharacter(string str, string characterName)
@@ -439,8 +403,95 @@ namespace StardewVoices.Utils.GameDialogueExtraction
 
         private bool StringContainsSpouse(string str)
         {
-            // Mines_PlayerKilled_Maru_Spouse is possible and shouldn't trigger for all NPCs
             return !DialogueHelpers.StringContainsSupportedCharacter(str) && str.Contains("Spouse");
         }
+
+
+        // ── Core loading helpers ─────────────────────────────────────────────
+
+        private List<LabelledDialogue> GetLabelledDialogueFromGameContent(
+            NPC character, string path, DialogueType type)
+        {
+            try
+            {
+                Dictionary<string, string> data =
+                    helper.GameContent.Load<Dictionary<string, string>>(path);
+
+                var lines = new List<LabelledDialogue>();
+                foreach (var (key, value) in data)
+                    lines.Add(BuildLabelledDialogue(character, key, value, type));
+
+                return lines;
+            }
+            catch (Exception e)
+            {
+                ErrorLogger.Warn($"Could not load '{path}' for {character.Name}. {e}");
+                return new List<LabelledDialogue>();
+            }
+        }
+
+        private List<LabelledDialogue> GetLabelledLinesWithCharacterNameInId(
+            NPC character, string path, DialogueType type)
+        {
+            try
+            {
+                Dictionary<string, string> data =
+                    helper.GameContent.Load<Dictionary<string, string>>(path);
+
+                var lines = new List<LabelledDialogue>();
+                foreach (var (key, value) in data)
+                {
+                    if (StringContainsCharacter(key, character.getName()))
+                        lines.Add(BuildLabelledDialogue(character, key, value, type));
+                }
+                return lines;
+            }
+            catch (Exception e)
+            {
+                ErrorLogger.Warn($"Could not load '{path}' for {character.Name}. {e}");
+                return new List<LabelledDialogue>();
+            }
+        }
+
+        private List<LabelledDialogue> GetLabelledLinesWithoutCharacterNameInId(
+            NPC character, string path, DialogueType type)
+        {
+            try
+            {
+                Dictionary<string, string> data =
+                    helper.GameContent.Load<Dictionary<string, string>>(path);
+
+                var lines = new List<LabelledDialogue>();
+                foreach (var (key, value) in data)
+                {
+                    if (!DialogueHelpers.StringContainAnyCharacter(key))
+                        lines.Add(BuildLabelledDialogue(character, key, value, type));
+                }
+                return lines;
+            }
+            catch (Exception e)
+            {
+                ErrorLogger.Warn($"Could not load '{path}' for {character.Name}. {e}");
+                return new List<LabelledDialogue>();
+            }
+        }
+
+
+        // ── Build helpers ────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Creates a LabelledDialogue from a raw (key, value) pair: gets the
+        /// StardewValley.Dialogue via TryGetDialogue and parses the raw string
+        /// for line IDs in one step.
+        /// </summary>
+        private LabelledDialogue BuildLabelledDialogue(
+            NPC character, string key, string rawValue, DialogueType type)
+        {
+            var sdvDialogue = character.TryGetDialogue(key);
+            var labelledLines = DialogueParsingHelper.ParseRawValueToLines(rawValue, key, type);
+            return new LabelledDialogue(sdvDialogue, labelledLines, key, type);
+        }
+
+   
     }
 }

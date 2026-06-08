@@ -33,7 +33,7 @@ namespace StardewVoices.FileGenerator
 
         }
 
-        private Dictionary<string, string> typeMap = new Dictionary<string, string>()
+        private Dictionary<DialogueType, string> typeMap = new Dictionary<DialogueType, string>()
         {
             {DialogueType.Marriage, "marriage_dialogue" },
             {DialogueType.Dialogue, "dialogue" },
@@ -41,8 +41,7 @@ namespace StardewVoices.FileGenerator
             {DialogueType.Schedule, "misc" },
             {DialogueType.Generic, "misc" },
             {DialogueType.Gossip, "misc" },
-
-        }
+        };
 
         public void GenerateFiles(bool generateJson, bool generateScript, string scriptFormat)
         {
@@ -114,7 +113,7 @@ namespace StardewVoices.FileGenerator
             NPC character = Game1.getCharacterFromName(characterName);
 
             // Get all character dialogue
-            Dictionary<DialogueType, List<StardewValley.Dialogue>> characterDialogue
+            Dictionary<DialogueType, List<LabelledDialogue>> characterDialogue
                 = characterDialogueExtractor.GetAllDialogueForCharacter(character);
 
             foreach (DialogueType type in characterDialogue.Keys)
@@ -124,13 +123,13 @@ namespace StardewVoices.FileGenerator
                     Scripts[characterName].AppendSectionHeader(type + "lines");
                 }
 
-                foreach (StardewValley.Dialogue line in characterDialogue[type])
+                foreach (LabelledDialogue line in characterDialogue[type])
                 {
                     if (line != null)
                     {
                         // Used to track spacing between lines.
                         bool firstInGroup = true;
-                        foreach (DialogueLine dialogue in line.dialogues)
+                        foreach (LabelledDialogueLine dialogue in line.Lines)
                         {
                             if (generateJson)
                             {
@@ -142,12 +141,12 @@ namespace StardewVoices.FileGenerator
                                 }
 
                                 // AddLine already takes care of adding the dialogue type to the json correctly
-                                Jsons[characterName].AddLine(GetLineId(dialogue.Text), dialogue.Text, jsonTypeLabel);
+                                Jsons[characterName].AddLine(dialogue, jsonTypeLabel);
                             }
 
                             if (generateScript)
                             {
-                                Scripts[characterName].AddLine(GetLineId(dialogue.Text), dialogue.Text, grouped: !firstInGroup);
+                                Scripts[characterName].AddLine(dialogue, grouped: !firstInGroup);
                                 firstInGroup = false;
                             }
                         }
@@ -180,7 +179,8 @@ namespace StardewVoices.FileGenerator
                 {
                     if (DialogueHelpers.StringContainsSupportedCharacter(lineId))
                     {
-                        string[] parsedLines = DialogueParsingHelper.ParseDialogue(festivalDict[lineId]);
+                        List<LabelledDialogueLine> parsedLines = 
+                            DialogueParsingHelper.ParseRawValueToLines(festivalDict[lineId], lineId, DialogueType.Festival);
                         if (generateJson)
                         {
                             Jsons[date].AddMiscLine(GetLineId(lineId), festivalDict[lineId]);
@@ -190,9 +190,9 @@ namespace StardewVoices.FileGenerator
                         {
                             string characterName = lineId.Split("_")[0];
                             bool firstInGroup = true;
-                            foreach (string line in parsedLines)
+                            foreach (LabelledDialogueLine line in parsedLines)
                             {
-                                Scripts[characterName].AddLine(GetLineId(lineId), line, firstInGroup);
+                                Scripts[characterName].AddLine(line, firstInGroup);
                                 firstInGroup = false;
                             }
                         }

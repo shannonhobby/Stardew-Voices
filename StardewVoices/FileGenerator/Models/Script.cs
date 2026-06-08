@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using StardewValley;
+using StardewVoices.Utils.ParsingHelpers;
 
 namespace StardewVoices.FileGenerator.Models
 {
@@ -86,7 +88,7 @@ namespace StardewVoices.FileGenerator.Models
         /// the previous in the same context (e.g. consecutive lines of one dialogue sequence).
         /// Grouped lines appear tight with no gap; ungrouped lines are separated by two blank lines.
         /// </summary>
-        public void AddLine(string lineId, string dialogue, bool grouped = false)
+        public void AddLine(LabelledDialogueLine dialogue, bool grouped = false)
         {
             LineCount++;
             if (LineCount > 1)
@@ -94,9 +96,9 @@ namespace StardewVoices.FileGenerator.Models
                 PlainTextScript += grouped ? "" : "\n\n";
                 MarkDownScript  += grouped ? "" : "\n";
             }
-            PlainTextScript += CenterLine($"[ {lineId} ]") + "\n";
-            PlainTextScript += BuildQuotedBlock(dialogue);
-            MarkDownScript  += $"**`{lineId}`**\n\n> {dialogue}\n\n";
+            PlainTextScript += CenterLine($"[ {dialogue.LineId} ]") + "\n";
+            PlainTextScript += BuildQuotedBlock(dialogue.Text);
+            MarkDownScript  += $"**`{dialogue.LineId}`**\n\n> {dialogue.Text}\n\n";
         }
 
         /// <summary>

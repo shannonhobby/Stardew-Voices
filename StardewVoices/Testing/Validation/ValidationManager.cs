@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using StardewVoices.Utils;
 using StardewVoices.Utils.GameDialogueExtraction;
+using StardewVoices.Utils.ParsingHelpers;
 
 namespace StardewVoices.Testing.Validation
 {
@@ -91,17 +92,17 @@ namespace StardewVoices.Testing.Validation
             }
         }
 
-        private int GetCountOfDictionaryValues(Dictionary<DialogueType, List<StardewValley.Dialogue>> dictionary)
+        private int GetCountOfDictionaryValues(Dictionary<DialogueType, List<LabelledDialogue>> dictionary)
         {
             int count = 0;
-            foreach (KeyValuePair<DialogueType, List<StardewValley.Dialogue>> pair in dictionary)
+            foreach (KeyValuePair<DialogueType, List<LabelledDialogue>> pair in dictionary)
                 count += pair.Value.Count();
             return count;
         }
 
         private void GenerateDialogueTestCases(string characterName)
         {
-            Dictionary<DialogueType, List<StardewValley.Dialogue>> lines = dialogueExtractor.GetAllDialogueForCharacter(Game1.getCharacterFromName(characterName));
+            Dictionary<DialogueType, List<LabelledDialogue>> lines = dialogueExtractor.GetAllDialogueForCharacter(Game1.getCharacterFromName(characterName));
             if (lines.Keys.Count == 0 || GetCountOfDictionaryValues(lines) == 0)
             {
                 ErrorLogger.Error("No dialogue lines found");
@@ -109,11 +110,11 @@ namespace StardewVoices.Testing.Validation
 
             foreach (DialogueType key in lines.Keys)
             {
-                foreach (StardewValley.Dialogue line in lines[key])
+                foreach (LabelledDialogue line in lines[key])
                 {
                     if (line != null)
                     {
-                        foreach (DialogueLine dialogueBox in line.dialogues)
+                        foreach (DialogueLine dialogueBox in line.Lines)
                         {
                             if (dialogueBox.Text.StartsWith('%') || dialogueBox.Text.Equals("..."))
                                 continue;

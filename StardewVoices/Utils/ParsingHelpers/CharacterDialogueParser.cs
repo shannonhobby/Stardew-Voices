@@ -1,10 +1,26 @@
 ﻿using StardewVoices.Dialogue;
 using System.Text.RegularExpressions;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace StardewVoices.Utils.ParsingHelpers
 {
     public static class DialogueParsingHelper
     {
+        private static string[] GenerateGenderVariants(string input)
+        {
+            var pattern = @"\$\{([^}^]+)\^([^}^]+)\}\$";
+            string first = Regex.Replace(input, pattern, m => m.Groups[1].Value);
+            string second = Regex.Replace(input, pattern, m => m.Groups[2].Value);
+            return new string[] { first, second };
+        }
+
+        private static bool HasGenderVariants(string input)
+        {
+            return Regex.IsMatch(input, @"\$\{([^}^]+)\^([^}^]+)\}\$");
+        }
+
         public static string[] ParseDialogue(string s)
         {
             string parsed = ParseQuestionDialogue(s);
@@ -45,22 +61,9 @@ namespace StardewVoices.Utils.ParsingHelpers
 
         private static string StripEmotionCodes(string text)
         {
-        {
             return Regex.Replace(text, @"\$\w+", "").Trim();
         }
-
-        private static string[] GenerateGenderVariants(string input)
-        {
-            var pattern = @"\$\{([^}^]+)\^([^}^]+)\}\$";
-            string first = Regex.Replace(input, pattern, m => m.Groups[1].Value);
-            string second = Regex.Replace(input, pattern, m => m.Groups[2].Value);
-            return new string[] { first, second };
-        }
-
-        private static bool HasGenderVariants(string input)
-        {
-            return Regex.IsMatch(input, @"\$\{([^}^]+)\^([^}^]+)\}\$");
-        }
+    
 
         // ── Line ID generation ───────────────────────────────────────────────
 
@@ -191,6 +194,20 @@ namespace StardewVoices.Utils.ParsingHelpers
         // Shared clean-up used by both the existing and ID-aware paths
         private static string Clean(string s)
             => DialogueHelpers.Normalize(StripEmotionCodes(s));
+
+        /// <summary>
+        /// Runs the parser on a raw value and wraps each result as a
+        /// LabelledDialogueLine. Used by BuildLabelledDialogue and by any
+        /// caller that already has the StardewValley.Dialogue separately
+        /// (e.g. rainy dialogue).
+        /// </summary>
+        public static List<LabelledDialogueLine> ParseRawValueToLines(
+            string rawValue, string key, DialogueType type)
+        {
+            return DialogueParsingHelper
+                .ParseDialogueWithIds(rawValue, key)
+                .Select(pair => new LabelledDialogueLine(pair.LineId, pair.Text, key, type))
+                .ToList();
+        }
     }
-}
 }

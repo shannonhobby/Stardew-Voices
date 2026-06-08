@@ -3,8 +3,10 @@ using StardewVoices.Pathing;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using StardewVoices.Utils.ParsingHelpers;
 
 using DialogueLines = System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<string>>;
+using StardewValley;
 
 namespace StardewVoices.FileGenerator.Models
 {
@@ -58,11 +60,11 @@ namespace StardewVoices.FileGenerator.Models
             }
         }
 
-        public void AddLine(string lineId, string dialogue, string type="")
+        public void AddLine(LabelledDialogueLine dialogueLine, string type="")
         {
             if (!isCharacterJson)
             {
-                AddMiscLine(lineId, dialogue);
+                AddMiscLine(dialogueLine);
             }
 
             // If the type of dialogue isn't in the dict already add it
@@ -73,12 +75,25 @@ namespace StardewVoices.FileGenerator.Models
 
             CharacterDialogueDictionary.TryGetValue(type, out DialogueLines dict);
 
-            if (dict.ContainsKey(dialogue))
+            if (dict.ContainsKey(dialogueLine.Text))
             {
-                dict[dialogue].Add(lineId);
+                dict[dialogueLine.Text].Add(dialogueLine.LineId);
             } else
             {
-                dict.Add(dialogue, new List<string>() { lineId });
+                dict.Add(dialogueLine.Text, new List<string>() { dialogueLine.LineId });
+            }
+        }
+
+        public void AddMiscLine(LabelledDialogueLine dialogueLine)
+        {
+
+            if (DialogueDictionary.ContainsKey(dialogueLine.Text))
+            {
+                DialogueDictionary[dialogueLine.Text].Add(dialogueLine.LineId);
+            }
+            else
+            {
+                DialogueDictionary.Add(dialogueLine.Text, new List<string>() { dialogueLine.LineId });
             }
         }
 
