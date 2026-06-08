@@ -33,6 +33,17 @@ namespace StardewVoices.FileGenerator
 
         }
 
+        private Dictionary<string, string> typeMap = new Dictionary<string, string>()
+        {
+            {DialogueType.Marriage, "marriage_dialogue" },
+            {DialogueType.Dialogue, "dialogue" },
+            {DialogueType.Schedule, "schedule" },
+            {DialogueType.Schedule, "misc" },
+            {DialogueType.Generic, "misc" },
+            {DialogueType.Gossip, "misc" },
+
+        }
+
         public void GenerateFiles(bool generateJson, bool generateScript, string scriptFormat)
         {
             Managers.TestingManager.ValidationIsRunning = true;
@@ -92,10 +103,12 @@ namespace StardewVoices.FileGenerator
         private string GetLineId(string s)
         {
             // TODO
-            // also have this live in DialogueJson.cs i just dont wanna forget
+            // LEFT OFF HERE!! - line id logic has to live in the parser so that's going to need a refactor
             return s;
         }
 
+
+        // TODO: continuation dialogue???
         private void GenerateCharacterDialogueFiles(string characterName, bool generateJson, bool generateScript)
         {
             NPC character = Game1.getCharacterFromName(characterName);
@@ -121,8 +134,15 @@ namespace StardewVoices.FileGenerator
                         {
                             if (generateJson)
                             {
+                                typeMap.TryGetValue(type, out string jsonTypeLabel);
+
+                                if(jsonTypeLabel == null)
+                                {
+                                    // Add to generic json files
+                                }
+
                                 // AddLine already takes care of adding the dialogue type to the json correctly
-                                Jsons[characterName].AddLine(GetLineId(dialogue.Text), dialogue.Text, type.ToString());
+                                Jsons[characterName].AddLine(GetLineId(dialogue.Text), dialogue.Text, jsonTypeLabel);
                             }
 
                             if (generateScript)
