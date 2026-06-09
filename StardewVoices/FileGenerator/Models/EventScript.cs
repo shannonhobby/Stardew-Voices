@@ -1,8 +1,9 @@
-﻿using System;
+﻿using StardewVoices.Pathing;
+using System;
 using System.Collections.Generic;
 
 
-namespace StardewVoices.FileGenerator.Models
+namespace StardewVoices.FileGeneration.Models
 {
 
     /// <summary>
@@ -67,14 +68,11 @@ namespace StardewVoices.FileGenerator.Models
     {
         // ── Properties ──────────────────────────────────────────────────────────────
         // CharacterName (inherited) = the target character for this script
-        private string _currentEventName;    // Tracks the active event; updated by ChangeEvent()
-        private bool _isMultiEvent = false; // Flips on first ChangeEvent() call; adjusts the header
 
         // ── Constructor ─────────────────────────────────────────────────────────────
-        public EventScript(string targetCharacter, string firstEventName)
-            : base(targetCharacter)
+        public EventScript(string targetCharacter, PathManager pathManager)
+            : base(targetCharacter, pathManager)
         {
-            _currentEventName = firstEventName;
         }
 
         // ── Public API ───────────────────────────────────────────────────────────────
@@ -85,9 +83,6 @@ namespace StardewVoices.FileGenerator.Models
         /// </summary>
         public void ChangeEvent(string newEventName)
         {
-            _isMultiEvent = true;
-            _currentEventName = newEventName;
-
             string rule = new string('═', PageWidth);
             string label = $"✦✦  {newEventName.ToUpper()}  ✦✦";
 
@@ -145,20 +140,41 @@ namespace StardewVoices.FileGenerator.Models
                 AddEventLine(line);
         }
 
+        public void AddEventLine(EventLine line)
+        {
+            bool isTarget = string.Equals(
+                line.Character, CharacterName, StringComparison.OrdinalIgnoreCase);
+
+            if (isTarget) LineCount++;
+
+            AddEventLinePlainText(line, isTarget);
+            AddEventLineMarkdown(line, isTarget);
+        }
+
+        public override void WriteOut(string fileType="both")
+        {
+            if (fileType == "txt" || fileType == "both")
+            {
+                ParentFolder.CreateFile(CharacterName + " Events.txt", GetPlainText());
+            }
+
+            if (fileType == "txt" || fileType == "both")
+            {
+                ParentFolder.CreateFile(CharacterName + " Events.md", GetMarkdown());
+            }
+        }
+
         // ── Overrides ────────────────────────────────────────────────────────────────
 
         protected override string BuildPlainTextHeader()
         {
             string rule = new string('═', 60);
-            string eventLabel = _isMultiEvent
-                ? "EVENT SCRIPTS"
-                : $"EVENT:  {_currentEventName.ToUpper()}";
-
+            
             return string.Join("\n",
                 "",
                 CenterLine("˚✧₊⁺  STARDEW VALLEY VOICEOVER SCRIPT  ⁺₊✧˚"),
                 "",
-                CenterLine(eventLabel),
+                CenterLine("EVENT SCRIPTS"),
                 "",
                 CenterLine($"SCRIPT FOR:  {CharacterName.ToUpper()}   ( {LineCount} lines to record )"),
                 "",
@@ -173,7 +189,7 @@ namespace StardewVoices.FileGenerator.Models
 
         protected override string BuildMarkdownHeader()
         {
-            string eventLabel = _isMultiEvent ? "Event Scripts" : _currentEventName;
+            string eventLabel =  "Event Scripts";
 
             return string.Join("\n",
                 "<div align=\"center\">",
@@ -197,16 +213,7 @@ namespace StardewVoices.FileGenerator.Models
 
         // ── Private helpers ──────────────────────────────────────────────────────────
 
-        private void AddEventLine(EventLine line)
-        {
-            bool isTarget = string.Equals(
-                line.Character, CharacterName, StringComparison.OrdinalIgnoreCase);
-
-            if (isTarget) LineCount++;
-
-            AddEventLinePlainText(line, isTarget);
-            AddEventLineMarkdown(line, isTarget);
-        }
+       
 
         private void AddEventLinePlainText(EventLine line, bool isTarget)
         {

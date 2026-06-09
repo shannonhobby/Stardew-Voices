@@ -1,4 +1,5 @@
 using StardewModdingAPI;
+using StardewVoices.FileGeneration.Models;
 using StardewVoices.Utils.ParsingHelpers;
 using System;
 using System.Collections.Generic;
@@ -100,6 +101,100 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             return results;
         }
 
+        public List<(string Location, string EventId)> GetAllEventsForCharacter(string characterName)
+        {
+            var results = new List<(string Location, string EventId)>();
+
+            foreach (string locationName in EventLocations)
+            {
+                Dictionary<string, string> gameEventData = LoadGameEventData(locationName);
+                if (gameEventData == null) continue;
+
+                foreach (var kvp in gameEventData)
+                {
+                    string eventId = kvp.Key.Split('/')[0];
+                    if (!kvp.Value.Contains($"speak {characterName} \"")) continue;
+
+                    results.Add((locationName, eventId));
+                }
+            }
+
+            return results;
+        }
+
+        public List<EventLine> GetEventDialogue(string locationName, string eventId)
+        {
+            Dictionary<string, string> gameEventData = LoadGameEventData(locationName);
+            if (gameEventData == null) return null;
+            List<EventLine> results = new List<EventLine>();
+
+            foreach (var kvp in gameEventData)
+            {
+                string id = kvp.Key.Split('/')[0];
+                if (eventId == id)
+                {
+                    Dictionary<string, int> speakerLineCount = new Dictionary<string, int>();
+                    List<(string line, string characterName)> speakLines = ParseSpeakLines(kvp.Value);
+                    if (speakLines.Count == 0) continue;
+
+                    foreach ((string line, string characterName) in speakLines)
+                    {
+                        if (!speakerLineCount.ContainsKey(characterName))
+                        {
+                            speakerLineCount.Add(characterName, 1);
+                        }
+
+                        string[] parsedLines = CharacterDialogueParser.ParseDialogue(line);
+                        if (parsedLines != null && parsedLines.Length > 0)
+                        {
+                            string eventLineId = GenerateEventLineId(locationName, eventId, characterName, speakerLineCount);
+                            foreach (string dialogueBox in parsedLines)
+                                results.Add(new EventLine(eventLineId, characterName,dialogueBox));
+                        }
+                        else
+                        {
+                            ErrorLogger.Warn($"Error parsing event dialogue: {line}");
+                        }
+                    }
+                }
+            }
+
+            return results;
+        }
+
+        public enum EventActionType
+        {
+            Speak,
+            TextAboveHead,
+            EndDialogue
+        }
+
+        public static string GenerateEventLineId(
+            string locationName,
+            string sceneName,
+            string speakerName, 
+            Dictionary<string, int> speakerLineCounts,
+            EventActionType actionType = EventActionType.Speak
+        )
+        {
+            if (!speakerLineCounts.ContainsKey(speakerName))
+                speakerLineCounts[speakerName] = 1;
+            else
+                speakerLineCounts[speakerName]++;
+
+            int n = speakerLineCounts[speakerName];
+
+            string suffix = actionType switch
+            {
+                EventActionType.Speak => $"_event{n}",
+                EventActionType.TextAboveHead => $"_textAboveHeadEvent{n}",
+                EventActionType.EndDialogue => $"_endDialogue{n}",
+                _ => throw new ArgumentOutOfRangeException(nameof(actionType))
+            };
+
+            return $"{locationName}_{sceneName}_{speakerName}{suffix}";
+        }
+
         private Dictionary<string, string> LoadGameEventData(string locationName)
         {
             try
@@ -113,6 +208,10 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             }
         }
 
+
+        // Extracts the displayed text from every `speak {characterName} "..."` agnostic of character name.
+        // Splits on the Stardew page-break token so each page becomes its own entry.
+        // TODO - ALSO NEED TEXT ABOVE HEAD AND END DIALOGUE
         private List<(string line, string characterName)> ParseSpeakLines(string eventScript)
         {
             var lines = new List<(string line, string characterName)>();
@@ -136,6 +235,8 @@ namespace StardewVoices.Utils.GameDialogueExtraction
 
         // Extracts the displayed text from every `speak {characterName} "..."` command.
         // Splits on the Stardew page-break token so each page becomes its own entry.
+        // TODO - ALSO NEED TEXT ABOVE HEAD AND END DIALOGUE
+
         private List<string> ParseCharacterSpeakLines(string eventScript, string characterName)
         {
             var lines = new List<string>();

@@ -1,14 +1,10 @@
-﻿using StardewVoices.Dialogue;
-using StardewVoices.Pathing;
-using System;
+﻿using StardewVoices.Pathing;
+using StardewVoices.Utils.ParsingHelpers;
 using System.Collections.Generic;
 using System.IO;
-using StardewVoices.Utils.ParsingHelpers;
-
 using DialogueLines = System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<string>>;
-using StardewValley;
 
-namespace StardewVoices.FileGenerator.Models
+namespace StardewVoices.FileGeneration.Models
 {
     public enum DialogueParentFolder
     {
@@ -40,7 +36,7 @@ namespace StardewVoices.FileGenerator.Models
             // Create Generated Files folder if it doesn't exist
             if (pathManager.GetPath(Constants.GENERATED_FILES_FOLDER_NAME) == null)
             {
-                pathManager.GetPath("root").CreateFolder(Constants.GENERATED_FILES_FOLDER_NAME);
+                pathManager.ModPath.CreateFolder(Constants.GENERATED_FILES_FOLDER_NAME);
             }
             PathNode generatedFilesFolder = pathManager.GetPath(Constants.GENERATED_FILES_FOLDER_NAME);
 
@@ -62,7 +58,7 @@ namespace StardewVoices.FileGenerator.Models
 
         public void AddLine(LabelledDialogueLine dialogueLine, string type="")
         {
-            if (!isCharacterJson)
+            if (!isCharacterJson || type == "")
             {
                 AddMiscLine(dialogueLine);
             }
@@ -77,23 +73,27 @@ namespace StardewVoices.FileGenerator.Models
 
             if (dict.ContainsKey(dialogueLine.Text))
             {
-                dict[dialogueLine.Text].Add(dialogueLine.LineId);
+                if (!dict[dialogueLine.Text].Contains(dialogueLine.LineId))
+                {
+                    dict[dialogueLine.Text].Add(dialogueLine.LineId);
+                }
             } else
             {
-                dict.Add(dialogueLine.Text, new List<string>() { dialogueLine.LineId });
+               dict.Add(dialogueLine.Text, new List<string>() { dialogueLine.LineId });
             }
         }
 
         public void AddContinuationDialogue(string continuationLineId)
         {
 
-            if (DialogueDictionary.ContainsKey("continuation_dialogue"))
+            if (CharacterDialogueDictionary.ContainsKey("continuation_dialogue"))
             {
-                DialogueDictionary["continuation_dialogue"].Add(continuationLineId);
+                CharacterDialogueDictionary["continuation_dialogue"]["continuation_dialogue"].Add(continuationLineId);
             }
             else
             {
-                DialogueDictionary.Add("continuation_dialogue", new List<string>() { continuationLineId });
+                CharacterDialogueDictionary.Add("continuation_dialogue", 
+                    new Dictionary<string, List<string>>() { {"continuation_dialogue", new List<string>() { continuationLineId } } });
             }
         }
 

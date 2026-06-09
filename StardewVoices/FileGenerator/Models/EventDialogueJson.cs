@@ -7,7 +7,7 @@ using System.IO;
 using StardewVoices.Utils;
 
 
-namespace StardewVoices.FileGenerator.Models
+namespace StardewVoices.FileGeneration.Models
 {
     internal class EventDialogueJson
     {
@@ -36,9 +36,7 @@ namespace StardewVoices.FileGenerator.Models
 
             PathString = GetPathString(GeneratedFilesFolder.FullPath, eventId, location);
 
-            EventLocationFolder = GeneratedFilesFolder.GetChild(location);
-
-            SetupFolderStructure(GeneratedFilesFolder);
+            EventLocationFolder = SetupFolderStructure(GeneratedFilesFolder);
             
         }
 
@@ -51,7 +49,10 @@ namespace StardewVoices.FileGenerator.Models
         {
             try
             {
-                EventLines.Add(dialogue, lineId);
+                if(!EventLines.ContainsKey(dialogue))
+                {
+                    EventLines.Add(dialogue, lineId);
+                }
             } catch (Exception e)
             {
                 ErrorLogger.Warn($"Error adding dialogue line to: {PathString}. {e}");

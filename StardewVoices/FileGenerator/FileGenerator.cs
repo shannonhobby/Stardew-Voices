@@ -1,14 +1,14 @@
 ﻿using StardewModdingAPI;
-using StardewVoices.FileGenerator.Models;
+using StardewVoices.FileGeneration.Models;
 using StardewVoices.Pathing;
 using StardewVoices.Utils.GameDialogueExtraction;
 using System.Collections.Generic;
 using StardewVoices.Dialogue;
 using StardewValley;
 using StardewVoices.Utils.ParsingHelpers;
-using Microsoft.VisualBasic;
+using StardewVoices.Utils;
 
-namespace StardewVoices.FileGenerator
+namespace StardewVoices.FileGeneration
 {
     internal class FileGenerator
     {
@@ -42,6 +42,7 @@ namespace StardewVoices.FileGenerator
             {DialogueType.Schedule, "schedule" },
             {DialogueType.Generic, "misc" },
             {DialogueType.Gossip, "misc" },
+            {DialogueType.SpeechBubble, "misc" },
             {DialogueType.Engagement, "EngagementDialogue" },
             {DialogueType.Extra, "ExtraDialogue" },
             {DialogueType.Rainy, "rainy" },
@@ -58,11 +59,8 @@ namespace StardewVoices.FileGenerator
             festivalDialogueExtractor = new FestivalDialogueExtractor(Helper);
             gossipDialogueExtractor = new GossipDialogueExtractor();
 
-            // Events
             if (generateJson)
             {
-                //GenerateEventDialogueJsons(eventDialogueExtractor);
-
                 // Initialize dialogue JSONs for generic files
                 foreach (string jsonFileName in SeparateJsonFiles)
                 {
@@ -78,14 +76,21 @@ namespace StardewVoices.FileGenerator
                 }
                 if(generateScript)
                 {
-                    Scripts.Add(characterName, new Script(characterName));
+                    Scripts.Add(characterName, new Script(characterName, Managers.PathManager));
+                    EventScripts.Add(characterName, new EventScript(characterName, Managers.PathManager));
+
                 }
 
                 GenerateCharacterDialogueFiles(characterName, generateJson, generateScript);
 
-                GenerateFestivalDialogueFiles(generateJson, generateScript);
-
+                GenerateEventDialogueFiles(characterName, generateJson, generateScript);
             }
+
+
+            GenerateFestivalDialogueFiles(generateJson, generateScript);
+
+
+            WriteOutAllFiles();
         }
 
         /*
@@ -108,7 +113,28 @@ namespace StardewVoices.FileGenerator
                 EventJsons[lastEventId].AddLine(GetLineId(Text), Text);
             }
         }*/
+        private void WriteOutAllFiles()
+        {
+            foreach (string key in Jsons.Keys)
+            {
+                Jsons[key].WriteOut();
+            }
 
+            foreach (string key in EventJsons.Keys)
+            {
+                EventJsons[key].WriteOut();
+            }
+
+            foreach (string key in Scripts.Keys)
+            {
+                Scripts[key].WriteOut();
+            }
+
+            foreach (string key in EventScripts.Keys)
+            {
+                EventScripts[key].WriteOut();
+            }
+        }
         private void GenerateCharacterDialogueFiles(string characterName, bool generateJson, bool generateScript)
         {
             NPC character = Game1.getCharacterFromName(characterName); 
@@ -121,7 +147,7 @@ namespace StardewVoices.FileGenerator
             {
                 if (generateScript)
                 {
-                    Scripts[characterName].AppendSectionHeader(type + "lines!");
+                    Scripts[characterName].AppendSectionHeader(type + " lines!");
                 }
 
                 foreach (LabelledDialogue line in characterDialogue[type])
@@ -173,7 +199,7 @@ namespace StardewVoices.FileGenerator
                 {
                     foreach (Script script in Scripts.Values)
                     {
-                        script.AppendSectionHeader(festivalDict["name"] + "Festival!!!");
+                        script.AppendSectionHeader(festivalDict["name"]);
                     }
                 }
 
@@ -211,8 +237,52 @@ namespace StardewVoices.FileGenerator
             }
         }
 
-        private void GenerateEventDialogueFiles()
+        private void GenerateEventDialogueFiles
+            (string characterName, 
+            bool generateJson,
+            bool generateScript)
         {
+            // Get events for character
+            List<(string locationName, string eventId)> events
+                = eventDialogueExtractor.GetAllEventsForCharacter(characterName);
+
+
+            // Iterate through events. 
+            foreach ((string locationName, string eventId) in events)
+            {
+                List<EventLine> eventDict = eventDialogueExtractor.GetEventDialogue(locationName, eventId);
+             
+                // Create event json
+                // if the files already been created: skippy poo
+                if (generateJson)
+                {
+                    string eventLocationAndId = $"{locationName}/{eventId}";
+                    if (!EventJsons.ContainsKey(eventLocationAndId))
+                    {
+                        EventJsons.Add(eventLocationAndId, new EventDialogueJson(eventId, locationName, Managers.PathManager));
+                        EventJsons.TryGetValue(eventLocationAndId, out EventDialogueJson eventJson);
+                        // TODO - refactor so only one for loop for script and events
+                        foreach (EventLine e  in eventDict)
+                        {
+                            eventJson.AddLine(e.LineId, e.Dialogue);
+                        }
+                    }
+                }
+
+                // Add to event script for character
+                // Never skippy poo if generating script
+                if (generateScript)
+                {
+                    EventScripts.TryGetValue(characterName, out EventScript eventScript);
+                    eventScript.ChangeEvent(eventId);
+                    eventScript.AddLocationChange(locationName);
+                    foreach (EventLine e in eventDict)
+                    {
+                        eventScript.AddEventLine(e);
+                    }
+                }
+            }
+
 
         }
 

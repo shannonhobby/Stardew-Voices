@@ -84,14 +84,12 @@ namespace StardewVoices.Testing.Validation
 
         private void GenerateTestCases()
         {
-            GenerateDialogueTestCases("Abigail");
-
-            /* foreach (string characterName in Constants.supportedCharacters)
+            foreach (string characterName in Constants.supportedCharacters)
              {
                  GenerateDialogueTestCases(characterName);
                  GenerateEventDialogueTestCases(characterName);
                  GenerateFestivalDialogueTestCases(characterName);
-             }*/
+             }
         }
 
         private int GetCountOfDictionaryValues(Dictionary<DialogueType, List<LabelledDialogue>> dictionary)

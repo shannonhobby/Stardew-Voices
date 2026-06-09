@@ -1,6 +1,7 @@
 using StardewModdingAPI;
 using StardewValley;
 using StardewVoices.Testing;
+using StardewVoices.FileGeneration;
 using StardewVoices.Utils;
 using System.IO;
 
@@ -11,6 +12,8 @@ namespace StardewVoices
     {
         public IModHelper helper = null;
         public ManagerHub managerHub = null;
+        internal FileGenerator fileGenerator = null;
+
 
 
         /// <summary>The mod entry point, called after the mod is first loaded.</summary>
@@ -23,6 +26,7 @@ namespace StardewVoices
             managerHub = new ManagerHub(helper, this.ModManifest);
 
             DialogueTestingManager.Init(helper, managerHub);
+            fileGenerator = new FileGenerator(helper, managerHub);
 
 
             helper.ConsoleCommands.Add(
@@ -62,6 +66,7 @@ namespace StardewVoices
             string[] args
         )
         {
+            fileGenerator.GenerateFiles(true, true, "both");
         }
 
     }

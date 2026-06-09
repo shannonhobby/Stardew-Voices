@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace StardewVoices.Pathing
 {
-    internal class PathNode
+    public class PathNode
     {
         internal string FullPath { get; }
         internal string Name { get; }
@@ -28,10 +28,10 @@ namespace StardewVoices.Pathing
             FileManipulationHelpers.CreateNewJsonFile(this.GetChild(fileName).FullPath, model);
         }
 
-        internal void CreateFile(string fileName)
+        internal void CreateFile(string fileName, string text)
         {
             this.CreateChild(fileName);
-            FileManipulationHelpers.CreateNewFile(this.GetChild(fileName).FullPath);
+            FileManipulationHelpers.CreateNewFile(this.GetChild(fileName).FullPath, text);
         }
 
         internal void CreateFolder(string folderName)

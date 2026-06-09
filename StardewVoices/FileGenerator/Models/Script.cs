@@ -4,9 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using StardewValley;
+using StardewVoices.Pathing;
 using StardewVoices.Utils.ParsingHelpers;
 
-namespace StardewVoices.FileGenerator.Models
+namespace StardewVoices.FileGeneration.Models
 {
     /// <summary>
     /// Builds formatted voiceover scripts in both plain text and Markdown
@@ -19,7 +20,9 @@ namespace StardewVoices.FileGenerator.Models
     ///
     ///                          CHARACTER:  ABIGAIL
     ///
-    ///          ( 3 lines )   ·   prepared with ♡   ·   happy recording! (^‿^)
+    ///            prepared with ♡ by Shannon Hobby  ·   happy recording! (^‿^)
+    ///                                 
+    ///                                 ( 3 lines )
     ///
     ///                   ════════════════════════════════════════════════
     ///
@@ -49,13 +52,28 @@ namespace StardewVoices.FileGenerator.Models
         protected int LineCount = 0;
         protected string PlainTextScript { get; set; } = string.Empty;
         protected string MarkDownScript { get; set; } = string.Empty;
-        private string PathString { get; }   // Reserved for future file I/O
+        protected PathNode ParentFolder { get; }   // Reserved for future file I/O
 
         // ── Constructor ─────────────────────────────────────────────────────────────
-        public Script(string characterName)
+        public Script(string characterName, PathManager pathManager)
         {
             CharacterName = characterName;
             InitializeScript();
+
+
+            // Create Generated Files folder if it doesn't exist
+            if (pathManager.GetPath(Constants.GENERATED_FILES_FOLDER_NAME) == null)
+            {
+                pathManager.ModPath.CreateFolder(Constants.GENERATED_FILES_FOLDER_NAME);
+            }
+            PathNode generatedFilesFolder = pathManager.GetPath(Constants.GENERATED_FILES_FOLDER_NAME);
+
+            if (generatedFilesFolder.GetChild("Scripts") == null){
+                generatedFilesFolder.CreateFolder("Scripts");
+            }
+            generatedFilesFolder.GetChild("Scripts").CreateChild(characterName);
+
+            ParentFolder = generatedFilesFolder.GetChild("Scripts");
         }
 
         // ── Public API ───────────────────────────────────────────────────────────────
@@ -114,6 +132,23 @@ namespace StardewVoices.FileGenerator.Models
             MarkDownScript += $"*~ {text} ~*\n\n";
         }
 
+        /// <summary>
+        /// Writes out the file to appropriate GeneratedFiles folder
+        /// fileType: "txt", "md", "both"
+        /// </summary>
+        public virtual void WriteOut(string fileType="both")
+        {
+            if (fileType == "txt" || fileType == "both")
+            {
+                ParentFolder.CreateFile(CharacterName + ".txt", GetPlainText());
+            }
+
+            if (fileType == "txt" || fileType == "both")
+            {
+                ParentFolder.CreateFile(CharacterName + ".md", GetMarkdown());
+            }
+        }
+
         // ── Private builders ─────────────────────────────────────────────────────────
 
         private void InitializeScript()
@@ -156,7 +191,7 @@ namespace StardewVoices.FileGenerator.Models
                 "",
                 $"## {CharacterName}",
                 "",
-                $"*{LineCount} lines &nbsp;·&nbsp; prepared with ♡ &nbsp;·&nbsp; happy recording! (^‿^)*",
+                $"*{LineCount} lines &nbsp;·&nbsp; prepared with ♡ by Shannon Hobby &nbsp;·&nbsp; happy recording! (^‿^)*",
                 "",
                 "</div>",
                 "",

@@ -148,10 +148,6 @@ namespace StardewVoices.Dialogue
                 {
                     return foundLineId;
                 }
-                else
-                {
-                    ErrorLogger.Error($"Couldnt find dialogue: {currentSpeaker}, {dialogueString}");
-                }
 
 
                 // If an event happened today there could be "Event End Dialogue" that is

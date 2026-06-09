@@ -27,12 +27,12 @@ namespace StardewVoices.Pathing
             }
         }
 
-        public static void CreateNewFile(string path)
+        public static void CreateNewFile(string path, string text)
         {
             if (File.Exists(path)) return;
             try
             {
-                File.WriteAllText(path, string.Empty);
+                File.WriteAllText(path, text);
             }
             catch (Exception ex)
             {
@@ -50,7 +50,9 @@ namespace StardewVoices.Pathing
             }
             try
             {
-                _helper.Data.WriteJsonFile(path, model);
+                _helper.Data.WriteJsonFile(Path.GetRelativePath(_helper.DirectoryPath, path), model);
+                ErrorLogger.Trace($"Successfully created json file at {path}");
+
             }
             catch (Exception ex)
             {

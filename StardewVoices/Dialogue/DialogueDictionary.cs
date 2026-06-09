@@ -116,11 +116,28 @@ namespace StardewVoices.Dialogue
         public string CheckAllDictionariesForDialogueLine(string  dialogueLine, string currentSpeaker, TestingManager testingManager)
         {
             string foundDialogueLine = null;
+
+            // During testing/validation the farmer usually isn't engaged or
+            // married, so the engagement / *_marriage gates in ShouldCheckDialogue
+            // would skip those types. Check every type instead so those lines can
+            // still be validated.
+            bool checkAllTypes = testingManager != null
+                && (testingManager.IsTestingWorldLoaded() || testingManager.ValidationIsRunning);
+
             foreach (string type in _data.Keys)
             {
-                if (ShouldCheckDialogue(type, currentSpeaker) || (testingManager?.IsTestingWorldLoaded() ?? false))
+                if (type == "engagement")
                 {
-                   foundDialogueLine = CheckDictionaryForDialogueLine(type, dialogueLine, currentSpeaker);
+                    ErrorLogger.Warn("fOUND ENGAGMENT");
+                }
+                if (ShouldCheckDialogue(type, currentSpeaker) || checkAllTypes)
+                {
+                    if (type == "engagement")
+                    {
+                        // TODO - ENGAGEMENT NOT GETTING HERE
+                        ErrorLogger.Warn("CHECKING ENGAGEMENT");
+                    }
+                    foundDialogueLine = CheckDictionaryForDialogueLine(type, dialogueLine, currentSpeaker);
                     if (foundDialogueLine != null)
                     {
                         return foundDialogueLine;
@@ -155,7 +172,7 @@ namespace StardewVoices.Dialogue
         {
             _data[type] = dialogue;
         }
-        
+
         public Dictionary<string, string[]> GetType(string type) 
         {
             return _data[type];
@@ -175,11 +192,11 @@ namespace StardewVoices.Dialogue
         }
 
 
-        private void PrintDictionary(Dictionary<string, string[]> dictionary)
+        public void PrintDictionary()
         {
-            foreach (string key in dictionary.Keys)
+            foreach (string key in this._data.Keys)
             {
-                ErrorLogger.Trace($"{key}: {String.Join(",", dictionary[key])}");
+                ErrorLogger.Trace($"{key}: {String.Join(",", this._data[key])}");
             }
         }
     }
