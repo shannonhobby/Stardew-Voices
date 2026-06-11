@@ -158,6 +158,10 @@ namespace StardewVoices.FileGeneration
                         bool firstInGroup = true;
                         foreach (LabelledDialogueLine dialogue in line.Lines)
                         {
+                            if(type == DialogueType.Rainy)
+                            {
+                                dialogue.LineId = "rainy_" + dialogue.LineId;
+                            }
                             if (generateJson)
                             {
                                 typeMap.TryGetValue(type, out string jsonTypeLabel);
@@ -214,6 +218,21 @@ namespace StardewVoices.FileGeneration
                     {
                         List<LabelledDialogueLine> parsedLines = 
                             CharacterDialogueParser.ParseRawValueToLines(festivalDict[lineId], lineId, DialogueType.Festival);
+                        
+                        foreach (LabelledDialogueLine dialogueLine in parsedLines)
+                        {
+                            if (dialogueLine.Contains("_"))
+                            {
+
+                            }
+                        }
+                        
+                        foreach (LabelledDialogueLine dialogueLine in parsedLines)
+                        {
+                           
+                            dialogueLine.LineId = date + "_" + dialogueLine.LineId;
+                        }
+
                         if (generateJson)
                         {
                             foreach (LabelledDialogueLine line in parsedLines)

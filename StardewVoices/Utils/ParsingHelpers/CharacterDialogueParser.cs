@@ -99,7 +99,7 @@ namespace StardewVoices.Utils.ParsingHelpers
         /// </summary>
         public static (string LineId, string Text)[] ParseDialogueWithIds(string s, string baseLineId)
         {
-            string baseId = baseLineId.Replace(".", "_");
+            string baseId = ParseLineId(baseLineId.Replace(".", "_"));
 
             // $query <game-state-query># — conditional gate (SDV 1.6). Must be
             // handled before the $q branch because "$query" also contains "$q".
@@ -260,6 +260,11 @@ namespace StardewVoices.Utils.ParsingHelpers
 
             // Simple single line
             return new[] { (baseId, parsed) };
+        }
+
+        private static string ParseLineId(string lineId)
+        {
+            return Regex.Replace(lineId, @"\(.*?\)", "");
         }
 
         /// <summary>

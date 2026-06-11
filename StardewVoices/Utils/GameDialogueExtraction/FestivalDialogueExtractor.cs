@@ -51,7 +51,20 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                         if (parsedLines != null && parsedLines.Length > 0)
                         {
                             foreach (string line in parsedLines)
-                                results.Add((line, festivalDate));
+                            {
+                                if (line.Contains('_'))
+                                {
+                                    IEnumerable<string> splitLines = splitResponseFestivalLine(line);
+                                    foreach (string splitLine in splitLines)
+                                    {
+                                        results.Add((splitLine, festivalDate));
+                                    }
+                                }
+                                else
+                                {
+                                    results.Add((line, festivalDate));
+                                }
+                            }
                         }
                         else
                         {
@@ -62,6 +75,13 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             }
 
             return results;
+        }
+
+        public IEnumerable<string> splitResponseFestivalLine(string s)
+        {
+            // Split on _ then keep even indices (0, 2, 4...) — the NPC lines
+            string[] parts = s.Split('_');
+            return parts.Where((_, index) => index % 2 == 0);
         }
 
         public Dictionary<string, string> LoadGameFestivalData(string festivalDate)

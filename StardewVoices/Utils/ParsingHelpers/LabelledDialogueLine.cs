@@ -10,7 +10,7 @@ namespace StardewVoices.Utils.ParsingHelpers
     /// </summary>
     public class LabelledDialogueLine
     {
-        public string LineId { get; }
+        public string LineId { get; set; }
         public string Text { get; }
         public string OriginalKey { get; }
         public DialogueType Type { get; }
