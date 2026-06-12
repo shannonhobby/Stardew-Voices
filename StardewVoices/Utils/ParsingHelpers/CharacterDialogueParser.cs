@@ -356,7 +356,6 @@ namespace StardewVoices.Utils.ParsingHelpers
         public static List<LabelledDialogueLine> ParseRawValueToLines(
           string rawValue, string key, DialogueType type)
             {
-                bool isContinuation = IsContinuationDialogue(rawValue);
                 return ParseDialogueWithIds(rawValue, key)
                     .Select(pair => new LabelledDialogueLine(pair.LineId, pair.Text, key, type, isContinuation))
                     .ToList();
