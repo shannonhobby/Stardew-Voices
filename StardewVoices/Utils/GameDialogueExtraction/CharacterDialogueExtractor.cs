@@ -12,6 +12,8 @@ namespace StardewVoices.Utils.GameDialogueExtraction
     public class CharacterDialogueExtractor
     {
         private readonly IModHelper helper;
+        private readonly bool isEnglish =
+            LocalizationHelpers.GetCurrentLanguage() == LocalizedContentManager.LanguageCode.en.ToString();
 
         private readonly Dictionary<string, List<string>> stringsFromCsFileRules = new()
         {
@@ -37,6 +39,16 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 "ItemDeliveryQuest.cs.13530-13544",
                 "NPC.cs.4274-4281",
                 "NPC.cs.4293-4294" } },
+            { "WIFE ONLY", new() {
+                // I'm pregnant
+                "NPC.cs.4442",
+                "NPC.cs.4443",
+                "NPC.cs.4445"
+            } },
+            { "HUSBAND ONLY", new() { 
+                // You're pregnant
+                "NPC.cs.4448"
+            } },
             { "LOVE INTERESTS", new() {
                 "Event.cs.1632-1635",
                 "Game1.cs.2782",
@@ -45,7 +57,10 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 // TODO: "I heard you secretly gave {0} a gift today" - add different names
                 "NPC.cs.3985",
                 "NPC.cs.4001",
-                "NPC.cs.4406-4500",
+                "NPC.cs.4406-4441",
+                "NPC.cs.4444",
+                "NPC.cs.4446-4447",
+                "NPC.cs.4449-4500",
                 "MultiplePetBowls_watered" } },
             { "CHILDREN", new() { "Event.cs.1497-1498" } },
         };
@@ -223,8 +238,9 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                         || StringContainsSpouse(key)
                         || key.Contains("NewChild")
                         || key.Contains("LostItemQuest")
-                        || key.Equals("Town_DumpsterDiveComment_Teen")
-                        || key.Equals("Town_DumpsterDiveComment_Adult"))
+                        || key.Equals("Town_DumpsterDiveComment_Teen") && character.GetData().Age == NpcAge.Teen
+                        || key.Equals("Town_DumpsterDiveComment_Adult") && character.GetData().Age == NpcAge.Adult
+                        || key.Equals("Town_DumpsterDiveComment_Child") && character.GetData().Age == NpcAge.Child)
                     {
                         lines.Add(BuildLabelledDialogue(character, key, value, DialogueType.Generic));
                     }
@@ -238,6 +254,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             }
         }
 
+  
         private List<LabelledDialogue> Get16Strings(NPC character)
         {
             var lines = GetLabelledLinesWithCharacterNameInId(
@@ -284,10 +301,18 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 AddStringsFromCsFilesGroup("EVERYONE", data, character, lines);
 
                 if (character.datable.Value)
+                {
                     AddStringsFromCsFilesGroup("LOVE INTERESTS", data, character, lines);
-
+                    AddStringsFromCsFilesGroup(
+                        character.GetData().Gender == Gender.Female ? "WIFE ONLY" : "HUSBAND ONLY" , 
+                        data, 
+                        character, 
+                        lines);
+                }
+                    
                 if (character.GetData().Age == NpcAge.Child)
                     AddStringsFromCsFilesGroup("CHILDREN", data, character, lines);
+
 
                 return lines;
             }
@@ -412,11 +437,14 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             {
                 Dictionary<string, string> data =
                     helper.GameContent.Load<Dictionary<string, string>>(path);
+                Dictionary<string, string> englishData = isEnglish ? null : LoadEnglishContent(path);
 
                 var lines = new List<LabelledDialogue>();
                 foreach (var (key, value) in data)
-                    lines.Add(BuildLabelledDialogue(character, key, value, type));
-
+                {
+                    string englishRawValue = (englishData != null && englishData.TryGetValue(key, out string ev)) ? ev : null;
+                    lines.Add(BuildLabelledDialogue(character, key, value, type, englishRawValue));
+                }
                 return lines;
             }
             catch (Exception e)
@@ -433,12 +461,14 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             {
                 Dictionary<string, string> data =
                     helper.GameContent.Load<Dictionary<string, string>>(path);
+                Dictionary<string, string> englishData = isEnglish ? null : LoadEnglishContent(path);
 
                 var lines = new List<LabelledDialogue>();
                 foreach (var (key, value) in data)
                 {
-                    if (StringContainsCharacter(key, character.getName()))
-                        lines.Add(BuildLabelledDialogue(character, key, value, type));
+                    if (!StringContainsCharacter(key, character.getName())) continue;
+                    string englishRawValue = (englishData != null && englishData.TryGetValue(key, out string ev)) ? ev : null;
+                    lines.Add(BuildLabelledDialogue(character, key, value, type, englishRawValue));
                 }
                 return lines;
             }
@@ -456,12 +486,14 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             {
                 Dictionary<string, string> data =
                     helper.GameContent.Load<Dictionary<string, string>>(path);
+                Dictionary<string, string> englishData = isEnglish ? null : LoadEnglishContent(path);
 
                 var lines = new List<LabelledDialogue>();
                 foreach (var (key, value) in data)
                 {
-                    if (!DialogueHelpers.StringContainAnyCharacter(key))
-                        lines.Add(BuildLabelledDialogue(character, key, value, type));
+                    if (DialogueHelpers.StringContainAnyCharacter(key)) continue;
+                    string englishRawValue = (englishData != null && englishData.TryGetValue(key, out string ev)) ? ev : null;
+                    lines.Add(BuildLabelledDialogue(character, key, value, type, englishRawValue));
                 }
                 return lines;
             }
@@ -481,11 +513,22 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         /// for line IDs in one step.
         /// </summary>
         private LabelledDialogue BuildLabelledDialogue(
-            NPC character, string key, string rawValue, DialogueType type)
+            NPC character, string key, string rawValue, DialogueType type, string englishRawValue = null)
         {
             var sdvDialogue = character.TryGetDialogue(key);
-            var labelledLines = CharacterDialogueParser.ParseRawValueToLines(rawValue, key, type);
+            var labelledLines = CharacterDialogueParser.ParseRawValueToLines(rawValue, key, type, englishRawValue);
             return new LabelledDialogue(sdvDialogue, labelledLines, key, type);
+        }
+
+        // Loads the English version of a game content asset regardless of current language.
+        private Dictionary<string, string> LoadEnglishContent(string path)
+        {
+            try
+            {
+                return Game1.content.Load<Dictionary<string, string>>(
+                    path, LocalizedContentManager.LanguageCode.en);
+            }
+            catch { return null; }
         }
 
    

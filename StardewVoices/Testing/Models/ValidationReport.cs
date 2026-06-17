@@ -5,7 +5,7 @@ using System.Linq;
 using StardewVoices.Dialogue;
 using StardewValley;
 
-namespace StardewVoices.Testing.Validation
+namespace StardewVoices.Testing.Models
 {
     public class ValidationReport
     {
@@ -14,7 +14,7 @@ namespace StardewVoices.Testing.Validation
         public Dictionary<string, List<string>> failedTests = new Dictionary<string, List<string>>();
         public DialogueType DialogueType;
 
-        public ValidationReport(DialogueType dialogueType, List<ValidationResult> results) 
+        public ValidationReport(DialogueType dialogueType, List<ValidationResult> results)
         {
             TotalTestCount = results.Count;
             DialogueType = dialogueType;
@@ -25,7 +25,8 @@ namespace StardewVoices.Testing.Validation
 
             foreach (var result in results)
             {
-                if (!result.TestCase.CharacterName.Equals(lastCharacter)) {
+                if (!result.TestCase.CharacterName.Equals(lastCharacter))
+                {
                     lastCharacter = result.TestCase.CharacterName;
                     PrintCharacterTestInfo(lastCharacter);
                 }
@@ -50,7 +51,7 @@ namespace StardewVoices.Testing.Validation
 
         private void PrintCharacterTestInfo(string characterName)
         {
-            ErrorLogger.Trace($"~~TESTING {characterName.ToUpper()}'S {DialogueType.ToString().ToUpper()} LINES~~" );
+            ErrorLogger.Trace($"~~TESTING {characterName.ToUpper()}'S {DialogueType.ToString().ToUpper()} LINES~~");
         }
         private void PrintFailedTestCase(ValidationResult result)
         {
@@ -62,9 +63,9 @@ namespace StardewVoices.Testing.Validation
 
         private void PrintReportStats()
         {
-            foreach(string characterName in Constants.supportedCharacters)
+            foreach (string characterName in Constants.supportedCharacters)
             {
-                if(!failedTests.ContainsKey(characterName))
+                if (!failedTests.ContainsKey(characterName))
                 {
                     PrintCharacterSuccess(characterName);
                 }
@@ -79,7 +80,7 @@ namespace StardewVoices.Testing.Validation
         private int GetCountOfFailedTests()
         {
             int count = 0;
-            foreach(string key in failedTests.Keys)
+            foreach (string key in failedTests.Keys)
             {
                 count += failedTests[key].Count();
             }
@@ -96,7 +97,7 @@ namespace StardewVoices.Testing.Validation
         {
             if (failedTests.TryGetValue(characterName, out List<string> failedTestsForCharacter))
             {
-                ErrorLogger.Error($"\n\n\n\n\nFAILED TESTS FOR {characterName.ToUpper()}!!!!\n{String.Join("\n", failedTestsForCharacter)}");
+                ErrorLogger.Error($"\n\n\n\n\nFAILED TESTS FOR {characterName.ToUpper()}!!!!\n{string.Join("\n", failedTestsForCharacter)}");
             }
         }
     }

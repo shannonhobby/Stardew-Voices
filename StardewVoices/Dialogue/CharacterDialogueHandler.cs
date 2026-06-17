@@ -18,9 +18,10 @@ namespace StardewVoices.Dialogue
         private CharacterManager _characterManager { get; }
         private TestingManager _testingManager { get; }
 
-        public CharacterDialogueHandler(PathManager pathManager, CharacterManager characterManager, TestingManager testingManager) 
+        public CharacterDialogueHandler(PathManager pathManager, CharacterManager characterManager, TestingManager testingManager)
         {
             _characterManager = characterManager;
+            _testingManager = testingManager;
             foreach(string characterName in Constants.supportedCharacters)
             {
                 string characterDialoguePath = Path.Combine(

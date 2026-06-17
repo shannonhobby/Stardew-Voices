@@ -16,7 +16,7 @@ using StardewVoices.Utils;
 using Microsoft.Xna.Framework.Input;
 
 
-namespace StardewVoices.Testing.Validation
+namespace StardewVoices.Testing.Models
 {
     public class ValidationResult
     {
@@ -39,18 +39,18 @@ namespace StardewVoices.Testing.Validation
             PathManager = pathManager;
             Helper = helper;
             TestCase = testCase;
-            if(TestCase.DialogueType == DialogueType.Event)
+            if (TestCase.DialogueType == DialogueType.Event)
             {
                 SetFakeEvent();
             }
 
-            if (TestCase.DialogueType == DialogueType.Festival) 
+            if (TestCase.DialogueType == DialogueType.Festival)
             {
                 SetFakeFestival();
             }
 
             Success = RunTests(testCase);
-         
+
             dialogueManager.EndEvent();
             dialogueManager.ResetFestival();
         }
@@ -91,7 +91,8 @@ namespace StardewVoices.Testing.Validation
                 }
 
                 return CueExists;
-            } catch (Exception e)
+            }
+            catch (Exception e)
             {
                 ErrorMessages.Add($"2. [FAILURE] CueExists: Cue not found for ID {testCase.CueName}.");
                 return false;
@@ -108,7 +109,8 @@ namespace StardewVoices.Testing.Validation
             {
                 AudioManager.Play(testCase.CueName, testCase.CharacterName);
                 return true;
-            } catch (Exception e)
+            }
+            catch (Exception e)
             {
                 ErrorMessages.Add($"3. [FAILURE] CueAudioPlays: {e}");
                 return false;

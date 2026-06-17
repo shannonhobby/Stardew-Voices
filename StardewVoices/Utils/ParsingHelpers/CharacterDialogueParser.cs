@@ -23,21 +23,9 @@ namespace StardewVoices.Utils.ParsingHelpers
 
         public static string[] ParseDialogue(string s)
         {
-            string parsed = ParseQuestionDialogue(s);
-            parsed = ParsePDialogue(parsed);
-            parsed = StripEmotionCodes(parsed);
-            parsed = DialogueHelpers.Normalize(parsed);
-
-            if (HasGenderVariants(parsed))
-                return GenerateGenderVariants(parsed);
-
-            if (parsed.Contains("|"))
-                return parsed.Split("|");
-
-            if (parsed.Contains("^"))
-                return parsed.Split("^");
-
-            return new string[] { parsed };
+            return ParseDialogueWithIds(s, "test")
+                .Select(pair => pair.Text)
+                .ToArray();
         }
 
         private static string ParseQuestionDialogue(string s)
@@ -62,7 +50,9 @@ namespace StardewVoices.Utils.ParsingHelpers
 
         private static string StripEmotionCodes(string text)
         {
-            return Regex.Replace(text, @"\$\w+", "").Trim();
+            text = Regex.Replace(text, @"\$\w+", "");
+            text = Regex.Replace(text, @"\[.*?\]", "");
+            return text.Trim();
         }
 
         public static bool IsContinuationDialogue(string rawValue)
@@ -122,6 +112,17 @@ namespace StardewVoices.Utils.ParsingHelpers
                 string cleaned = Clean(question);
                 return new[] { (baseId, cleaned) };
             }
+
+            // $y festival question — NPC's question with voiced farmer response choices.
+            // Format: $y 'Question_OptionLabel1_ResponseText1_OptionLabel2_ResponseText2...'
+            if (s.Contains("$y"))
+                return ParseYDialogueWithIds(s, baseId);
+
+            // Event script format — some regular dialogue entries embed event commands
+            // (speak, emote, pause, …) separated by "/". Must be checked before the
+            // generic "/" branch so those commands aren't treated as dialogue variants.
+            if (s.Contains("/speak ") || s.Contains("/emote "))
+                return ParseEventScriptDialogueWithIds(s, baseId);
 
             // "/" separates whole dialogue variants in some StringsFromCsFiles
             // gift/relationship reactions (e.g. NPC.cs.3962, NPC.cs.4274-4281).
@@ -327,6 +328,81 @@ namespace StardewVoices.Utils.ParsingHelpers
         }
 
         /// <summary>
+        /// $y festival question: NPC asks a question with voiced farmer response choices.
+        /// Format: $y 'Question_Option1_Response1_Option2_Response2...'
+        /// Produces the question as baseId and each response as {baseId}__{sanitized_option}__response.
+        /// Option labels are lowercased with punctuation replaced by underscores so the IDs are valid file names.
+        /// </summary>
+        private static (string LineId, string Text)[] ParseYDialogueWithIds(string s, string baseId)
+        {
+            // Strip "$y " prefix and surrounding single quotes.
+            // Greedy .* ensures internal apostrophes (e.g. "I'm") don't close the match early.
+            Match outerMatch = Regex.Match(s, @"\$y\s+'(.*)'");
+            string inner = outerMatch.Success
+                ? outerMatch.Groups[1].Value
+                : s.Substring(s.IndexOf("$y") + 2).Trim();
+
+            string[] parts = inner.Split('_');
+            var results = new List<(string, string)>();
+
+            // Index 0 is the NPC's question; indices 1,3,5,... are option labels; 2,4,6,... are responses.
+            results.Add((baseId, Clean(parts[0])));
+
+            for (int i = 1; i + 1 < parts.Length; i += 2)
+            {
+                string sanitizedOption = SanitizeForLineId(parts[i]);
+                string responseText = Clean(parts[i + 1]);
+                if (responseText.Length > 0)
+                    results.Add(($"{baseId}__{sanitizedOption}__response", responseText));
+            }
+
+            return results.ToArray();
+        }
+
+        // Lowercases and replaces every character that is not a-z, 0-9, or _ with an underscore,
+        // producing a string safe to use as a file name component in a line ID.
+        private static string SanitizeForLineId(string s)
+            => Regex.Replace(s.ToLowerInvariant(), @"[^a-z0-9_]", "_");
+
+        /// <summary>
+        /// Handles regular dialogue entries that embed an event script:
+        /// an initial text block followed by slash-separated event commands.
+        /// Extracts spoken text (initial block + speak commands), discards
+        /// action commands (emote, pause, …), and chains line IDs across blocks.
+        /// </summary>
+        private static (string LineId, string Text)[] ParseEventScriptDialogueWithIds(string s, string baseId)
+        {
+            var textBlocks = new List<string>();
+            string[] commands = s.Split('/');
+
+            // First token: initial dialogue text not wrapped in a speak command.
+            // Strip any trailing " that closes an implicit outer quote in the game data.
+            string firstToken = commands[0].TrimEnd('"').Trim();
+            if (Clean(firstToken).Length > 0)
+                textBlocks.Add(firstToken);
+
+            // Extract spoken text from speak commands; skip emote/pause/etc.
+            foreach (string command in commands.Skip(1))
+            {
+                Match m = Regex.Match(command.Trim(), @"^speak \S+ ""(.+)""$");
+                if (m.Success)
+                    textBlocks.Add(m.Groups[1].Value);
+            }
+
+            var results = new List<(string, string)>();
+            string currentId = baseId;
+            foreach (string block in textBlocks)
+            {
+                var blockLines = ParseDialogueWithIds(block, currentId);
+                if (blockLines.Length == 0) continue;
+                results.AddRange(blockLines);
+                currentId = AdvancePastLineId(blockLines[^1].LineId);
+            }
+
+            return results.ToArray();
+        }
+
+        /// <summary>
         /// Appends or increments the _sv{n} sequential suffix used when a single
         /// JSON entry expands into multiple audio lines.
         ///   "Mon"      → "Mon_sv1"
@@ -344,7 +420,7 @@ namespace StardewVoices.Utils.ParsingHelpers
         }
 
         // Shared clean-up used by both the existing and ID-aware paths
-        private static string Clean(string s)
+        internal static string Clean(string s)
             => DialogueHelpers.Normalize(StripEmotionCodes(s));
 
         /// <summary>
@@ -353,12 +429,35 @@ namespace StardewVoices.Utils.ParsingHelpers
         /// caller that already has the StardewValley.Dialogue separately
         /// (e.g. rainy dialogue).
         /// </summary>
+        /// <param name="englishRawValue">
+        /// When generating non-English files, pass the English raw value here so that
+        /// IDs derived from option label text (e.g. $y responses) stay identical across
+        /// languages. Text is always taken from <paramref name="rawValue"/>.
+        /// </param>
         public static List<LabelledDialogueLine> ParseRawValueToLines(
-          string rawValue, string key, DialogueType type)
+            string rawValue, string key, DialogueType type, string englishRawValue = null)
+        {
+            bool isContinuation = IsContinuationDialogue(rawValue);
+
+            if (englishRawValue == null)
             {
                 return ParseDialogueWithIds(rawValue, key)
                     .Select(pair => new LabelledDialogueLine(pair.LineId, pair.Text, key, type, isContinuation))
                     .ToList();
             }
+
+            // IDs from the English parse, text from the localized parse.
+            // If the counts differ (malformed data), fall back to the localized ID for the extra lines.
+            var idPairs   = ParseDialogueWithIds(englishRawValue, key);
+            var textPairs = ParseDialogueWithIds(rawValue, key);
+
+            var results = new List<LabelledDialogueLine>();
+            for (int i = 0; i < textPairs.Length; i++)
+            {
+                string lineId = i < idPairs.Length ? idPairs[i].LineId : textPairs[i].LineId;
+                results.Add(new LabelledDialogueLine(lineId, textPairs[i].Text, key, type, isContinuation));
+            }
+            return results;
+        }
     }
 }

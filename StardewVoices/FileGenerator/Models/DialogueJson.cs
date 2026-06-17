@@ -33,15 +33,9 @@ namespace StardewVoices.FileGeneration.Models
             FileName = fileName;
             isCharacterJson = parentFolder.Equals(DialogueParentFolder.Characters);
 
-            // Create Generated Files folder if it doesn't exist
-            if (pathManager.GetPath(Constants.GENERATED_FILES_FOLDER_NAME) == null)
-            {
-                pathManager.ModPath.CreateFolder(Constants.GENERATED_FILES_FOLDER_NAME);
-            }
-            PathNode generatedFilesFolder = pathManager.GetPath(Constants.GENERATED_FILES_FOLDER_NAME);
-
-            PathString = GetPathString(generatedFilesFolder.FullPath, parentFolder, fileName);
-            ParentFolder = SetupFolderStructure(generatedFilesFolder, parentFolder);
+            PathNode root = pathManager.GeneratedFilesRoot;
+            PathString = GetPathString(root.FullPath, parentFolder, fileName);
+            ParentFolder = SetupFolderStructure(root, parentFolder);
         }
 
         public void WriteOut()
@@ -102,7 +96,11 @@ namespace StardewVoices.FileGeneration.Models
 
             if (DialogueDictionary.ContainsKey(dialogueLine.Text))
             {
-                DialogueDictionary[dialogueLine.Text].Add(dialogueLine.LineId);
+                if (!DialogueDictionary[dialogueLine.Text].Contains(dialogueLine.LineId))
+                {
+                    DialogueDictionary[dialogueLine.Text].Add(dialogueLine.LineId);
+
+                }
             }
             else
             {

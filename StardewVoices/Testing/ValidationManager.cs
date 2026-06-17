@@ -8,8 +8,9 @@ using System.Linq;
 using StardewVoices.Utils;
 using StardewVoices.Utils.GameDialogueExtraction;
 using StardewVoices.Utils.ParsingHelpers;
+using StardewVoices.StardewVoices.Testing.Models;
 
-namespace StardewVoices.Testing.Validation
+namespace StardewVoices.StardewVoices.Testing
 {
     public class ValidationManager
     {
@@ -85,11 +86,11 @@ namespace StardewVoices.Testing.Validation
         private void GenerateTestCases()
         {
             foreach (string characterName in Constants.supportedCharacters)
-             {
-                 GenerateDialogueTestCases(characterName);
-                 GenerateEventDialogueTestCases(characterName);
-                 GenerateFestivalDialogueTestCases(characterName);
-             }
+            {
+                GenerateDialogueTestCases(characterName);
+                GenerateEventDialogueTestCases(characterName);
+                GenerateFestivalDialogueTestCases(characterName);
+            }
         }
 
         private int GetCountOfDictionaryValues(Dictionary<DialogueType, List<LabelledDialogue>> dictionary)

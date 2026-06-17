@@ -1,4 +1,4 @@
-﻿using System;
+﻿Susing System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -60,20 +60,13 @@ namespace StardewVoices.FileGeneration.Models
             CharacterName = characterName;
             InitializeScript();
 
+            PathNode root = pathManager.GeneratedFilesRoot;
 
-            // Create Generated Files folder if it doesn't exist
-            if (pathManager.GetPath(Constants.GENERATED_FILES_FOLDER_NAME) == null)
-            {
-                pathManager.ModPath.CreateFolder(Constants.GENERATED_FILES_FOLDER_NAME);
-            }
-            PathNode generatedFilesFolder = pathManager.GetPath(Constants.GENERATED_FILES_FOLDER_NAME);
+            if (root.GetChild("Scripts") == null)
+                root.CreateFolder("Scripts");
 
-            if (generatedFilesFolder.GetChild("Scripts") == null){
-                generatedFilesFolder.CreateFolder("Scripts");
-            }
-            generatedFilesFolder.GetChild("Scripts").CreateChild(characterName);
-
-            ParentFolder = generatedFilesFolder.GetChild("Scripts");
+            root.GetChild("Scripts").CreateChild(characterName);
+            ParentFolder = root.GetChild("Scripts");
         }
 
         // ── Public API ───────────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 using StardewModdingAPI;
 using StardewVoices.Utils.ParsingHelpers;
+using StardewValley;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -79,7 +80,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
 
         public IEnumerable<string> splitResponseFestivalLine(string s)
         {
-            // Split on _ then keep even indices (0, 2, 4...) — the NPC lines
+            // Split on _ then keep even indices (0, 2, 4...) ï¿½ the NPC lines
             string[] parts = s.Split('_');
             return parts.Where((_, index) => index % 2 == 0);
         }
@@ -93,6 +94,23 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             catch
             {
                 ErrorLogger.Warn($"Could not load festival data for date: {festivalDate}");
+                return null;
+            }
+        }
+
+        // Loads the English version of festival data regardless of current game language.
+        // Used to derive canonical line IDs so they stay identical across all languages.
+        public Dictionary<string, string> LoadEnglishFestivalData(string festivalDate)
+        {
+            try
+            {
+                return Game1.content.Load<Dictionary<string, string>>(
+                    $"Data/Festivals/{festivalDate}",
+                    LocalizedContentManager.LanguageCode.en);
+            }
+            catch
+            {
+                ErrorLogger.Warn($"Could not load English festival data for date: {festivalDate}");
                 return null;
             }
         }

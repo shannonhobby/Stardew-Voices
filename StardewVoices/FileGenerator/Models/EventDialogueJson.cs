@@ -24,20 +24,10 @@ namespace StardewVoices.FileGeneration.Models
         {
             EventId = eventId;
             Location = location;
-
-            // Create Generated Files folder if it doesn't exist
-            if (pathManager.GetPath(Constants.GENERATED_FILES_FOLDER_NAME) == null)
-            {
-                pathManager.GetPath("root").CreateFolder(Constants.GENERATED_FILES_FOLDER_NAME);
-            }
-            PathNode GeneratedFilesFolder = pathManager.GetPath(Constants.GENERATED_FILES_FOLDER_NAME);
-
-
-
-            PathString = GetPathString(GeneratedFilesFolder.FullPath, eventId, location);
-
-            EventLocationFolder = SetupFolderStructure(GeneratedFilesFolder);
-            
+         
+            PathNode root = pathManager.GeneratedFilesRoot;
+            PathString = GetPathString(root.FullPath, eventId, location);
+            EventLocationFolder = SetupFolderStructure(root);
         }
 
         public void WriteOut()

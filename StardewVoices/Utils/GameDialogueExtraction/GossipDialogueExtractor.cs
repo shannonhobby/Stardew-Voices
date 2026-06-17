@@ -3,6 +3,8 @@ using StardewValley.BellsAndWhistles;
 using StardewValley.GameData.Characters;
 using StardewValley.ItemTypeDefinitions;
 using StardewValley.TokenizableStrings;
+using StardewVoices.Dialogue;
+using StardewVoices.Utils.ParsingHelpers;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -10,9 +12,9 @@ namespace StardewVoices.Utils.GameDialogueExtraction
 {
     public class GossipDialogueExtractor
     {
-        public List<StardewValley.Dialogue> GetAllPossibleGossipDialogues(NPC character)
+        public List<LabelledDialogue> GetAllPossibleGossipDialogues(NPC character)
         {
-            var results = new List<StardewValley.Dialogue>();
+            var results = new List<LabelledDialogue>();
 
             CharacterData data = character.GetData();
             if (data?.FriendsAndFamily == null)
@@ -113,10 +115,14 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                             texts.Add(Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4128", relativeName, itemName));
                     }
 
-                    foreach (string t in texts)
+                    for (int i = 0; i < texts.Count; i++)
                     {
-                        string final = CapitalizeFirst(t) + "%revealtaste:" + relativeKey + ":" + itemId;
-                        results.Add(new StardewValley.Dialogue(character, null, final));
+                        string capitalizedText = CapitalizeFirst(texts[i]);
+                        string final = capitalizedText + "%revealtaste:" + relativeKey + ":" + itemId;
+                        string key = $"gossip_loved_{relativeKey}_{itemId}_{i + 1}";
+                        var sdvDialogue = new StardewValley.Dialogue(character, null, final);
+                        var lines = CharacterDialogueParser.ParseRawValueToLines(capitalizedText, key, DialogueType.Gossip);
+                        results.Add(new LabelledDialogue(sdvDialogue, lines, key, DialogueType.Gossip));
                     }
                 }
 
@@ -187,8 +193,13 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                             texts.Add(Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4182", relativeName, itemName));
                     }
 
-                    foreach (string t in texts)
-                        results.Add(new StardewValley.Dialogue(character, null, t));
+                    for (int i = 0; i < texts.Count; i++)
+                    {
+                        string key = $"gossip_hated_{relativeKey}_{itemId}_{i + 1}";
+                        var sdvDialogue = new StardewValley.Dialogue(character, null, texts[i]);
+                        var lines = CharacterDialogueParser.ParseRawValueToLines(texts[i], key, DialogueType.Gossip);
+                        results.Add(new LabelledDialogue(sdvDialogue, lines, key, DialogueType.Gossip));
+                    }
                 }
             }
 

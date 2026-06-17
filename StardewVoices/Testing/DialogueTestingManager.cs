@@ -1,5 +1,5 @@
 ﻿using StardewModdingAPI;
-using StardewVoices.Testing.Validation;
+using StardewVoices.StardewVoices.Testing;
 
 namespace StardewVoices.Testing
 {

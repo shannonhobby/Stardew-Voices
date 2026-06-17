@@ -126,17 +126,8 @@ namespace StardewVoices.Dialogue
 
             foreach (string type in _data.Keys)
             {
-                if (type == "engagement")
-                {
-                    ErrorLogger.Warn("fOUND ENGAGMENT");
-                }
                 if (ShouldCheckDialogue(type, currentSpeaker) || checkAllTypes)
                 {
-                    if (type == "engagement")
-                    {
-                        // TODO - ENGAGEMENT NOT GETTING HERE
-                        ErrorLogger.Warn("CHECKING ENGAGEMENT");
-                    }
                     foundDialogueLine = CheckDictionaryForDialogueLine(type, dialogueLine, currentSpeaker);
                     if (foundDialogueLine != null)
                     {

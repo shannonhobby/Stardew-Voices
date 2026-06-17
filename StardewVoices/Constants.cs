@@ -105,6 +105,7 @@ namespace StardewVoices
             "gift_tastes",
         };
 
+
         public static Dictionary<string, string> ElliottBookTitles = new Dictionary<string, string>() {
             { "mystery", "Blue Tower"},
             { "romance", "Camellia Station"},
