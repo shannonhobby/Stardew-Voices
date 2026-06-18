@@ -134,9 +134,11 @@ namespace StardewVoices.Testing
         {
             ErrorLogger.Trace($"L Pressed, resetting character dialogue");
 
-            foreach (string name in Constants.supportedCharacters)
+            foreach (string name in _characterManager.SupportedCharacters)
             {
-                NPC inGameCharacter = _characterManager.GetCharacter(name).GetNPC();
+                Characters.Character character = _characterManager.GetCharacter(name);
+                if (character == null) continue;
+                NPC inGameCharacter = character.GetNPC();
                 if (Game1.player != null && inGameCharacter != null)
                 {
                     Game1.player.friendshipData.TryGetValue(inGameCharacter.Name, out var friendship);

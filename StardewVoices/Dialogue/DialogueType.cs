@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace StardewVoices.Dialogue
 {
     public enum DialogueType
@@ -15,4 +17,5 @@ namespace StardewVoices.Dialogue
         Gossip,
         SpeechBubble
     }
+
 }

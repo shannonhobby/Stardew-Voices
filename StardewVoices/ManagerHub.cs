@@ -26,7 +26,8 @@ namespace StardewVoices
             LocalizationHelpers.Init(config.Language);
             Menu = new Menu(config, helper, manifest);
             PathManager = new PathManager(helper.DirectoryPath);
-            CharacterManager = new CharacterManager();
+            CharacterManager = new CharacterManager(config.SupportedCharacters);
+            DialogueHelpers.Init(CharacterManager.SupportedCharacters, config.CharactersToGenerate);
             AudioManager = new AudioManager(CharacterManager, PathManager);
             TestingManager = new TestingManager(CharacterManager);
             DialogueManager = new DialogueManager(PathManager, CharacterManager, TestingManager);

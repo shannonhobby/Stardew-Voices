@@ -14,6 +14,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
     {
         public List<LabelledDialogue> GetAllPossibleGossipDialogues(NPC character)
         {
+            if (character == null) return new List<LabelledDialogue>();
             var results = new List<LabelledDialogue>();
 
             CharacterData data = character.GetData();

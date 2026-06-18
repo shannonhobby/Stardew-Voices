@@ -8,7 +8,6 @@ using System.Linq;
 using StardewVoices.Utils;
 using StardewVoices.Utils.GameDialogueExtraction;
 using StardewVoices.Utils.ParsingHelpers;
-using StardewVoices.StardewVoices.Testing.Models;
 
 namespace StardewVoices.StardewVoices.Testing
 {
@@ -41,7 +40,7 @@ namespace StardewVoices.StardewVoices.Testing
 
             Dictionary<DialogueType, List<ValidationResult>> results = RunTestCases();
             foreach (DialogueType dialogueType in results.Keys)
-                ValidationReport.Add(new ValidationReport(dialogueType, results[dialogueType]));
+                ValidationReport.Add(new ValidationReport(dialogueType, results[dialogueType], Managers.CharacterManager.SupportedCharacters));
             // TODO unmute the dialogue!
 
             PrintFinalRecap();
@@ -85,7 +84,7 @@ namespace StardewVoices.StardewVoices.Testing
 
         private void GenerateTestCases()
         {
-            foreach (string characterName in Constants.supportedCharacters)
+            foreach (string characterName in Managers.CharacterManager.SupportedCharacters)
             {
                 GenerateDialogueTestCases(characterName);
                 GenerateEventDialogueTestCases(characterName);

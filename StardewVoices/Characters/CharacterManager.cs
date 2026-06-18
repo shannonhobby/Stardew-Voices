@@ -13,30 +13,48 @@ namespace StardewVoices.Characters
     {
         private string characterNameRegex { get; set; }
         private Dictionary<string, Character> characterDictionary = new Dictionary<string, Character>();
+        public List<string> SupportedCharacters { get; }
 
-        public CharacterManager() 
+        public CharacterManager(List<string> supportedCharacters)
         {
+            SupportedCharacters = supportedCharacters;
             SetupCharacterDictionary();
         }
 
         public Character GetCharacter(string characterName)
         {
-            return characterDictionary[characterName];
+            if (!characterDictionary.TryGetValue(characterName, out Character character))
+            {
+                ErrorLogger.Warn($"GetCharacter called for unknown character: {characterName}");
+                return null;
+            }
+            return character;
         }
 
         public void SetupCharacterInGameNpcs()
         {
-            foreach (string characterName in Constants.supportedCharacters)
+            if (Game1.characterData == null)
             {
+                ErrorLogger.Warn("Cannot validate SupportedCharacters: game character data not loaded yet.");
+                return;
+            }
+
+            foreach (string characterName in SupportedCharacters)
+            {
+                if (!Game1.characterData.ContainsKey(characterName))
+                {
+                    ErrorLogger.Warn($"'{characterName}' in SupportedCharacters does not match any Stardew Valley NPC and will be skipped.");
+                    continue;
+                }
                 characterDictionary[characterName].SetupNpc();
             }
         }
 
         private void SetupCharacterDictionary()
         {
-            for (int i = 0; i < Constants.supportedCharacters.Count; i++)
+            for (int i = 0; i < SupportedCharacters.Count; i++)
             {
-                this.characterDictionary.Add(Constants.supportedCharacters[i], new Character(Constants.supportedCharacters[i]));
+                this.characterDictionary.Add(SupportedCharacters[i], new Character(SupportedCharacters[i]));
             }
         }
 

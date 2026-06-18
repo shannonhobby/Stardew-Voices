@@ -8,6 +8,7 @@ using StardewVoices.Dialogue;
 using StardewValley;
 using StardewVoices.Utils;
 using StardewVoices.Utils.ParsingHelpers;
+using StardewVoices.Config;
 
 namespace StardewVoices.FileGeneration
 {
@@ -25,6 +26,11 @@ namespace StardewVoices.FileGeneration
         private FestivalDialogueExtractor festivalDialogueExtractor { get; set; }
         private GossipDialogueExtractor gossipDialogueExtractor { get; set; }
         private EventDialogueExtractor eventDialogueExtractor { get; set; }
+
+        private List<DialogueType> MarriageDialogueTypes = new() { 
+            DialogueType.Marriage, DialogueType.GenericMarriage, DialogueType.Engagement 
+        };
+
 
 
         public FileGenerator(IModHelper helper, ManagerHub managers)
@@ -51,7 +57,7 @@ namespace StardewVoices.FileGeneration
             {DialogueType.GenericMarriage, "Marriage Dialogue Generic" },
         };
 
-        public void GenerateFiles(bool generateJson, bool generateScript, string scriptFormat)
+        public void GenerateFiles(bool generateJson, bool generateScript, string scriptFormat, ModConfig config)
         {
             // Abort if the output folder for this language already exists so we don't
             // re-generate over a completed run. Other language folders are left untouched.
@@ -79,7 +85,7 @@ namespace StardewVoices.FileGeneration
                 }
             }
 
-            foreach(string characterName in Constants.supportedCharacters)
+            foreach(string characterName in config.CharactersToGenerate)
             {
                 if(generateJson)
                 {
@@ -148,16 +154,21 @@ namespace StardewVoices.FileGeneration
         }
         private void GenerateCharacterDialogueFiles(string characterName, bool generateJson, bool generateScript)
         {
-            NPC character = Game1.getCharacterFromName(characterName); 
+            NPC character = Game1.getCharacterFromName(characterName);
 
             // Get all character dialogue
             Dictionary<DialogueType, List<LabelledDialogue>> characterDialogue
                 = characterDialogueExtractor.GetAllDialogueForCharacter(character);
-            characterDialogue.Add(DialogueType.Gossip, 
-                gossipDialogueExtractor.GetAllPossibleGossipDialogues(character)); 
+            characterDialogue.Add(DialogueType.Gossip,
+                gossipDialogueExtractor.GetAllPossibleGossipDialogues(character));
 
             foreach (DialogueType type in characterDialogue.Keys)
             {
+                if (MarriageDialogueTypes.Contains(type) && !character.GetData().CanBeRomanced)
+                {
+                    continue;
+                }
+
                 if (generateScript)
                 {
                     Scripts[characterName].AppendSectionHeader(type + " lines!");
@@ -228,7 +239,7 @@ namespace StardewVoices.FileGeneration
 
                 foreach (string lineId in festivalDict.Keys)
                 {
-                    if (DialogueHelpers.StringContainsSupportedCharacter(lineId))
+                    if (DialogueHelpers.StringContainsCharacterToGenerate(lineId))
                     {
                         string englishRawValue = (englishFestivalDict != null && englishFestivalDict.TryGetValue(lineId, out string ev))
                             ? ev : null;

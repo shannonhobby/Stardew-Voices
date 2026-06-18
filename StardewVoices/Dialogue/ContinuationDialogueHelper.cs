@@ -9,9 +9,11 @@ namespace StardewVoices.Dialogue
 
         public static void Init(CharacterManager manager)
         {
-            for (int i = 0; i < Constants.supportedCharacters.Count; i++)
+            for (int i = 0; i < manager.SupportedCharacters.Count; i++)
             {
-                DialogueDictionary dialogueDictionary = manager.GetCharacter(Constants.supportedCharacters[i]).GetDialogueDictionary();
+                Character character = manager.GetCharacter(manager.SupportedCharacters[i]);
+                if (character == null) continue;
+                DialogueDictionary dialogueDictionary = character.GetDialogueDictionary();
                 Dictionary<string, string[]> continuationDialogue = dialogueDictionary.GetType("continuation_dialogue");
                 string[] continuationLineIds = continuationDialogue["continuation_dialogue"];
                 _continuationDialogue.AddRange(continuationLineIds);

@@ -81,18 +81,46 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         /// </summary>
         public Dictionary<DialogueType, List<LabelledDialogue>> GetAllDialogueForCharacter(NPC character)
         {
-            return new Dictionary<DialogueType, List<LabelledDialogue>>
+            if (character == null) { return new Dictionary<DialogueType, List<LabelledDialogue>>(); }
+
+            if (character.GetData().CanBeRomanced)
             {
-                { DialogueType.Dialogue,        GetCharacterDialogue(character) },
-                { DialogueType.Engagement,      GetEngagementDialogue(character) },
-                { DialogueType.Rainy,           GetRainyDialogue(character) },
-                { DialogueType.Marriage,        GetMarriageDialogue(character) },
-                { DialogueType.Extra,           GetExtraDialogue(character) },
-                { DialogueType.GenericMarriage, GetGenericMarriageDialogue(character) },
-                { DialogueType.Generic,         GetGenericDialogue(character) },
-                { DialogueType.Schedule,        GetScheduleDialogue(character) },
-                { DialogueType.SpeechBubble,    GetSpeechBubbleDialogue(character) },
-            };
+                return new Dictionary<DialogueType, List<LabelledDialogue>>
+                {
+                    { DialogueType.Dialogue,        GetCharacterDialogue(character) },
+                    { DialogueType.Engagement,      GetEngagementDialogue(character) },
+                    { DialogueType.Rainy,           GetRainyDialogue(character) },
+                    { DialogueType.Marriage,        GetMarriageDialogue(character) },
+                    { DialogueType.Extra,           GetExtraDialogue(character) },
+                    { DialogueType.GenericMarriage, GetGenericMarriageDialogue(character) },
+                    { DialogueType.Generic,         GetGenericDialogue(character) },
+                    { DialogueType.Schedule,        GetScheduleDialogue(character) },
+                    { DialogueType.SpeechBubble,    GetSpeechBubbleDialogue(character) },
+                };
+            } else if (character.Name == "Krobus") {
+                return new Dictionary<DialogueType, List<LabelledDialogue>>
+                {
+                    { DialogueType.Dialogue,        GetCharacterDialogue(character) },
+                    { DialogueType.Rainy,           GetRainyDialogue(character) },
+                    { DialogueType.Extra,           GetExtraDialogue(character) },
+                    { DialogueType.Generic,         GetGenericDialogue(character) },
+                    { DialogueType.Marriage,        GetMarriageDialogue(character) },
+                    { DialogueType.SpeechBubble,    GetSpeechBubbleDialogue(character) }
+                };
+            }
+            else
+            {
+                return new Dictionary<DialogueType, List<LabelledDialogue>>
+                {
+                    { DialogueType.Dialogue,        GetCharacterDialogue(character) },
+                    { DialogueType.Rainy,           GetRainyDialogue(character) },
+                    { DialogueType.Extra,           GetExtraDialogue(character) },
+                    { DialogueType.Generic,         GetGenericDialogue(character) },
+                    { DialogueType.SpeechBubble,    GetSpeechBubbleDialogue(character) },
+                };
+            }
+
+      
         }
 
 
@@ -101,10 +129,10 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         private List<LabelledDialogue> GetCharacterDialogue(NPC character)
         {
             var lines = GetLabelledDialogueFromGameContent(
-                character, $"Characters/Dialogue/{character.getName()}", DialogueType.Dialogue);
+                character, $"Characters/Dialogue/{character?.getName()}", DialogueType.Dialogue);
 
             if (lines.Count == 0)
-                ErrorLogger.Warn($"No character dialogue found for {character.Name}.");
+                ErrorLogger.Warn($"No character dialogue found for {character?.Name}.");
 
             return lines;
         }
@@ -449,7 +477,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             }
             catch (Exception e)
             {
-                ErrorLogger.Warn($"Could not load '{path}' for {character.Name}. {e}");
+                ErrorLogger.Warn($"Could not load '{path}' for {character?.Name}. {e}");
                 return new List<LabelledDialogue>();
             }
         }

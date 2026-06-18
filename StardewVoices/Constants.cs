@@ -6,22 +6,6 @@ namespace StardewVoices
     {
         public static string GENERATED_FILES_FOLDER_NAME = "Generated Files";
 
-        public static List<string> supportedCharacters = new()
-        {
-            "Abigail",
-            "Alex",
-            "Elliott",
-            "Emily",
-            "Haley",
-            "Harvey",
-            "Leah",
-            "Maru",
-            "Penny",
-            "Sam",
-            "Sebastian",
-            "Shane",
-        };
-
         public static List<string> LoveInterests = new()
         {
             "Abigail",

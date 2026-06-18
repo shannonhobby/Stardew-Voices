@@ -13,6 +13,16 @@ namespace StardewVoices.Dialogue
 {
     public static class DialogueHelpers
     {
+        private static List<string> _supportedCharacters = new();
+        private static List<string> _charactersToGenerate = new();
+
+
+        public static void Init(List<string> supportedCharacters, List<string> charactersToGenerate)
+        {
+            _supportedCharacters = supportedCharacters;
+            _charactersToGenerate = charactersToGenerate;
+        }
+
         internal static Dictionary<string, string[]> GetDictionaryFromPath(string path)
         {
             try
@@ -51,9 +61,9 @@ namespace StardewVoices.Dialogue
 
         internal static Boolean StringContainsSupportedCharacter(string input)
         {
-            for (int i = 0; i < Constants.supportedCharacters.Count; i++)
+            for (int i = 0; i < _supportedCharacters.Count; i++)
             {
-                string characterName = LocalizationHelpers.GetLocalizedName(Constants.supportedCharacters[i]);
+                string characterName = LocalizationHelpers.GetLocalizedName(_supportedCharacters[i]);
 
 
                 if (input.Contains(characterName))
@@ -65,15 +75,31 @@ namespace StardewVoices.Dialogue
             return false;
         }
 
+        internal static Boolean StringContainsCharacterToGenerate(string input)
+        {
+            for (int i = 0; i < _charactersToGenerate.Count; i++)
+            {
+                string characterName = LocalizationHelpers.GetLocalizedName(_charactersToGenerate[i]);
+
+                if (input.Contains(characterName))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+
 
         internal static string GetSupportedCharacterFromString(string input)
         {
-            for (int i = 0; i < Constants.supportedCharacters.Count; i++)
+            for (int i = 0; i < _supportedCharacters.Count; i++)
             {
-                string characterName = LocalizationHelpers.GetLocalizedName(Constants.supportedCharacters[i]);
+                string characterName = LocalizationHelpers.GetLocalizedName(_supportedCharacters[i]);
                 if (input.Contains(characterName))
                 {
-                    return Constants.supportedCharacters[i];
+                    return _supportedCharacters[i];
                 }
             }
 

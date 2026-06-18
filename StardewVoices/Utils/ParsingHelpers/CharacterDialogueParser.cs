@@ -52,6 +52,7 @@ namespace StardewVoices.Utils.ParsingHelpers
         {
             text = Regex.Replace(text, @"\$\w+", "");
             text = Regex.Replace(text, @"\[.*?\]", "");
+            text = Regex.Replace(text, @"%\w+", "");
             return text.Trim();
         }
 

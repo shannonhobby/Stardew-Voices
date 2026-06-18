@@ -13,11 +13,13 @@ namespace StardewVoices.Testing.Models
         public int FailedTestCount => GetCountOfFailedTests();
         public Dictionary<string, List<string>> failedTests = new Dictionary<string, List<string>>();
         public DialogueType DialogueType;
+        private List<string> _supportedCharacters;
 
-        public ValidationReport(DialogueType dialogueType, List<ValidationResult> results)
+        public ValidationReport(DialogueType dialogueType, List<ValidationResult> results, List<string> supportedCharacters)
         {
             TotalTestCount = results.Count;
             DialogueType = dialogueType;
+            _supportedCharacters = supportedCharacters;
             string lastCharacter = "";
 
             ErrorLogger.Trace($"==============================={DialogueType.ToString().ToUpper()} TESTS===============================");
@@ -63,7 +65,7 @@ namespace StardewVoices.Testing.Models
 
         private void PrintReportStats()
         {
-            foreach (string characterName in Constants.supportedCharacters)
+            foreach (string characterName in _supportedCharacters)
             {
                 if (!failedTests.ContainsKey(characterName))
                 {

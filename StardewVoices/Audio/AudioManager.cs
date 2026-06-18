@@ -26,7 +26,7 @@ namespace StardewVoices.Audio
             CharacterManager = characterManager;
             try
             {
-                foreach (string character in Constants.supportedCharacters)
+                foreach (string character in characterManager.SupportedCharacters)
                 {
                     CharacterAudio newCharacterAudio = new CharacterAudio(character, this);
                     characterManager.SetCharacterAudio(character, newCharacterAudio);
@@ -107,14 +107,14 @@ namespace StardewVoices.Audio
 
         public void MuteAll()
         {
-            foreach (string name in Constants.supportedCharacters)
-                CharacterManager.GetCharacter(name).SetVolume(0);
+            foreach (string name in CharacterManager.SupportedCharacters)
+                CharacterManager.GetCharacter(name)?.SetVolume(0);
         }
 
         public void UnmuteAll()
         {
-            foreach (string name in Constants.supportedCharacters)
-                CharacterManager.GetCharacter(name).SetVolume(1);
+            foreach (string name in CharacterManager.SupportedCharacters)
+                CharacterManager.GetCharacter(name)?.SetVolume(1);
         }
 
         public Cue GetCueFromDialogueId(string lineId, string characterName)

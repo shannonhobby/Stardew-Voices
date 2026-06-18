@@ -4,6 +4,7 @@ using StardewVoices.Testing;
 using StardewVoices.FileGeneration;
 using StardewVoices.Utils;
 using System.IO;
+using StardewVoices.Config;
 
 namespace StardewVoices
 {
@@ -66,7 +67,7 @@ namespace StardewVoices
             string[] args
         )
         {
-            fileGenerator.GenerateFiles(true, true, "both");
+            fileGenerator.GenerateFiles(true, true, "both", helper.ReadConfig<ModConfig>());
         }
 
     }
