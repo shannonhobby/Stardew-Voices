@@ -43,7 +43,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
 
                 foreach (var kvp in festivalDict)
                 {
-                    if (!kvp.Key.Contains(characterName)) continue;
+                    if (!kvp.Key.Contains(LocalizationHelpers.GetName(characterName))) continue;
 
                     string[] rawLines = kvp.Value.Split(PageBreakTokens, StringSplitOptions.RemoveEmptyEntries);
                     foreach (string rawLine in rawLines)

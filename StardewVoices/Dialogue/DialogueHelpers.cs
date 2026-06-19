@@ -79,7 +79,11 @@ namespace StardewVoices.Dialogue
         {
             for (int i = 0; i < _charactersToGenerate.Count; i++)
             {
-                string characterName = LocalizationHelpers.GetLocalizedName(_charactersToGenerate[i]);
+                string characterName = LocalizationHelpers.GetName(_charactersToGenerate[i]);
+                if (characterName == null)
+                {
+                    return false;
+                }
 
                 if (input.Contains(characterName))
                 {

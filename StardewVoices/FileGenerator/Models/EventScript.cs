@@ -1,4 +1,5 @@
 ﻿using StardewVoices.Pathing;
+using StardewVoices.Utils;
 using System;
 using System.Collections.Generic;
 
@@ -143,7 +144,7 @@ namespace StardewVoices.FileGeneration.Models
         public void AddEventLine(EventLine line)
         {
             bool isTarget = string.Equals(
-                line.Character, CharacterName, StringComparison.OrdinalIgnoreCase);
+                 LocalizationHelpers.GetLocalizedName(line.Character), CharacterName, StringComparison.OrdinalIgnoreCase);
 
             if (isTarget) LineCount++;
 
@@ -217,10 +218,11 @@ namespace StardewVoices.FileGeneration.Models
 
         private void AddEventLinePlainText(EventLine line, bool isTarget)
         {
+            string localizedCharacterName = LocalizationHelpers.GetLocalizedName(line.Character);
             // Character label: ★ NAME ★ for the target; · Name · for others
             PlainTextScript += isTarget
-                ? CenterLine($"★  {line.Character.ToUpper()}  ★") + "\n"
-                : CenterLine($"· {line.Character} ·") + "\n";
+                ? CenterLine($"★  {localizedCharacterName.ToUpper()}  ★") + "\n"
+                : CenterLine($"· {localizedCharacterName} ·") + "\n";
 
             // Line ID
             PlainTextScript += CenterLine($"[ {line.LineId} ]") + "\n";
@@ -231,17 +233,19 @@ namespace StardewVoices.FileGeneration.Models
 
         private void AddEventLineMarkdown(EventLine line, bool isTarget)
         {
+            string localizedCharacterName = LocalizationHelpers.GetLocalizedName(line.Character);
+
             if (isTarget)
             {
                 // Bold character label + bold code ID so it jumps off the page
-                MarkDownScript += $"**★ {line.Character.ToUpper()} ★** &nbsp; **`{line.LineId}`**\n\n";
+                MarkDownScript += $"**★ {localizedCharacterName.ToUpper()} ★** &nbsp; **`{line.LineId}`**\n\n";
                 // Bold blockquote for the spoken line itself
                 MarkDownScript += $"> **{line.Dialogue}**\n\n";
             }
             else
             {
                 // Quiet: italic name, plain code ID, plain blockquote
-                MarkDownScript += $"· *{line.Character}* · &nbsp; `{line.LineId}`\n\n";
+                MarkDownScript += $"· *{localizedCharacterName}* · &nbsp; `{line.LineId}`\n\n";
                 MarkDownScript += $"> {line.Dialogue}\n\n";
             }
         }

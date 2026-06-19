@@ -54,7 +54,6 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 "Game1.cs.2782",
                 // Rejection / accept proposals
                 "NPC.cs.3956-3980",
-                // TODO: "I heard you secretly gave {0} a gift today" - add different names
                 "NPC.cs.3985",
                 "NPC.cs.4001",
                 "NPC.cs.4406-4441",
@@ -129,7 +128,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         private List<LabelledDialogue> GetCharacterDialogue(NPC character)
         {
             var lines = GetLabelledDialogueFromGameContent(
-                character, $"Characters/Dialogue/{character?.getName()}", DialogueType.Dialogue);
+                character, $"Characters/Dialogue/{LocalizationHelpers.GetName(character?.getName())}", DialogueType.Dialogue);
 
             if (lines.Count == 0)
                 ErrorLogger.Warn($"No character dialogue found for {character?.Name}.");
@@ -332,9 +331,9 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 {
                     AddStringsFromCsFilesGroup("LOVE INTERESTS", data, character, lines);
                     AddStringsFromCsFilesGroup(
-                        character.GetData().Gender == Gender.Female ? "WIFE ONLY" : "HUSBAND ONLY" , 
-                        data, 
-                        character, 
+                        character.GetData().Gender == Gender.Female ? "WIFE ONLY" : "HUSBAND ONLY" ,
+                        data,
+                        character,
                         lines);
                 }
                     
@@ -365,7 +364,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         private List<LabelledDialogue> GetScheduleDialogue(NPC character)
         {
             var lines = GetLabelledDialogueFromGameContent(
-                character, $"Strings/schedules/{character.getName()}", DialogueType.Schedule);
+                character, $"Strings/schedules/{LocalizationHelpers.GetName(character.getName())}", DialogueType.Schedule);
 
             if (lines.Count == 0)
                 ErrorLogger.Warn($"No schedule dialogue found for {character.Name}.");
@@ -375,6 +374,41 @@ namespace StardewVoices.Utils.GameDialogueExtraction
 
 
         // ── stringsFromCsFile helpers ────────────────────────────────────────
+
+        /// <summary>
+        /// Generates name-specific variants of the "I heard you secretly gave {0} a gift"
+        /// line (NPC.cs.3985). One entry per other love interest, with the display name
+        /// already substituted, so lookups at runtime can match directly instead of going
+        /// through the fuzzy variable-matching path.
+        /// </summary>
+        private List<LabelledDialogue> GetGiftDialogueVariants(NPC character, Dictionary<string, string> data)
+        {
+            if (!data.TryGetValue("NPC.cs.3985", out string template))
+                return new List<LabelledDialogue>();
+
+            var lines = new List<LabelledDialogue>();
+
+            foreach (string loveName in Constants.LoveInterests)
+            {
+                if (loveName == character.Name) continue;
+
+                NPC loveNPC = Game1.getCharacterFromName(loveName);
+                string localizedName = loveNPC?.displayName ?? NPC.GetDisplayName(loveName);
+
+                string substitutedText = template.Replace("{0}", localizedName);
+                string key = $"NPC_cs_3985-{loveName}";
+
+                // Only the first page varies by name; _sv1/_sv2 are shared across all characters
+                // and are already covered by the generic NPC.cs.3985 entry.
+                var parsedLines = CharacterDialogueParser.ParseRawValueToLines(substitutedText, key, DialogueType.Generic);
+                if (parsedLines.Count == 0) continue;
+
+                var sdvDialogue = character.TryGetDialogue(key);
+                lines.Add(new LabelledDialogue(sdvDialogue, new List<LabelledDialogueLine> { parsedLines[0] }, key, DialogueType.Generic));
+            }
+
+            return lines;
+        }
 
         private void AddStringsFromCsFilesGroup(
             string group,
@@ -390,7 +424,11 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 if (rule.Contains("-"))
                     lines.AddRange(GetDialogueRange(data, rule, character));
                 else if (data.TryGetValue(rule, out string value))
+                {
                     lines.Add(BuildLabelledDialogue(character, rule, value, DialogueType.Generic));
+                    if (rule == "NPC.cs.3985")
+                        lines.AddRange(GetGiftDialogueVariants(character, data));
+                }
             }
         }
 

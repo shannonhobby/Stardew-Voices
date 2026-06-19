@@ -57,7 +57,7 @@ namespace StardewVoices.FileGeneration
             {DialogueType.GenericMarriage, "Marriage Dialogue Generic" },
         };
 
-        public void GenerateFiles(bool generateJson, bool generateScript, string scriptFormat, ModConfig config)
+        public void GenerateFiles(bool generateJson, bool generateScript, bool generateGossipDialogue, string scriptFormat, ModConfig config)
         {
             // Abort if the output folder for this language already exists so we don't
             // re-generate over a completed run. Other language folders are left untouched.
@@ -98,7 +98,7 @@ namespace StardewVoices.FileGeneration
 
                 }
 
-                GenerateCharacterDialogueFiles(characterName, generateJson, generateScript);
+                GenerateCharacterDialogueFiles(characterName, generateJson, generateScript, generateGossipDialogue);
 
                 GenerateEventDialogueFiles(characterName, generateJson, generateScript);
             }
@@ -152,15 +152,19 @@ namespace StardewVoices.FileGeneration
                 EventScripts[key].WriteOut();
             }
         }
-        private void GenerateCharacterDialogueFiles(string characterName, bool generateJson, bool generateScript)
+        private void GenerateCharacterDialogueFiles(string characterName, bool generateJson, bool generateScript, bool generateGossipDialogue)
         {
-            NPC character = Game1.getCharacterFromName(characterName);
+            string englishCharacterName = LocalizationHelpers.GetName(characterName);
+            NPC character = Game1.getCharacterFromName(englishCharacterName);
 
             // Get all character dialogue
             Dictionary<DialogueType, List<LabelledDialogue>> characterDialogue
                 = characterDialogueExtractor.GetAllDialogueForCharacter(character);
-            characterDialogue.Add(DialogueType.Gossip,
-                gossipDialogueExtractor.GetAllPossibleGossipDialogues(character));
+            if (generateGossipDialogue)
+            {
+                characterDialogue.Add(DialogueType.Gossip,
+              gossipDialogueExtractor.GetAllPossibleGossipDialogues(character));
+            }
 
             foreach (DialogueType type in characterDialogue.Keys)
             {
@@ -265,10 +269,11 @@ namespace StardewVoices.FileGeneration
                         if (generateScript)
                         {
                             string characterName = lineId.Split("_")[0];
+                          
                             bool firstInGroup = true;
                             foreach (LabelledDialogueLine line in parsedLines)
                             {
-                                Scripts[characterName].AddLine(line, !firstInGroup);
+                                Scripts[LocalizationHelpers.GetLocalizedName(characterName)].AddLine(line, !firstInGroup);
                                 firstInGroup = false;
                             }
                         }
@@ -284,12 +289,12 @@ namespace StardewVoices.FileGeneration
         {
             // Get events for character
             List<(string locationName, string eventId)> events
-                = eventDialogueExtractor.GetAllEventsForCharacter(characterName);
+                = eventDialogueExtractor.GetAllEventsForCharacter(LocalizationHelpers.GetName(characterName));
 
             // We only need to order the events if it's a script
             if (generateScript)
             {
-                events = eventDialogueExtractor.GetEventOrderForCharacter(characterName, events);
+                events = eventDialogueExtractor.GetEventOrderForCharacter(LocalizationHelpers.GetName(characterName), events);
                 EventScripts.TryGetValue(characterName, out EventScript eventScript);
                 eventScript.AppendSectionHeader("<3 HEART EVENTS <3");
 

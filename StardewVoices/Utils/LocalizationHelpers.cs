@@ -70,6 +70,10 @@ namespace StardewVoices.Utils
         {
             if (Constants.SpecialCharacterLanguages.Contains(_currentLanguage))
             {
+                if (name == "LeoMainland")
+                {
+                    name = "Leo";
+                }
                 Constants.LocalizedNpcNames.TryGetValue(name, out Dictionary<string, string> localizedCharacterNames);
                 localizedCharacterNames.TryGetValue(_currentLanguage, out string localizedCharacterName);
                 return localizedCharacterName;

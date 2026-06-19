@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using StardewValley;
 using StardewVoices.Pathing;
 using StardewVoices.Utils.ParsingHelpers;
+using StardewVoices.Utils;
+
 
 namespace StardewVoices.FileGeneration.Models
 {
@@ -65,7 +67,7 @@ namespace StardewVoices.FileGeneration.Models
             if (root.GetChild("Scripts") == null)
                 root.CreateFolder("Scripts");
 
-            root.GetChild("Scripts").CreateChild(characterName);
+            root.GetChild("Scripts").CreateChild(CharacterName);
             ParentFolder = root.GetChild("Scripts");
         }
 
