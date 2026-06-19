@@ -29,7 +29,7 @@ namespace StardewVoices
             CharacterManager = new CharacterManager(config.SupportedCharacters);
             DialogueHelpers.Init(CharacterManager.SupportedCharacters, config.CharactersToGenerate);
             AudioManager = new AudioManager(CharacterManager, PathManager);
-            TestingManager = new TestingManager(CharacterManager);
+            TestingManager = new TestingManager(CharacterManager, config);
             DialogueManager = new DialogueManager(PathManager, CharacterManager, TestingManager);
 
             GameEventManager = new GameEventsService(this);

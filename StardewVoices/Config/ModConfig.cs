@@ -77,5 +77,7 @@ namespace StardewVoices.Config
             "Shane",
         };
 
+        public bool WarpNpcsToHome { get; set; } = false;
+
     }
 }

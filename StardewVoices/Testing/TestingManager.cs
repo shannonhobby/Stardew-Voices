@@ -9,6 +9,7 @@ using StardewVoices.Characters;
 using StardewVoices.Dialogue;
 using System.Linq;
 using StardewVoices.Utils;
+using StardewVoices.Config;
 
 namespace StardewVoices.Testing
 {
@@ -18,15 +19,17 @@ namespace StardewVoices.Testing
         private List<string> eventsToTest = new List<string>();
         private int eventsToTestIndex = 0;
         List<string> testDialogue = new List<string>();
+        private ModConfig Config;
 
         public bool ValidationIsRunning = false;
 
         private CharacterManager _characterManager { get;}
         private NPC Shane;
 
-        public TestingManager(CharacterManager characterManager) {
+        public TestingManager(CharacterManager characterManager, ModConfig config) {
             _characterManager = characterManager;
             testingWorldLoaded = false;
+            Config = config;
         }
 
         private string GetCurrentTestDialogue()
@@ -47,7 +50,7 @@ namespace StardewVoices.Testing
             if (!Context.IsWorldReady || testingWorldLoaded == true)
                 return;
 
-            if (Game1.player?.farmName?.Value == "Mod World")
+            if (Config.WarpNpcsToHome)
             {
                 foreach (string name in Constants.LoveInterests)
                 {
