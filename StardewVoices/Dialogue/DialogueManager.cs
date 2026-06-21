@@ -1,3 +1,4 @@
+using StardewValley.Monsters;
 using StardewVoices.Characters;
 using StardewVoices.Pathing;
 using StardewVoices.Testing;
@@ -18,13 +19,12 @@ namespace StardewVoices.Dialogue
         private PathManager _pathManager { get; }
         private CharacterManager _characterManager { get; }
         private TestingManager _testingManager { get; }
-
-
-        // When I have programatically updated the text
+        private VariableLineResolver _variableLineResolver { get; }
 
         public DialogueManager(PathManager pathManager,
             CharacterManager characterManager,
-            TestingManager testingManager
+            TestingManager testingManager,
+            VariableLineResolver variableLineResolver
             ) {
             if (!Directory.Exists(pathManager.GetPath("Characters").ToString()))
                 throw new Exception("Character dialogue folder could not be found");
@@ -32,6 +32,7 @@ namespace StardewVoices.Dialogue
             _pathManager = pathManager;
             _characterManager = characterManager;
             _testingManager = testingManager;
+            _variableLineResolver = variableLineResolver;
 
             textBubbleHandler = new TextBubbleHandler();
             festivalHandler = new FestivalHandler(pathManager);
@@ -146,7 +147,10 @@ namespace StardewVoices.Dialogue
 
                 if(foundLineId != null)
                 {
-                    return foundLineId;
+                    // This checks for variable dialogue lines and
+                    // chooses a random audio file id configured in
+                    // variable_lines.json
+                    return _variableLineResolver.Resolve(foundLineId, currentSpeaker);
                 }
 
 

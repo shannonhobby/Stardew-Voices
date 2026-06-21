@@ -45,6 +45,8 @@ namespace StardewVoices.Pathing
             GenericDialoguePathNode.CreateChild("ExtraDialogue.json");
             GenericDialoguePathNode.CreateChild("Marriage Dialogue Generic.json");
             GenericDialoguePathNode.CreateChild("rainy.json");
+
+            InverseDialogueFolderPathNode.CreateChild("variable_lines.json");
         }
 
         internal PathNode GetPath(string name)

@@ -20,6 +20,7 @@ namespace StardewVoices.Testing.Models
         public string DialogueText { get; }
         public string Context { get; }
         public string CueName { get; set; }
+        public bool HasVariations = false;
         public DialogueType DialogueType { get; set; }
         private IModHelper helper { get; }
         private DialogueManager dialogueManager { get; }
@@ -33,6 +34,10 @@ namespace StardewVoices.Testing.Models
             this.helper = helper;
             this.dialogueManager = dialogueManager;
             CueName = dialogueManager.getIdFromDialogueString(DialogueText, characterName);
+            if (CueName.Contains('-'))
+            {
+                HasVariations = true;
+            }
         }
 
         public DialogueTestCase(string characterName, DialogueType dialogueType, string dialogueText, string context, DialogueManager dialogueManager, IModHelper helper)

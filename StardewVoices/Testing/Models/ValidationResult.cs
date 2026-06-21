@@ -49,7 +49,14 @@ namespace StardewVoices.Testing.Models
                 SetFakeFestival();
             }
 
-            Success = RunTests(testCase);
+            if (TestCase.HasVariations == true)
+            {
+                Success = RunVariationsTest(testCase);
+            } else
+            {
+                Success = RunTests(testCase);
+
+            }
 
             dialogueManager.EndEvent();
             dialogueManager.ResetFestival();
@@ -59,6 +66,13 @@ namespace StardewVoices.Testing.Models
         {
             return CueNameFound(testCase) && CueExists(testCase) && CueAudioPlays(testCase);
         }
+
+        public bool RunVariationsTest(DialogueTestCase testCase)
+        {
+            // LEFT OFF HERE!~!!!
+        }
+
+
 
         // TODO add a test for checking if the right audio plays? not just that audio plays
         public bool CueNameFound(DialogueTestCase testCase)

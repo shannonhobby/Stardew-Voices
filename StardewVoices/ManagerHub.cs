@@ -20,6 +20,7 @@ namespace StardewVoices
         public AudioManager AudioManager { get; }
         public DialogueManager DialogueManager { get; }
         public TestingManager TestingManager { get; }
+        public VariableLineResolver VariableLineResolver { get; }
 
         public ManagerHub(IModHelper helper, IManifest manifest) {
             ModConfig config = helper.ReadConfig<ModConfig>();
@@ -30,7 +31,8 @@ namespace StardewVoices
             DialogueHelpers.Init(CharacterManager.SupportedCharacters, config.CharactersToGenerate);
             AudioManager = new AudioManager(CharacterManager, PathManager);
             TestingManager = new TestingManager(CharacterManager, config);
-            DialogueManager = new DialogueManager(PathManager, CharacterManager, TestingManager);
+            VariableLineResolver = new VariableLineResolver(PathManager.GetPathString("variable_lines.json"));
+            DialogueManager = new DialogueManager(PathManager, CharacterManager, TestingManager, VariableLineResolver);
 
             GameEventManager = new GameEventsService(this);
 
