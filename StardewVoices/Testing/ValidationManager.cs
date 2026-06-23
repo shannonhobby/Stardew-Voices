@@ -140,8 +140,15 @@ namespace StardewVoices.StardewVoices.Testing
                 return;
             }
             foreach (var (text, context) in lines)
-                testCases.Add(new DialogueTestCase(characterName, DialogueType.Event, text, context, Managers.DialogueManager, helper));
-        }
+                if (text == null || text.StartsWith('%'))
+                {
+                    continue;
+                }
+                else
+                {
+                    testCases.Add(new DialogueTestCase(characterName, DialogueType.Event, text, context, Managers.DialogueManager, helper));
+                }
+           }
 
         private void GenerateFestivalDialogueTestCases(string characterName)
         {
@@ -152,7 +159,13 @@ namespace StardewVoices.StardewVoices.Testing
                 return;
             }
             foreach (var (text, context) in lines)
-                testCases.Add(new DialogueTestCase(characterName, DialogueType.Festival, text, context, Managers.DialogueManager, helper));
+                if (text == null || text.StartsWith('%'))
+                {
+                    continue;
+                } else
+                {
+                    testCases.Add(new DialogueTestCase(characterName, DialogueType.Festival, text, context, Managers.DialogueManager, helper));
+                }
         }
 
         private Dictionary<DialogueType, List<ValidationResult>> RunTestCases()

@@ -69,7 +69,7 @@ namespace StardewVoices.Dialogue
         // ── Loading ──────────────────────────────────────────────────────────
 
         private void Load(JObject root)
-        {
+        { 
             foreach (JProperty topProp in root.Properties())
             {
                 var topObj = topProp.Value as JObject;

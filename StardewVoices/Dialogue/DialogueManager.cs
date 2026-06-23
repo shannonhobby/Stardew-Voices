@@ -19,7 +19,7 @@ namespace StardewVoices.Dialogue
         private PathManager _pathManager { get; }
         private CharacterManager _characterManager { get; }
         private TestingManager _testingManager { get; }
-        private VariableLineResolver _variableLineResolver { get; }
+        public VariableLineResolver VariableLineResolver { get; }
 
         public DialogueManager(PathManager pathManager,
             CharacterManager characterManager,
@@ -32,7 +32,7 @@ namespace StardewVoices.Dialogue
             _pathManager = pathManager;
             _characterManager = characterManager;
             _testingManager = testingManager;
-            _variableLineResolver = variableLineResolver;
+            VariableLineResolver = variableLineResolver;
 
             textBubbleHandler = new TextBubbleHandler();
             festivalHandler = new FestivalHandler(pathManager);
@@ -40,6 +40,9 @@ namespace StardewVoices.Dialogue
             characterDialogueHandler = new CharacterDialogueHandler(pathManager, characterManager, _testingManager);
             ContinuationDialogueHelper.Init(characterManager);
         }
+
+        // Variable Lines
+
 
 
         // Events
@@ -150,7 +153,7 @@ namespace StardewVoices.Dialogue
                     // This checks for variable dialogue lines and
                     // chooses a random audio file id configured in
                     // variable_lines.json
-                    return _variableLineResolver.Resolve(foundLineId, currentSpeaker);
+                    return VariableLineResolver.Resolve(foundLineId, currentSpeaker);
                 }
 
 

@@ -43,7 +43,7 @@ namespace StardewVoices.Dialogue
 
                 return dialogueDict[dialogueLine][0];
             }
-            else if (type == "misc" || type == "extra" || type =="generic_marriage")
+            else
             {
                 string foundLine = CheckDictionaryForVariableLines(dialogueDict, dialogueLine, currentSpeaker, type);
                 if(foundLine != null)
@@ -68,10 +68,13 @@ namespace StardewVoices.Dialogue
                 string[] splitKey = key.Split(" ");
                 string[] splitDialogueString = dialogueLine.Split(" ");
 
+                // Count how many words in the dialogue don't appear in the key's word set.
+                // Using a HashSet for the key avoids the Intersect() deduplication bug where
+                // repeated words (e.g. "We"/"have" appearing twice) inflate the difference.
+                var keyWordSet = new HashSet<string>(splitKey);
+                int nonMatchingCount = splitDialogueString.Count(word => !keyWordSet.Contains(word));
 
-                // TODO what the fuck is this
-                // Check to see if the amount of shared words is ALMOST equivalent to the length minus the number of substitutions possible (i've only seen up to 3)
-                if (splitDialogueString.Intersect(splitKey).Count() > 0 && splitDialogueString.Length == splitKey.Length && splitDialogueString.Length - splitDialogueString.Intersect(splitKey).Count() <= 3)
+                if (splitDialogueString.Intersect(splitKey).Any() && splitDialogueString.Length == splitKey.Length && nonMatchingCount <= 3)
                 {
                     // Check for dad / mom / name stuff
                     if (CheckForParentString(splitDialogueString, splitKey))

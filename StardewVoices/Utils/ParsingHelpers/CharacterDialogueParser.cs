@@ -40,7 +40,6 @@ namespace StardewVoices.Utils.ParsingHelpers
         }
 
         // $p 38#First dialogue line.|Second dialogue line
-        // $d 38#First dialogue line.|Second dialogue line
         private static string ParsePDialogue(string s)
         {
             if (s.Contains("$p") || s.Contains("$d"))
@@ -52,7 +51,8 @@ namespace StardewVoices.Utils.ParsingHelpers
         {
             text = Regex.Replace(text, @"\$\w+", "");
             text = Regex.Replace(text, @"\[.*?\]", "");
-            text = Regex.Replace(text, @"%\w+", "");
+            text = Regex.Replace(text, @"%noturn", "");
+            text = Regex.Replace(text, @"%\w+", "VARIABLE");
             return text.Trim();
         }
 
@@ -110,8 +110,7 @@ namespace StardewVoices.Utils.ParsingHelpers
             if (HasQuestionMarker(s))
             {
                 string question = ParseQuestionDialogue(s);
-                string cleaned = Clean(question);
-                return new[] { (baseId, cleaned) };
+                return ParseDialogueWithIds(question, baseId);
             }
 
             // $y festival question — NPC's question with voiced farmer response choices.
@@ -165,8 +164,12 @@ namespace StardewVoices.Utils.ParsingHelpers
 
                 foreach (string seg in segments.Where(x => x.Trim().Length > 0))
                 {
-                    results.Add((mwId, Clean(seg)));
-                    mwId = IncrementLineId(mwId);
+                    // Recurse so segments containing #$b# or #$e# page breaks are
+                    // split into separate lines rather than collapsed with ## artifacts.
+                    var segLines = ParseDialogueWithIds(seg, mwId);
+                    if (segLines.Length == 0) continue;
+                    results.AddRange(segLines);
+                    mwId = AdvancePastLineId(segLines[^1].LineId);
                 }
                 return results.ToArray();
             }
@@ -284,7 +287,7 @@ namespace StardewVoices.Utils.ParsingHelpers
             var results = new List<(string, string)>();
             for (int i = 0; i < parts.Length; i++)
             {
-                string text = Clean(parts[i]);
+                string text = Clean(parts[i].TrimStart('#'));
                 if (text.Length > 0)
                     results.Add(($"{baseId}_prereq_{i + 1}", text));
             }
