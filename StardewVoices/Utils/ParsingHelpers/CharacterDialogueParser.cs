@@ -52,7 +52,7 @@ namespace StardewVoices.Utils.ParsingHelpers
             text = Regex.Replace(text, @"\$\w+", "");
             text = Regex.Replace(text, @"\[.*?\]", "");
             text = Regex.Replace(text, @"%noturn", "");
-            text = Regex.Replace(text, @"%\w+", "VARIABLE");
+            text = Regex.Replace(text, @"%fork", "");
             return text.Trim();
         }
 

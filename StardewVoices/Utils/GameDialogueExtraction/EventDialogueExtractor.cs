@@ -299,6 +299,13 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             return $"{locationName}_{sceneName}_{speakerName}{suffix}";
         }
 
+        /// <summary>
+        /// Returns the raw event-script dictionary for a location.
+        /// Used by Pass 2 (EventDialogueReconciler) to build the fork graph.
+        /// </summary>
+        public Dictionary<string, string> GetLocationData(string locationName)
+            => LoadGameEventData(locationName);
+
         private Dictionary<string, string> LoadGameEventData(string locationName)
         {
             try

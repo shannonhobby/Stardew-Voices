@@ -85,6 +85,54 @@ namespace StardewVoices.FileGeneration
                 }
             }
 
+            // ── Pass 1: collect raw EventLine records for every event ─────────────
+            // One entry per unique "LocationName/eventId" across all characters.
+            // Fork/response events are included because GetEventOrderForCharacter
+            // appends them after their root via AppendResponseEvents.
+            var rawEventLines = new Dictionary<string, List<EventLine>>();
+            if (generateJson || generateScript)
+            {
+                foreach (string characterName in config.CharactersToGenerate)
+                {
+                    string englishName = LocalizationHelpers.GetName(characterName);
+                    var allEvents = eventDialogueExtractor.GetAllEventsForCharacter(englishName);
+                    var ordered  = eventDialogueExtractor.GetEventOrderForCharacter(englishName, allEvents);
+
+                    foreach ((string locationName, string eventId) in ordered)
+                    {
+                        if (locationName == null) continue;  // null = section-header marker
+                        string key = $"{locationName}/{eventId}";
+                        if (rawEventLines.ContainsKey(key)) continue;
+
+                        rawEventLines[key] = eventDialogueExtractor.GetEventDialogue(locationName, eventId)
+                            ?? new List<EventLine>();
+                    }
+                }
+            }
+
+            // ── Pass 2: reconcile duplicate names across forked branches ──────────
+            var reconciledEventLines = rawEventLines;
+            if (rawEventLines.Count > 0)
+            {
+                var (reconciled, collapseLog) = EventDialogueReconciler.Reconcile(
+                    rawEventLines,
+                    locationName => eventDialogueExtractor.GetLocationData(locationName));
+
+                reconciledEventLines = reconciled;
+
+                if (collapseLog.Count > 0)
+                {
+                    ErrorLogger.Info($"[Pass 2] Collapsed {collapseLog.Count} duplicate name(s):");
+                    foreach (var (oldId, canonicalId) in collapseLog)
+                        ErrorLogger.Info($"  {oldId}  →  {canonicalId}");
+                }
+                else
+                {
+                    ErrorLogger.Info("[Pass 2] No duplicate names found.");
+                }
+            }
+
+            // ── Phase 3: generate per-character files using reconciled data ───────
             foreach(string characterName in config.CharactersToGenerate)
             {
                 if(generateJson)
@@ -100,7 +148,7 @@ namespace StardewVoices.FileGeneration
 
                 GenerateCharacterDialogueFiles(characterName, generateJson, generateScript, generateGossipDialogue);
 
-                GenerateEventDialogueFiles(characterName, generateJson, generateScript);
+                GenerateEventDialogueFiles(characterName, generateJson, generateScript, reconciledEventLines);
             }
 
 
@@ -282,49 +330,46 @@ namespace StardewVoices.FileGeneration
             }
         }
 
-        private void GenerateEventDialogueFiles
-            (string characterName, 
+        private void GenerateEventDialogueFiles(
+            string characterName,
             bool generateJson,
-            bool generateScript)
+            bool generateScript,
+            Dictionary<string, List<EventLine>> reconciledEventLines)
         {
+            string englishName = LocalizationHelpers.GetName(characterName);
+
             // Get events for character
             List<(string locationName, string eventId)> events
-                = eventDialogueExtractor.GetAllEventsForCharacter(LocalizationHelpers.GetName(characterName));
+                = eventDialogueExtractor.GetAllEventsForCharacter(englishName);
 
             // We only need to order the events if it's a script
             if (generateScript)
             {
-                events = eventDialogueExtractor.GetEventOrderForCharacter(LocalizationHelpers.GetName(characterName), events);
+                events = eventDialogueExtractor.GetEventOrderForCharacter(englishName, events);
                 EventScripts.TryGetValue(characterName, out EventScript eventScript);
                 eventScript.AppendSectionHeader("<3 HEART EVENTS <3");
-
             }
 
-
-            // Iterate through events. 
+            // Iterate through events.
             foreach ((string locationName, string eventId) in events)
             {
-                List<EventLine> eventDict = eventDialogueExtractor.GetEventDialogue(locationName, eventId);
-             
-                // Create event json
-                // if the files already been created: skippy poo
-                if (generateJson && locationName != null)
+                // Look up Pass 2 reconciled lines; fall back to a fresh extraction only
+                // if somehow this event wasn't collected in Phase 1 (shouldn't happen).
+                string key = locationName != null ? $"{locationName}/{eventId}" : null;
+                List<EventLine> eventLines = (key != null && reconciledEventLines.TryGetValue(key, out var cached))
+                    ? cached
+                    : eventDialogueExtractor.GetEventDialogue(locationName, eventId) ?? new List<EventLine>();
+
+                // Create event json — if the file's already been created: skip
+                if (generateJson && locationName != null && !EventJsons.ContainsKey(key))
                 {
-                    string eventLocationAndId = $"{locationName}/{eventId}";
-                    if (!EventJsons.ContainsKey(eventLocationAndId))
-                    {
-                        EventJsons.Add(eventLocationAndId, new EventDialogueJson(eventId, locationName, Managers.PathManager));
-                        EventJsons.TryGetValue(eventLocationAndId, out EventDialogueJson eventJson);
-                        // TODO - refactor so only one for loop for script and events
-                        foreach (EventLine e  in eventDict)
-                        {
-                            eventJson.AddLine(e.LineId, e.Dialogue);
-                        }
-                    }
+                    EventJsons.Add(key, new EventDialogueJson(eventId, locationName, Managers.PathManager));
+                    EventJsons.TryGetValue(key, out EventDialogueJson eventJson);
+                    foreach (EventLine e in eventLines)
+                        eventJson.AddLine(e.LineId, e.Dialogue);
                 }
 
-                // Add to event script for character
-                // Never skippy poo if generating script
+                // Add to event script for character — never skip
                 if (generateScript)
                 {
                     EventScripts.TryGetValue(characterName, out EventScript eventScript);
@@ -332,14 +377,13 @@ namespace StardewVoices.FileGeneration
                     if (locationName == null)
                     {
                         eventScript.AppendSectionHeader("GUEST EVENTS!!!");
-                    } else
+                    }
+                    else
                     {
                         eventScript.ChangeEvent(eventId);
                         eventScript.AddLocationChange(locationName);
-                        foreach (EventLine e in eventDict)
-                        {
+                        foreach (EventLine e in eventLines)
                             eventScript.AddEventLine(e);
-                        }
                     }
                 }
             }
