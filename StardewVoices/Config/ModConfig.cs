@@ -41,5 +41,43 @@ namespace StardewVoices.Config
          ** Language settings
          ****/
         public string Language { get; set; } = "en";
+
+        /****
+          ** Dub-veleper settings
+          ****/
+        public List<string> SupportedCharacters { get; set; } = new()
+        {
+            "Abigail",
+            "Alex",
+            "Elliott",
+            "Emily",
+            "Haley",
+            "Harvey",
+            "Leah",
+            "Maru",
+            "Penny",
+            "Sam",
+            "Sebastian",
+            "Shane",
+        };
+
+        public List<string> CharactersToGenerate { get; set; } = new()
+        {
+            "Abigail",
+            "Alex",
+            "Elliott",
+            "Emily",
+            "Haley",
+            "Harvey",
+            "Leah",
+            "Maru",
+            "Penny",
+            "Sam",
+            "Sebastian",
+            "Shane",
+        };
+
+        public bool WarpNpcsToHome { get; set; } = false;
+
     }
 }

@@ -7,11 +7,22 @@ using StardewModdingAPI;
 using StardewValley;
 using Newtonsoft.Json;
 using System.IO;
+using System.Text.RegularExpressions;
 
 namespace StardewVoices.Dialogue
 {
     public static class DialogueHelpers
     {
+        private static List<string> _supportedCharacters = new();
+        private static List<string> _charactersToGenerate = new();
+
+
+        public static void Init(List<string> supportedCharacters, List<string> charactersToGenerate)
+        {
+            _supportedCharacters = supportedCharacters;
+            _charactersToGenerate = charactersToGenerate;
+        }
+
         internal static Dictionary<string, string[]> GetDictionaryFromPath(string path)
         {
             try
@@ -50,9 +61,60 @@ namespace StardewVoices.Dialogue
 
         internal static Boolean StringContainsSupportedCharacter(string input)
         {
-            for (int i = 0; i < Constants.supportedCharacters.Count; i++)
+            for (int i = 0; i < _supportedCharacters.Count; i++)
             {
-                string characterName = LocalizationHelpers.GetLocalizedName(Constants.supportedCharacters[i]);
+                string characterName = LocalizationHelpers.GetLocalizedName(_supportedCharacters[i]);
+
+
+                if (input.Contains(characterName))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        internal static Boolean StringContainsCharacterToGenerate(string input)
+        {
+            for (int i = 0; i < _charactersToGenerate.Count; i++)
+            {
+                string characterName = LocalizationHelpers.GetName(_charactersToGenerate[i]);
+                if (characterName == null)
+                {
+                    return false;
+                }
+
+                if (input.Contains(characterName))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+
+
+        internal static string GetSupportedCharacterFromString(string input)
+        {
+            for (int i = 0; i < _supportedCharacters.Count; i++)
+            {
+                string characterName = LocalizationHelpers.GetLocalizedName(_supportedCharacters[i]);
+                if (input.Contains(characterName))
+                {
+                    return _supportedCharacters[i];
+                }
+            }
+
+            return "Could not find supported character in string :I";
+        }
+
+        internal static Boolean StringContainAnyCharacter(string input)
+        {
+            for (int i = 0; i < Constants.AllCharacterNames.Count; i++)
+            {
+                string characterName = LocalizationHelpers.GetLocalizedName(Constants.AllCharacterNames[i]);
 
 
                 if (input.Contains(characterName))
@@ -65,14 +127,14 @@ namespace StardewVoices.Dialogue
         }
 
 
-        internal static string GetSupportedCharacterFromString(string input)
+        internal static string GetAnyCharacterFromString(string input)
         {
-            for (int i = 0; i < Constants.supportedCharacters.Count; i++)
+            for (int i = 0; i < Constants.AllCharacterNames.Count; i++)
             {
-                string characterName = LocalizationHelpers.GetLocalizedName(Constants.supportedCharacters[i]);
+                string characterName = LocalizationHelpers.GetLocalizedName(Constants.AllCharacterNames[i]);
                 if (input.Contains(characterName))
                 {
-                    return Constants.supportedCharacters[i];
+                    return Constants.AllCharacterNames[i];
                 }
             }
 
@@ -162,6 +224,7 @@ namespace StardewVoices.Dialogue
         {
             dialogueString = dialogueString.Replace(Game1.player.Name, "@");
             dialogueString = dialogueString.Replace(Game1.getFarm().Name, "%farm");
+            dialogueString = Regex.Replace(dialogueString, @"\[.*?\]", "").Trim();
 
             // If in event replace baby and the second baby??? what??
             /*if (currentEventDict == null)
@@ -205,7 +268,7 @@ namespace StardewVoices.Dialogue
         {
             foreach (string id in dialogueIdStrings)
             {
-                if (dialogueContext == "Extra Dialogue-" || dialogueContext == "Generic Marriage Dialogue")
+                if (dialogueContext == "extra" || dialogueContext == "generic_marriage")
                 {
                     // Right now just hard code quality low vs high to high
                     if (id.Contains("QualityHigh") && id.Contains(currentSpeaker))

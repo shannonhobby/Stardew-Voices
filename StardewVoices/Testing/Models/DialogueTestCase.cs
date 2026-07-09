@@ -9,48 +9,42 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using StardewVoices.Utils.ParsingHelpers;
 
 namespace StardewVoices.Testing.Models
 {
-    public enum DialogueType
-    {
-        Dialogue,
-        Marriage,
-        Generic,
-        Engagement,
-        Schedule,
-        Rainy,
-        Event,
-        Festival,
-        Gossip,
-    }
     public class DialogueTestCase
     {
         public string CharacterName { get; }
-        public StardewValley.DialogueLine DialogueLine { get; }
+        public LabelledDialogueLine DialogueLine { get; }
         public string DialogueText { get; }
         public string Context { get; }
         public string CueName { get; set; }
+        public bool HasVariations = false;
         public DialogueType DialogueType { get; set; }
         private IModHelper helper { get; }
         private DialogueManager dialogueManager { get; }
 
-        public DialogueTestCase(string characterName, DialogueType dialogueType, StardewValley.DialogueLine dialogueLine, DialogueManager dialogueManager, IModHelper helper)
+        public DialogueTestCase(string characterName, DialogueType dialogueType, LabelledDialogueLine dialogueLine, DialogueManager dialogueManager, IModHelper helper)
         {
             CharacterName = characterName;
             DialogueLine = dialogueLine;
+            DialogueText = dialogueLine.Text;
             DialogueType = dialogueType;
-            DialogueText = ParseDialogueString(dialogueLine.Text);
             this.helper = helper;
             this.dialogueManager = dialogueManager;
             CueName = dialogueManager.getIdFromDialogueString(DialogueText, characterName);
+            if (CueName.Contains('-'))
+            {
+                HasVariations = true;
+            }
         }
 
         public DialogueTestCase(string characterName, DialogueType dialogueType, string dialogueText, string context, DialogueManager dialogueManager, IModHelper helper)
         {
             CharacterName = characterName;
             DialogueType = dialogueType;
-            DialogueText = dialogueText;
+            DialogueText = ParseDialogueString(dialogueText);
             Context = context;
             this.helper = helper;
             this.dialogueManager = dialogueManager;
@@ -59,16 +53,17 @@ namespace StardewVoices.Testing.Models
 
         private string ParseDialogueString(string dialogue)
         {
-            if (dialogue.Contains('}'))
-            {
-                dialogue = dialogue.Substring(dialogue.IndexOf("}") + 1);
-            }
-            dialogue = dialogue.Replace("{", "");
+            // Handle {male_text^female_text} gender variants — take the first variant
+            dialogue = Regex.Replace(dialogue, @"\{([^}^]+)\^([^}^]+)\}", m => m.Groups[1].Value);
+
+            // Strip {n} runtime variable placeholders (e.g. {0}, {2}) without consuming surrounding text
+            dialogue = Regex.Replace(dialogue, @"\{\d+\}", "VARIABLE");
+
+            // Remove any stray { } brackets left over
+            dialogue = dialogue.Replace("{", "").Replace("}", "");
 
             if (dialogue.Contains("$"))
-            {
                 return Regex.Replace(dialogue, @"\$.", "");
-            }
 
             return dialogue;
         }

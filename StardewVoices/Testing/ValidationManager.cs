@@ -1,19 +1,21 @@
 using System;
 using StardewModdingAPI;
+using StardewValley;
+using StardewVoices.Dialogue;
 using StardewVoices.Testing.Models;
-using StardewVoices.Testing.Scanners;
 using System.Collections.Generic;
 using System.Linq;
-using StardewValley;
 using StardewVoices.Utils;
+using StardewVoices.Utils.GameDialogueExtraction;
+using StardewVoices.Utils.ParsingHelpers;
 
-namespace StardewVoices.Testing.Validation
+namespace StardewVoices.StardewVoices.Testing
 {
     public class ValidationManager
     {
-        private DialogueScanner dialogueScanner;
-        private EventScanner eventScanner;
-        private FestivalScanner festivalScanner;
+        private CharacterDialogueExtractor dialogueExtractor;
+        private EventDialogueExtractor eventExtractor;
+        private FestivalDialogueExtractor festivalExtractor;
         private List<DialogueTestCase> testCases = new List<DialogueTestCase>();
 
         private ManagerHub Managers;
@@ -21,13 +23,12 @@ namespace StardewVoices.Testing.Validation
 
         public List<ValidationReport> ValidationReport = new List<ValidationReport>();
 
-
         public ValidationManager(IModHelper helper, ManagerHub managers)
         {
             this.helper = helper;
-            dialogueScanner = new DialogueScanner(helper);
-            eventScanner = new EventScanner(helper, managers.DialogueManager);
-            festivalScanner = new FestivalScanner(helper, managers.DialogueManager);
+            dialogueExtractor = new CharacterDialogueExtractor(helper);
+            eventExtractor = new EventDialogueExtractor(helper);
+            festivalExtractor = new FestivalDialogueExtractor(helper);
             Managers = managers;
         }
 
@@ -39,7 +40,7 @@ namespace StardewVoices.Testing.Validation
 
             Dictionary<DialogueType, List<ValidationResult>> results = RunTestCases();
             foreach (DialogueType dialogueType in results.Keys)
-                ValidationReport.Add(new ValidationReport(dialogueType, results[dialogueType]));
+                ValidationReport.Add(new ValidationReport(dialogueType, results[dialogueType], Managers.CharacterManager.SupportedCharacters));
             // TODO unmute the dialogue!
 
             PrintFinalRecap();
@@ -83,25 +84,25 @@ namespace StardewVoices.Testing.Validation
 
         private void GenerateTestCases()
         {
-            foreach (string characterName in Constants.supportedCharacters)
+            foreach (string characterName in Managers.CharacterManager.SupportedCharacters)
             {
                 GenerateDialogueTestCases(characterName);
-               // GenerateEventDialogueTestCases(characterName);
-                //GenerateFestivalDialogueTestCases(characterName);
+                GenerateEventDialogueTestCases(characterName);
+                GenerateFestivalDialogueTestCases(characterName);
             }
         }
 
-        private int GetCountOfDictionaryValues(Dictionary<DialogueType, List<StardewValley.Dialogue>> dictionary)
+        private int GetCountOfDictionaryValues(Dictionary<DialogueType, List<LabelledDialogue>> dictionary)
         {
             int count = 0;
-            foreach (KeyValuePair<DialogueType, List<StardewValley.Dialogue>> pair in dictionary)
+            foreach (KeyValuePair<DialogueType, List<LabelledDialogue>> pair in dictionary)
                 count += pair.Value.Count();
             return count;
         }
 
         private void GenerateDialogueTestCases(string characterName)
         {
-            Dictionary<DialogueType, List<StardewValley.Dialogue>> lines = dialogueScanner.GetAllDialogueForCharacter(Game1.getCharacterFromName(characterName));
+            Dictionary<DialogueType, List<LabelledDialogue>> lines = dialogueExtractor.GetAllDialogueForCharacter(Game1.getCharacterFromName(characterName));
             if (lines.Keys.Count == 0 || GetCountOfDictionaryValues(lines) == 0)
             {
                 ErrorLogger.Error("No dialogue lines found");
@@ -109,11 +110,11 @@ namespace StardewVoices.Testing.Validation
 
             foreach (DialogueType key in lines.Keys)
             {
-                foreach (StardewValley.Dialogue line in lines[key])
+                foreach (LabelledDialogue line in lines[key])
                 {
                     if (line != null)
                     {
-                        foreach (DialogueLine dialogueBox in line.dialogues)
+                        foreach (LabelledDialogueLine dialogueBox in line.Lines)
                         {
                             if (dialogueBox.Text.StartsWith('%') || dialogueBox.Text.Equals("..."))
                                 continue;
@@ -132,20 +133,39 @@ namespace StardewVoices.Testing.Validation
 
         private void GenerateEventDialogueTestCases(string characterName)
         {
-            List<DialogueTestCase> cases = eventScanner.GetEventTestCasesForCharacter(characterName);
-            if (cases.Count == 0)
-                ErrorLogger.Warn($"No event test cases found for {characterName}.");
-            else
-                testCases.AddRange(cases);
-        }
+            List<(string Text, string Context)> lines = eventExtractor.GetEventDialogueForCharacter(characterName);
+            if (lines.Count == 0)
+            {
+                ErrorLogger.Warn($"No event dialogue found for {characterName}.");
+                return;
+            }
+            foreach (var (text, context) in lines)
+                if (text == null || text.StartsWith('%'))
+                {
+                    continue;
+                }
+                else
+                {
+                    testCases.Add(new DialogueTestCase(characterName, DialogueType.Event, text, context, Managers.DialogueManager, helper));
+                }
+           }
 
         private void GenerateFestivalDialogueTestCases(string characterName)
         {
-            List<DialogueTestCase> cases = festivalScanner.GetFestivalTestCasesForCharacter(characterName);
-            if (cases.Count == 0)
-                ErrorLogger.Warn($"No festival test cases found for {characterName}.");
-            else
-                testCases.AddRange(cases);
+            List<(string Text, string Context)> lines = festivalExtractor.GetFestivalDialogueForCharacter(characterName);
+            if (lines.Count == 0)
+            {
+                ErrorLogger.Warn($"No festival dialogue found for {characterName}.");
+                return;
+            }
+            foreach (var (text, context) in lines)
+                if (text == null || text.StartsWith('%'))
+                {
+                    continue;
+                } else
+                {
+                    testCases.Add(new DialogueTestCase(characterName, DialogueType.Festival, text, context, Managers.DialogueManager, helper));
+                }
         }
 
         private Dictionary<DialogueType, List<ValidationResult>> RunTestCases()

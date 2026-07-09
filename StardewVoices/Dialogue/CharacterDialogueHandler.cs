@@ -18,15 +18,17 @@ namespace StardewVoices.Dialogue
         private CharacterManager _characterManager { get; }
         private TestingManager _testingManager { get; }
 
-        public CharacterDialogueHandler(PathManager pathManager, CharacterManager characterManager, TestingManager testingManager) 
+        public CharacterDialogueHandler(PathManager pathManager, CharacterManager characterManager, TestingManager testingManager)
         {
             _characterManager = characterManager;
-            foreach(string characterName in Constants.supportedCharacters)
+            _testingManager = testingManager;
+            foreach(string characterName in characterManager.SupportedCharacters)
             {
                 string characterDialoguePath = Path.Combine(
-                    pathManager.GetPathString("Characters"), 
+                    pathManager.GetPathString("Characters"),
                     characterName.ToLower() + ".json");
                 Character character = characterManager.GetCharacter(characterName);
+                if (character == null) continue;
                 character.SetDialogueDictionary(SetupDialogueDictionaryFromJsonPath(characterDialoguePath));
                 
                 // We only need the generic dialogue types because the dialogue and misc dialogue are included in

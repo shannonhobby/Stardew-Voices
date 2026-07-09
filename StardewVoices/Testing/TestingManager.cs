@@ -2,7 +2,6 @@ using StardewModdingAPI;
 using StardewValley.Locations;
 using StardewValley;
 using System;
-using StardewValley.Menus;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -10,6 +9,7 @@ using StardewVoices.Characters;
 using StardewVoices.Dialogue;
 using System.Linq;
 using StardewVoices.Utils;
+using StardewVoices.Config;
 
 namespace StardewVoices.Testing
 {
@@ -19,15 +19,17 @@ namespace StardewVoices.Testing
         private List<string> eventsToTest = new List<string>();
         private int eventsToTestIndex = 0;
         List<string> testDialogue = new List<string>();
+        private ModConfig Config;
 
         public bool ValidationIsRunning = false;
 
         private CharacterManager _characterManager { get;}
         private NPC Shane;
 
-        public TestingManager(CharacterManager characterManager) {
+        public TestingManager(CharacterManager characterManager, ModConfig config) {
             _characterManager = characterManager;
             testingWorldLoaded = false;
+            Config = config;
         }
 
         private string GetCurrentTestDialogue()
@@ -48,7 +50,7 @@ namespace StardewVoices.Testing
             if (!Context.IsWorldReady || testingWorldLoaded == true)
                 return;
 
-            if (Game1.player?.farmName?.Value == "Mod World")
+            if (Config.WarpNpcsToHome)
             {
                 foreach (string name in Constants.LoveInterests)
                 {
@@ -135,9 +137,11 @@ namespace StardewVoices.Testing
         {
             ErrorLogger.Trace($"L Pressed, resetting character dialogue");
 
-            foreach (string name in Constants.supportedCharacters)
+            foreach (string name in _characterManager.SupportedCharacters)
             {
-                NPC inGameCharacter = _characterManager.GetCharacter(name).GetNPC();
+                Characters.Character character = _characterManager.GetCharacter(name);
+                if (character == null) continue;
+                NPC inGameCharacter = character.GetNPC();
                 if (Game1.player != null && inGameCharacter != null)
                 {
                     Game1.player.friendshipData.TryGetValue(inGameCharacter.Name, out var friendship);

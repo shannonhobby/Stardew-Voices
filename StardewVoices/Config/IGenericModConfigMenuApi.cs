@@ -146,7 +146,8 @@ namespace StardewVoices.Config
         /// <param name="mod">The mod's manifest.</param>
         void OpenModMenu(IManifest mod);
 
-        /// <summary>Open the config UI for a specific mod, as a child menu if there is an existing menu.</summary>
+        /// <summary>Open the config UI for a specific mod, as a 
+        /// menu if there is an existing menu.</summary>
         /// <param name="mod">The mod's manifest.</param>
         void OpenModMenuAsChildMenu(IManifest mod);
 

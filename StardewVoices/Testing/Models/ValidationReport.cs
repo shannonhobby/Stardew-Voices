@@ -2,12 +2,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using StardewVoices.Testing.Models;
+using StardewVoices.Dialogue;
 using StardewValley;
 
-namespace StardewVoices.Testing.Validation
+namespace StardewVoices.Testing.Models
 {
     public class ValidationReport
     {
@@ -15,11 +13,13 @@ namespace StardewVoices.Testing.Validation
         public int FailedTestCount => GetCountOfFailedTests();
         public Dictionary<string, List<string>> failedTests = new Dictionary<string, List<string>>();
         public DialogueType DialogueType;
+        private List<string> _supportedCharacters;
 
-        public ValidationReport(DialogueType dialogueType, List<ValidationResult> results) 
+        public ValidationReport(DialogueType dialogueType, List<ValidationResult> results, List<string> supportedCharacters)
         {
             TotalTestCount = results.Count;
             DialogueType = dialogueType;
+            _supportedCharacters = supportedCharacters;
             string lastCharacter = "";
 
             ErrorLogger.Trace($"==============================={DialogueType.ToString().ToUpper()} TESTS===============================");
@@ -27,7 +27,8 @@ namespace StardewVoices.Testing.Validation
 
             foreach (var result in results)
             {
-                if (!result.TestCase.CharacterName.Equals(lastCharacter)) {
+                if (!result.TestCase.CharacterName.Equals(lastCharacter))
+                {
                     lastCharacter = result.TestCase.CharacterName;
                     PrintCharacterTestInfo(lastCharacter);
                 }
@@ -52,7 +53,7 @@ namespace StardewVoices.Testing.Validation
 
         private void PrintCharacterTestInfo(string characterName)
         {
-            ErrorLogger.Trace($"~~TESTING {characterName.ToUpper()}'S {DialogueType.ToString().ToUpper()} LINES~~" );
+            ErrorLogger.Trace($"~~TESTING {characterName.ToUpper()}'S {DialogueType.ToString().ToUpper()} LINES~~");
         }
         private void PrintFailedTestCase(ValidationResult result)
         {
@@ -64,9 +65,9 @@ namespace StardewVoices.Testing.Validation
 
         private void PrintReportStats()
         {
-            foreach(string characterName in Constants.supportedCharacters)
+            foreach (string characterName in _supportedCharacters)
             {
-                if(!failedTests.ContainsKey(characterName))
+                if (!failedTests.ContainsKey(characterName))
                 {
                     PrintCharacterSuccess(characterName);
                 }
@@ -81,7 +82,7 @@ namespace StardewVoices.Testing.Validation
         private int GetCountOfFailedTests()
         {
             int count = 0;
-            foreach(string key in failedTests.Keys)
+            foreach (string key in failedTests.Keys)
             {
                 count += failedTests[key].Count();
             }
@@ -98,7 +99,7 @@ namespace StardewVoices.Testing.Validation
         {
             if (failedTests.TryGetValue(characterName, out List<string> failedTestsForCharacter))
             {
-                ErrorLogger.Error($"\n\n\n\n\nFAILED TESTS FOR {characterName.ToUpper()}!!!!\n{String.Join("\n", failedTestsForCharacter)}");
+                ErrorLogger.Error($"\n\n\n\n\nFAILED TESTS FOR {characterName.ToUpper()}!!!!\n{string.Join("\n", failedTestsForCharacter)}");
             }
         }
     }

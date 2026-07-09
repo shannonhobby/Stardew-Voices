@@ -6,7 +6,9 @@ using StardewVoices.Characters;
 using StardewValley;
 using StardewVoices.Testing;
 using System.Linq;
+using StardewVoices.Utils;
 using Microsoft.Xna.Framework.Input;
+using Newtonsoft.Json.Serialization;
 
 namespace StardewVoices.Dialogue
 {
@@ -24,19 +26,24 @@ namespace StardewVoices.Dialogue
             _data = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, string[]>>>(jsonString);
         }
 
+        public DialogueDictionary()
+        {
+            _data = new Dictionary<string, Dictionary<string, string[]>>();
+        }
+
         public string CheckDictionaryForDialogueLine(string type, string dialogueLine, string currentSpeaker)
         {
             Dictionary<string, string[]> dialogueDict = GetType(type);
-        
+
             if (dialogueDict.ContainsKey(dialogueLine))
             {
                 if (dialogueDict[dialogueLine].Length > 1) {
-                    return DialogueHelpers.getCorrectIdFromListOfLineIds(dialogueDict[dialogueLine], currentSpeaker, "Dialogue-");
+                    return DialogueHelpers.getCorrectIdFromListOfLineIds(dialogueDict[dialogueLine], currentSpeaker, type);
                 }
 
                 return dialogueDict[dialogueLine][0];
             }
-            else if (type == "misc" || type == "extra")
+            else
             {
                 string foundLine = CheckDictionaryForVariableLines(dialogueDict, dialogueLine, currentSpeaker, type);
                 if(foundLine != null)
@@ -61,10 +68,13 @@ namespace StardewVoices.Dialogue
                 string[] splitKey = key.Split(" ");
                 string[] splitDialogueString = dialogueLine.Split(" ");
 
+                // Count how many words in the dialogue don't appear in the key's word set.
+                // Using a HashSet for the key avoids the Intersect() deduplication bug where
+                // repeated words (e.g. "We"/"have" appearing twice) inflate the difference.
+                var keyWordSet = new HashSet<string>(splitKey);
+                int nonMatchingCount = splitDialogueString.Count(word => !keyWordSet.Contains(word));
 
-                // TODO what the fuck is this
-                // Check to see if the amount of shared words is ALMOST equivalent to the length minus the number of substitutions possible (i've only seen up to 3)
-                if (splitDialogueString.Intersect(splitKey).Count() > 0 && splitDialogueString.Length == splitKey.Length && splitDialogueString.Length - splitDialogueString.Intersect(splitKey).Count() <= 3)
+                if (splitDialogueString.Intersect(splitKey).Any() && splitDialogueString.Length == splitKey.Length && nonMatchingCount <= 3)
                 {
                     // Check for dad / mom / name stuff
                     if (CheckForParentString(splitDialogueString, splitKey))
@@ -109,11 +119,19 @@ namespace StardewVoices.Dialogue
         public string CheckAllDictionariesForDialogueLine(string  dialogueLine, string currentSpeaker, TestingManager testingManager)
         {
             string foundDialogueLine = null;
+
+            // During testing/validation the farmer usually isn't engaged or
+            // married, so the engagement / *_marriage gates in ShouldCheckDialogue
+            // would skip those types. Check every type instead so those lines can
+            // still be validated.
+            bool checkAllTypes = testingManager != null
+                && (testingManager.IsTestingWorldLoaded() || testingManager.ValidationIsRunning);
+
             foreach (string type in _data.Keys)
             {
-                if (ShouldCheckDialogue(type, currentSpeaker) || (testingManager?.IsTestingWorldLoaded() ?? false))
+                if (ShouldCheckDialogue(type, currentSpeaker) || checkAllTypes)
                 {
-                   foundDialogueLine = CheckDictionaryForDialogueLine(type, dialogueLine, currentSpeaker);
+                    foundDialogueLine = CheckDictionaryForDialogueLine(type, dialogueLine, currentSpeaker);
                     if (foundDialogueLine != null)
                     {
                         return foundDialogueLine;
@@ -165,6 +183,15 @@ namespace StardewVoices.Dialogue
                    categories.TryGetValue(line, out var list)
                 ? list
                 : Array.Empty<string>();
+        }
+
+
+        public void PrintDictionary()
+        {
+            foreach (string key in this._data.Keys)
+            {
+                ErrorLogger.Trace($"{key}: {String.Join(",", this._data[key])}");
+            }
         }
     }
 }

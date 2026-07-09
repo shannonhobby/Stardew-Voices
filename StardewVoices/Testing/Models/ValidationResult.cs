@@ -16,7 +16,7 @@ using StardewVoices.Utils;
 using Microsoft.Xna.Framework.Input;
 
 
-namespace StardewVoices.Testing.Validation
+namespace StardewVoices.Testing.Models
 {
     public class ValidationResult
     {
@@ -39,18 +39,25 @@ namespace StardewVoices.Testing.Validation
             PathManager = pathManager;
             Helper = helper;
             TestCase = testCase;
-            if(TestCase.DialogueType == DialogueType.Event)
+            if (TestCase.DialogueType == DialogueType.Event)
             {
                 SetFakeEvent();
             }
 
-            if (TestCase.DialogueType == DialogueType.Festival) 
+            if (TestCase.DialogueType == DialogueType.Festival)
             {
                 SetFakeFestival();
             }
 
-            Success = RunTests(testCase);
-         
+            if (TestCase.HasVariations == true)
+            {
+                Success = RunVariationsTest(testCase);
+            } else
+            {
+                Success = RunTests(testCase);
+
+            }
+
             dialogueManager.EndEvent();
             dialogueManager.ResetFestival();
         }
@@ -60,8 +67,31 @@ namespace StardewVoices.Testing.Validation
             return CueNameFound(testCase) && CueExists(testCase) && CueAudioPlays(testCase);
         }
 
-        // TODO add a test for checking if the right audio plays? not just that audio plays
+        public bool RunVariationsTest(DialogueTestCase testCase)
+        {
+            string[] allVariations = DialogueManager.VariableLineResolver.GetAllVariants(testCase.DialogueLine.LineId, testCase.CharacterName);
 
+            if(allVariations.Length == 0)
+            {
+                ErrorMessages.Add($"[FAILURE] Variations Test: No variations found for: {testCase.DialogueLine.LineId}.");
+                return false;
+            }
+            bool testPasses = true;
+            foreach (string cueName in allVariations)
+            {
+                ErrorLogger.Trace($"Testing variation: {cueName} for {testCase.CharacterName}");
+                if (!CueExists(cueName, testCase.CharacterName) || !CueAudioPlays(cueName, testCase.CharacterName))
+                {
+                    testPasses = false;
+                }
+            }
+
+            return testPasses;
+        }
+
+
+
+        // TODO add a test for checking if the right audio plays? not just that audio plays
         public bool CueNameFound(DialogueTestCase testCase)
         {
             try
@@ -92,13 +122,36 @@ namespace StardewVoices.Testing.Validation
                 }
 
                 return CueExists;
-            } catch (Exception e)
+            }
+            catch (Exception e)
             {
                 ErrorMessages.Add($"2. [FAILURE] CueExists: Cue not found for ID {testCase.CueName}.");
                 return false;
             }
 
         }
+
+        // <summary>Whether the given Cue name maps to a Cue in the Sound Bank</summary>
+        public bool CueExists(string cueName, string characterName)
+        {
+            try
+            {
+                bool CueExists = AudioManager.GetCueFromDialogueId(cueName, characterName) != null;
+                if (!CueExists)
+                {
+                    ErrorMessages.Add($"2. [FAILURE] CueExists: Cue not found for ID {cueName}");
+                }
+
+                return CueExists;
+            }
+            catch (Exception e)
+            {
+                ErrorMessages.Add($"2. [FAILURE] CueExists: Cue not found for ID {cueName}.");
+                return false;
+            }
+
+        }
+
 
 
         // ALSO CHECKS IF IT EXISTS? 
@@ -109,12 +162,28 @@ namespace StardewVoices.Testing.Validation
             {
                 AudioManager.Play(testCase.CueName, testCase.CharacterName);
                 return true;
-            } catch (Exception e)
+            }
+            catch (Exception e)
             {
                 ErrorMessages.Add($"3. [FAILURE] CueAudioPlays: {e}");
                 return false;
             }
         }
+
+        public bool CueAudioPlays(string cueName, string characterName)
+        {
+            try
+            {
+                AudioManager.Play(cueName, characterName);
+                return true;
+            }
+            catch (Exception e)
+            {
+                ErrorMessages.Add($"3. [FAILURE] CueAudioPlays: {e}");
+                return false;
+            }
+        }
+
 
         private void SetFakeEvent()
         {

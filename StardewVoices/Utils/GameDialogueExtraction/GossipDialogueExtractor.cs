@@ -1,22 +1,21 @@
-﻿using StardewValley.BellsAndWhistles;
+using StardewValley;
+using StardewValley.BellsAndWhistles;
 using StardewValley.GameData.Characters;
 using StardewValley.ItemTypeDefinitions;
 using StardewValley.TokenizableStrings;
-using StardewValley;
-using System;
+using StardewVoices.Dialogue;
+using StardewVoices.Utils.ParsingHelpers;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace StardewVoices.Testing.Scanners
+namespace StardewVoices.Utils.GameDialogueExtraction
 {
-    internal class GossipScanner
+    public class GossipDialogueExtractor
     {
-
-        public List<StardewValley.Dialogue> GetAllPossibleGossipDialogues(NPC character)
+        public List<LabelledDialogue> GetAllPossibleGossipDialogues(NPC character)
         {
-            var results = new List<StardewValley.Dialogue>();
+            if (character == null) return new List<LabelledDialogue>();
+            var results = new List<LabelledDialogue>();
 
             CharacterData data = character.GetData();
             if (data?.FriendsAndFamily == null)
@@ -28,9 +27,9 @@ namespace StardewVoices.Testing.Scanners
                 string relativeName = relativeNPC?.displayName ?? NPC.GetDisplayName(relativeKey);
 
                 CharacterData relativeData;
-                bool relativeIsMale = (relativeNPC != null)
+                bool relativeIsMale = relativeNPC != null
                     ? relativeNPC.gender.Value == Gender.Male
-                    : (NPC.TryGetData(relativeKey, out relativeData) && relativeData.Gender == Gender.Male);
+                    : NPC.TryGetData(relativeKey, out relativeData) && relativeData.Gender == Gender.Male;
 
                 string relationshipLabel = TokenParser.ParseText(rawRelationshipLabel);
                 if (string.IsNullOrWhiteSpace(relationshipLabel))
@@ -41,16 +40,15 @@ namespace StardewVoices.Testing.Scanners
 
                 string[] giftFields = giftTasteData.Split('/');
 
-                // Build the name/relationship prefix used in dialogue templates
-                string nameOrRelationship = (relationshipLabel == null || LocalizedContentManager.CurrentLanguageCode == LocalizedContentManager.LanguageCode.ja)
+                string nameOrRelationship = relationshipLabel == null || LocalizedContentManager.CurrentLanguageCode == LocalizedContentManager.LanguageCode.ja
                     ? relativeName
-                    : (relativeIsMale
+                    : relativeIsMale
                         ? Game1.LoadStringByGender(character.Gender, "Strings\\StringsFromCSFiles:NPC.cs.4079", relationshipLabel)
-                        : Game1.LoadStringByGender(character.Gender, "Strings\\StringsFromCSFiles:NPC.cs.4080", relationshipLabel));
+                        : Game1.LoadStringByGender(character.Gender, "Strings\\StringsFromCSFiles:NPC.cs.4080", relationshipLabel);
 
                 string speakerIntro = Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4083", nameOrRelationship);
 
-                // --- LOVED items branch (array[1]) ---
+                // --- LOVED items (array[1]) ---
                 string[] lovedItems = ArgUtility.SplitBySpace(ArgUtility.Get(giftFields, 1));
                 foreach (string itemId in lovedItems)
                 {
@@ -88,56 +86,51 @@ namespace StardewVoices.Testing.Scanners
                             ? Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4100", nameOrRelationship, itemName)
                             : Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4103", nameOrRelationship, itemName));
                         texts.Add(Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4106", nameOrRelationship, itemName));
-                        texts.Add(baseText); // case 4: no extra suffix yet
+                        texts.Add(baseText);
 
-                        // For each main variant, also generate all 5 possible suffix appendages (the 65% branch)
+                        // Cross-product: every main variant × every suffix (the 65% branch in original)
                         var suffixes = new List<string>
-                {
-                    relativeIsMale
-                        ? Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4109")
-                        : Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4111"),
-                    // case 1 has 2 sub-variants per gender
-                    relativeIsMale
-                        ? Game1.LoadStringByGender(character.Gender, "Strings\\StringsFromCSFiles:NPC.cs.4113")
-                        : Game1.LoadStringByGender(character.Gender, "Strings\\StringsFromCSFiles:NPC.cs.4115"),
-                    relativeIsMale
-                        ? Game1.LoadStringByGender(character.Gender, "Strings\\StringsFromCSFiles:NPC.cs.4113")  // intentional: same key, different NextBool path
-                        : Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4116"),
-                    relativeIsMale
-                        ? Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4118")
-                        : Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4120"),
-                    Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4125"),
-                    relativeIsMale
-                        ? Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4126")
-                        : Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4128"),
-                };
+                        {
+                            relativeIsMale
+                                ? Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4109")
+                                : Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4111"),
+                            relativeIsMale
+                                ? Game1.LoadStringByGender(character.Gender, "Strings\\StringsFromCSFiles:NPC.cs.4113")
+                                : Game1.LoadStringByGender(character.Gender, "Strings\\StringsFromCSFiles:NPC.cs.4115"),
+                            relativeIsMale
+                                ? Game1.LoadStringByGender(character.Gender, "Strings\\StringsFromCSFiles:NPC.cs.4113")
+                                : Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4116"),
+                            relativeIsMale
+                                ? Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4118")
+                                : Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4120"),
+                            Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4125"),
+                            relativeIsMale
+                                ? Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4126")
+                                : Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4128"),
+                        };
 
-                        // Cross-product: every main variant × every suffix
-                        // (The original has 65% chance of a suffix; we want ALL possibilities)
-                        var withSuffixes = texts
-                            .SelectMany(t => suffixes.Select(s => t + s))
-                            .ToList();
-                        texts.AddRange(withSuffixes);
+                        texts.AddRange(texts.SelectMany(t => suffixes.Select(s => t + s)).ToList());
 
                         // Abigail special-case override
                         if (relativeKey == "Abigail")
-                        {
                             texts.Add(Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4128", relativeName, itemName));
-                        }
                     }
 
-                    foreach (string t in texts)
+                    for (int i = 0; i < texts.Count; i++)
                     {
-                        string final = CapitalizeFirst(t) + "%revealtaste:" + relativeKey + ":" + itemId;
-                        results.Add(new StardewValley.Dialogue(character, null, final));
+                        string capitalizedText = CapitalizeFirst(texts[i]);
+                        string final = capitalizedText + "%revealtaste:" + relativeKey + ":" + itemId;
+                        string key = $"gossip_loved_{relativeKey}_{itemId}_{i + 1}";
+                        var sdvDialogue = new StardewValley.Dialogue(character, null, final);
+                        var lines = CharacterDialogueParser.ParseRawValueToLines(capitalizedText, key, DialogueType.Gossip);
+                        results.Add(new LabelledDialogue(sdvDialogue, lines, key, DialogueType.Gossip));
                     }
                 }
 
-                // --- HATED items branch (array[7], fallback to Universal_Hate) ---
+                // --- HATED items (array[7], fallback to Universal_Hate) ---
                 string[] hatedItems = ArgUtility.SplitBySpace(ArgUtility.Get(giftFields, 7));
                 if (hatedItems.Length == 0)
                 {
-                    // Fallback to universal hate
                     if (Game1.NPCGiftTastes.TryGetValue("Universal_Hate", out string universalHate))
                         hatedItems = ArgUtility.SplitBySpace(ArgUtility.Get(universalHate.Split('/'), 7));
                 }
@@ -150,7 +143,7 @@ namespace StardewVoices.Testing.Scanners
                     if (itemData == null) continue;
 
                     string itemName = itemData.DisplayName;
-                    string negAdj = Lexicon.getRandomNegativeFoodAdjective(); // Note: non-deterministic, see below
+                    string negAdj = Lexicon.getRandomNegativeFoodAdjective();
 
                     var texts = new List<string>();
 
@@ -167,9 +160,9 @@ namespace StardewVoices.Testing.Scanners
                     else
                     {
                         // 3 adult main variants (random.Next(4), case 3 falls through to baseHateText)
-                        texts.Add(Game1.LoadStringByGender(character.Gender, "Strings\\StringsFromCSFiles:NPC.cs.4147", nameOrRelationship, itemName));     // case 0 (with optional prefix)
+                        texts.Add(Game1.LoadStringByGender(character.Gender, "Strings\\StringsFromCSFiles:NPC.cs.4147", nameOrRelationship, itemName));
                         texts.Add(Game1.LoadStringByGender(character.Gender, "Strings\\StringsFromCSFiles:NPC.cs.4146")
-                            + Game1.LoadStringByGender(character.Gender, "Strings\\StringsFromCSFiles:NPC.cs.4147", nameOrRelationship, itemName));           // case 0 with prefix
+                            + Game1.LoadStringByGender(character.Gender, "Strings\\StringsFromCSFiles:NPC.cs.4147", nameOrRelationship, itemName));
                         texts.Add(relativeIsMale
                             ? Game1.LoadStringByGender(character.Gender, "Strings\\StringsFromCSFiles:NPC.cs.4149", nameOrRelationship, itemName)
                             : Game1.LoadStringByGender(character.Gender, "Strings\\StringsFromCSFiles:NPC.cs.4153", nameOrRelationship, itemName));
@@ -179,37 +172,34 @@ namespace StardewVoices.Testing.Scanners
                         texts.Add(relativeIsMale
                             ? Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4161", nameOrRelationship, itemName)
                             : Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4164", nameOrRelationship, itemName));
-                        texts.Add(baseHateText); // case 3
+                        texts.Add(baseHateText);
 
-                        // Hate suffixes (65% branch, 5 variants)
                         var hateSuffixes = new List<string>
-                {
-                    Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4170"),
-                    Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4171"),
-                    relativeIsMale
-                        ? Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4172")
-                        : Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4174"),
-                    relativeIsMale
-                        ? Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4176")
-                        : Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4178"),
-                    Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4180"),
-                };
+                        {
+                            Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4170"),
+                            Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4171"),
+                            relativeIsMale
+                                ? Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4172")
+                                : Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4174"),
+                            relativeIsMale
+                                ? Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4176")
+                                : Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4178"),
+                            Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4180"),
+                        };
 
-                        var withSuffixes = texts
-                            .SelectMany(t => hateSuffixes.Select(s => t + s))
-                            .ToList();
-                        texts.AddRange(withSuffixes);
+                        texts.AddRange(texts.SelectMany(t => hateSuffixes.Select(s => t + s)).ToList());
 
                         // Lewis special-case override
                         if (character.Name == "Lewis")
-                        {
                             texts.Add(Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.4182", relativeName, itemName));
-                        }
                     }
 
-                    foreach (string t in texts)
+                    for (int i = 0; i < texts.Count; i++)
                     {
-                        results.Add(new StardewValley.Dialogue(character, null, t));
+                        string key = $"gossip_hated_{relativeKey}_{itemId}_{i + 1}";
+                        var sdvDialogue = new StardewValley.Dialogue(character, null, texts[i]);
+                        var lines = CharacterDialogueParser.ParseRawValueToLines(texts[i], key, DialogueType.Gossip);
+                        results.Add(new LabelledDialogue(sdvDialogue, lines, key, DialogueType.Gossip));
                     }
                 }
             }
