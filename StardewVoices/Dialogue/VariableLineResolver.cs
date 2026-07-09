@@ -85,13 +85,17 @@ namespace StardewVoices.Dialogue
                     if (lineProp.Value.Type == JTokenType.Array)
                     {
                         // Direct character entry: top-level key is character name.
-                        _data[lineId][topProp.Name] = lineProp.Value.ToObject<string[]>();
+                        string charName = LocalizationHelpers.GetName(topProp.Name) ?? topProp.Name;
+                        _data[lineId][charName] = lineProp.Value.ToObject<string[]>();
                     }
                     else if (lineProp.Value.Type == JTokenType.Object)
                     {
                         // Group entry (e.g. "LOVE INTERESTS"): inner object maps character → suffixes.
                         foreach (JProperty charProp in ((JObject)lineProp.Value).Properties())
-                            _data[lineId][charProp.Name] = charProp.Value.ToObject<string[]>();
+                        {
+                            string charName = LocalizationHelpers.GetName(charProp.Name) ?? charProp.Name;
+                            _data[lineId][charName] = charProp.Value.ToObject<string[]>();
+                        }
                     }
                 }
             }
