@@ -24,6 +24,12 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             "Town", "Trailer", "Woods",
         };
 
+
+        private static readonly List<string> eventSpokenLines = new()
+        {
+            "speak", "textAboveHead", "end dialogue"
+        };
+
         private static readonly string[] PageBreakTokens = { "#$b#" };
 
         public EventDialogueExtractor(IModHelper helper)
@@ -232,16 +238,29 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 {
                     bool isResponseEvent = !kvp.Key.Contains('/');
                     Dictionary<string, int> speakerLineCount = new Dictionary<string, int>();
-                    List<(string line, string characterName)> speakLines = ParseSpeakLines(kvp.Value);
+                    // Includes speak, textAboveHead, and end-dialogue lines together, in the
+                    // order they appear in the raw script, so the shared per-character counter
+                    // below advances across all three types instead of resetting per type.
+                    List<(string line, string characterName, EventActionType actionType)> speakLines =
+                        ParseSpeakingLines(kvp.Value);
                     if (speakLines.Count == 0) continue;
 
-                    foreach ((string line, string characterName) in speakLines)
+                    // The raw key's last precondition often carries a value that the scene name
+                    // needs to preserve (e.g. "733330/f Sam 750/.../y 1" -> "733330_1").
+                    // eventId alone (the part before the first '/') drops that segment, so
+                    // rebuild sceneName from the full key here rather than reusing eventId.
+                    string[] keyTokens = kvp.Key.Split(' ');
+                    string sceneName = keyTokens.Length > 1
+                        ? $"{eventId}_{keyTokens[^1]}"
+                        : eventId;
+
+                    foreach ((string line, string characterName, EventActionType actionType) in speakLines)
                     {
                         // Generate the base ID first so ParseDialogueWithIds can append
                         // gender suffixes (_male_farmer / _female_farmer) when needed.
                         // Note: GenerateEventLineId handles speakerLineCount initialisation
                         // internally — do NOT pre-initialise here or the first line gets _event2.
-                        string baseId = GenerateEventLineId(locationName, eventId, characterName, speakerLineCount);
+                        string baseId = GenerateEventLineId(locationName, sceneName, characterName, speakerLineCount, actionType);
                         var parsedPairs = CharacterDialogueParser.ParseDialogueWithIds(line, baseId);
                         if (parsedPairs != null && parsedPairs.Length > 0)
                         {
@@ -249,8 +268,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                             {
                                 // Event keys with no "/" are branch events reached only after
                                 // a player made a dialogue choice (e.g. "DadWeird", "beatGame").
-                                // Mirror Python's event_line_array_to_dictionary "/" check:
-                                // all lines from such events are prefixed with "response_".
+                                // All lines from such events are prefixed with "response_".
                                 string finalId = isResponseEvent ? "response_" + lineId : lineId;
                                 results.Add(new EventLine(finalId, characterName, dialogue));
                             }
@@ -291,7 +309,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             string suffix = actionType switch
             {
                 EventActionType.Speak => $"_event{n}",
-                EventActionType.TextAboveHead => $"_textAboveHeadEvent{n}",
+                EventActionType.TextAboveHead => $"_textAboveHead{n}",
                 EventActionType.EndDialogue => $"_endDialogue{n}",
                 _ => throw new ArgumentOutOfRangeException(nameof(actionType))
             };
@@ -339,6 +357,50 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 string[] pages = m.Groups[2].Value.Split(PageBreakTokens, StringSplitOptions.RemoveEmptyEntries);
                 foreach (string page in pages)
                     lines.Add((page, characterName));
+            }
+
+            return lines;
+        }
+
+        // One regex per command type, keyed by the same EventActionType returned to callers.
+        // textAboveHead can carry trailing numeric args after the quoted text (display
+        // duration, pre-timer, width), so its text capture isn't end-anchored like the others.
+        private static readonly Dictionary<EventActionType, Regex> SpeakingLineRegexes = new()
+        {
+            { EventActionType.Speak,         new Regex(@"^speak (\S+) ""(.+)""$") },
+            { EventActionType.TextAboveHead, new Regex(@"^textAboveHead (\S+) ""(.*?)""") },
+            { EventActionType.EndDialogue,   new Regex(@"^end dialogue (\S+) ""(.+)""$") },
+        };
+
+        // Extracts speak, textAboveHead, and end-dialogue commands together, in the order
+        // they appear in the raw script. Used by GetEventDialogue so the per-character line
+        // counter in GenerateEventLineId advances across all three types instead of resetting
+        // per type. Splits each command's text on the Stardew page-break token so each page
+        // becomes its own entry, same as ParseSpeakLines.
+        private List<(string line, string characterName, EventActionType actionType)> ParseSpeakingLines(string eventScript)
+        {
+            var lines = new List<(string line, string characterName, EventActionType actionType)>();
+
+            foreach (string command in eventScript.Split('/'))
+            {
+                string trimmed = command.Trim();
+
+                EventActionType? actionType = trimmed switch
+                {
+                    var s when s.StartsWith("speak ") => EventActionType.Speak,
+                    var s when s.StartsWith("textAboveHead ") => EventActionType.TextAboveHead,
+                    var s when s.StartsWith("end dialogue ") => EventActionType.EndDialogue,
+                    _ => null,
+                };
+                if (actionType == null) continue;
+
+                Match m = SpeakingLineRegexes[actionType.Value].Match(trimmed);
+                if (!m.Success) continue;
+
+                string characterName = m.Groups[1].Value;
+                string[] pages = m.Groups[2].Value.Split(PageBreakTokens, StringSplitOptions.RemoveEmptyEntries);
+                foreach (string page in pages)
+                    lines.Add((page, characterName, actionType.Value));
             }
 
             return lines;

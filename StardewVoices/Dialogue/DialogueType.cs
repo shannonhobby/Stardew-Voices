@@ -8,6 +8,7 @@ namespace StardewVoices.Dialogue
         Marriage,
         Generic,
         Extra,
+        GiftTastes,
         GenericMarriage,
         Engagement,
         Schedule,

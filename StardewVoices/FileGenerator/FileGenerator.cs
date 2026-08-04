@@ -50,6 +50,7 @@ namespace StardewVoices.FileGeneration
             {DialogueType.Schedule, "schedule" },
             {DialogueType.Generic, "misc" },
             {DialogueType.Gossip, "gossip" },
+            {DialogueType.GiftTastes, "gift_tastes" },
             {DialogueType.SpeechBubble, "misc" },
             {DialogueType.Engagement, "EngagementDialogue" },
             {DialogueType.Extra, "ExtraDialogue" },
@@ -73,7 +74,7 @@ namespace StardewVoices.FileGeneration
             // Setup extractor class instances
             characterDialogueExtractor= new CharacterDialogueExtractor(Helper);
             eventDialogueExtractor = new EventDialogueExtractor(Helper);
-            festivalDialogueExtractor = new FestivalDialogueExtractor(Helper);
+            festivalDialogueExtractor = new FestivalDialogueExtractor(Helper);      
             gossipDialogueExtractor = new GossipDialogueExtractor();
 
             if (generateJson)

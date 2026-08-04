@@ -93,6 +93,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                     { DialogueType.Extra,           GetExtraDialogue(character) },
                     { DialogueType.GenericMarriage, GetGenericMarriageDialogue(character) },
                     { DialogueType.Generic,         GetGenericDialogue(character) },
+                    { DialogueType.GiftTastes,      GetGiftTasteDialogue(character) },
                     { DialogueType.Schedule,        GetScheduleDialogue(character) },
                     { DialogueType.SpeechBubble,    GetSpeechBubbleDialogue(character) },
                 };
@@ -104,7 +105,9 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                     { DialogueType.Extra,           GetExtraDialogue(character) },
                     { DialogueType.Generic,         GetGenericDialogue(character) },
                     { DialogueType.Marriage,        GetMarriageDialogue(character) },
-                    { DialogueType.SpeechBubble,    GetSpeechBubbleDialogue(character) }
+                    { DialogueType.SpeechBubble,    GetSpeechBubbleDialogue(character) },
+                    { DialogueType.GiftTastes,      GetGiftTasteDialogue(character) },
+
                 };
             }
             else
@@ -116,6 +119,8 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                     { DialogueType.Extra,           GetExtraDialogue(character) },
                     { DialogueType.Generic,         GetGenericDialogue(character) },
                     { DialogueType.SpeechBubble,    GetSpeechBubbleDialogue(character) },
+                    { DialogueType.GiftTastes,      GetGiftTasteDialogue(character) },
+
                 };
             }
 
@@ -359,6 +364,53 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 ErrorLogger.Warn($"No speech bubble dialogue found for {character.Name}.");
 
             return lines;
+        }
+
+        // Fixed category order of Data/NPCGiftTastes: dialogue line, item-ID list
+        // (discarded), repeated once per category. IDs are the category's 1-based
+        // position in this order, not a count of non-empty lines seen so far.
+        private static readonly string[] GiftTasteCategories = { "Love", "Like", "Dislike", "Hate", "Neutral" };
+
+        private List<LabelledDialogue> GetGiftTasteDialogue(NPC character)
+        {
+            try
+            {
+                Dictionary<string, string> data =
+                    helper.GameContent.Load<Dictionary<string, string>>("Data/NPCGiftTastes");
+
+                if (!data.TryGetValue(character.Name, out string rawValue))
+                {
+                    ErrorLogger.Warn($"No gift taste dialogue found for {character.Name}.");
+                    return new List<LabelledDialogue>();
+                }
+
+                string[] sections = rawValue.Split('/');
+                var lines = new List<LabelledDialogue>();
+
+                for (int i = 0; i < GiftTasteCategories.Length; i++)
+                {
+                    int textIndex = i * 2;
+                    if (textIndex >= sections.Length) break;
+
+                    string text = sections[textIndex].Trim();
+                    if (string.IsNullOrEmpty(text)) continue;
+
+                    string lineId = $"{character.Name}GiftTaste_{i + 1}";
+                    var sdvDialogue = new StardewValley.Dialogue(character, null, text);
+                    var labelledLine = new LabelledDialogueLine(lineId, text, lineId, DialogueType.GiftTastes);
+                    lines.Add(new LabelledDialogue(sdvDialogue, new List<LabelledDialogueLine> { labelledLine }, lineId, DialogueType.GiftTastes));
+                }
+
+                if (lines.Count == 0)
+                    ErrorLogger.Warn($"No gift taste dialogue found for {character.Name}.");
+
+                return lines;
+            }
+            catch (Exception e)
+            {
+                ErrorLogger.Error($"Error getting gift taste dialogue for {character.Name}. {e}");
+                return new List<LabelledDialogue>();
+            }
         }
 
         private List<LabelledDialogue> GetScheduleDialogue(NPC character)
