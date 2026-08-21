@@ -214,13 +214,58 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         {
             try
             {
-                return GetLabelledLinesWithoutCharacterNameInId(
+                var lines = GetLabelledLinesWithoutCharacterNameInId(
                     character, "Characters/Dialogue/MarriageDialogue", DialogueType.GenericMarriage);
+
+                // A character-specific file fully shadows the generic line for the same
+                // id — the game will never show it, so it must not be scripted/voiced as
+                // this character's generic dialogue either.
+                var overriddenIds = new HashSet<string>(
+                    GetMarriageDialogueOverrides(character.Name).Select(o => o.DialogueId));
+
+                return lines.Where(line => !overriddenIds.Contains(line.OriginalKey)).ToList();
             }
             catch (Exception e)
             {
                 ErrorLogger.Error($"Error getting generic marriage dialogue for {character.Name}. {e}");
                 return new List<LabelledDialogue>();
+            }
+        }
+
+        /// <summary>
+        /// Finds marriage dialogue IDs that exist in both the generic MarriageDialogue.json
+        /// and <paramref name="characterName"/>'s own MarriageDialogue{characterName}.json —
+        /// an exact (non-prefix, non-substring) key match. The character-specific entry
+        /// always shadows the generic one for that id, so the generic line is never
+        /// shown/heard for this character.
+        /// </summary>
+        public List<MarriageDialogueOverride> GetMarriageDialogueOverrides(string characterName)
+        {
+            Dictionary<string, string> generic = TryLoadDialogueDict("Characters/Dialogue/MarriageDialogue");
+            Dictionary<string, string> characterFile = TryLoadDialogueDict($"Characters/Dialogue/MarriageDialogue{characterName}");
+
+            if (generic == null || generic.Count == 0 || characterFile == null)
+                return new List<MarriageDialogueOverride>();
+
+            var overrides = new List<MarriageDialogueOverride>();
+            foreach (var (id, characterText) in characterFile)
+            {
+                if (generic.TryGetValue(id, out string genericText))
+                    overrides.Add(new MarriageDialogueOverride(id, genericText, characterText));
+            }
+
+            return overrides;
+        }
+
+        private Dictionary<string, string> TryLoadDialogueDict(string path)
+        {
+            try
+            {
+                return helper.GameContent.Load<Dictionary<string, string>>(path);
+            }
+            catch
+            {
+                return null;
             }
         }
 

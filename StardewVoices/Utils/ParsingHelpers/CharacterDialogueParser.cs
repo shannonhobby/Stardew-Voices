@@ -28,25 +28,6 @@ namespace StardewVoices.Utils.ParsingHelpers
                 .ToArray();
         }
 
-        private static string ParseQuestionDialogue(string s)
-        {
-            if (s.Contains("$q"))
-            {
-                Match match = Regex.Match(s, @"\$q(?:[^#]*)#(.*?)#");
-                if (match.Success)
-                    return match.Groups[1].Value;
-            }
-            return s;
-        }
-
-        // $p 38#First dialogue line.|Second dialogue line
-        private static string ParsePDialogue(string s)
-        {
-            if (s.Contains("$p") || s.Contains("$d"))
-                return s.Split("#")[1];
-            return s;
-        }
-
         private static string StripEmotionCodes(string text)
         {
             text = Regex.Replace(text, @"\$\w+", "");
@@ -69,7 +50,7 @@ namespace StardewVoices.Utils.ParsingHelpers
         // two — only one ever plays. Strip that suffix so IncrementLineId sees the
         // trailing _sv<n> and advances the slot (..._sv2) instead of appending a
         // bogus counter (..._sv1_female_farmer_sv1).
-        private static string AdvancePastLineId(string lineId)
+        public static string AdvancePastLineId(string lineId)
         {
             string baseId = Regex.Replace(lineId, @"_(male|female)_farmer$", "");
             return IncrementLineId(baseId);
@@ -82,8 +63,8 @@ namespace StardewVoices.Utils.ParsingHelpers
         /// <summary>
         /// Like <see cref="ParseDialogue"/> but returns (LineId, Text) pairs
         /// using the same naming rules as the Python pipeline:
-        ///   _sv{n}            — | splits and || multiple-week segments
-        ///   _mw               — || multiple-week prefix
+        ///   _sv{n}            — | splits and #$b#/#$e# page breaks within one segment
+        ///   _mw{n}            — || multiple-week segments (week 1 = no suffix, week 2 = _mw1, ...)
         ///   _prereq_{n}       — $p prerequisite variants
         ///   _male_farmer      — ^ / ${x^y}$ male variant
         ///   _female_farmer    — ^ / ${x^y}$ female variant
@@ -92,29 +73,19 @@ namespace StardewVoices.Utils.ParsingHelpers
         {
             string baseId = ParseLineId(baseLineId.Replace(".", "_"));
 
-            // $query <game-state-query># — conditional gate (SDV 1.6). Must be
-            // handled before the $q branch because "$query" also contains "$q".
-            // The query only decides whether the line shows; the dialogue after
-            // the first # is parsed normally (page breaks, | splits, gender, …).
+            // $query — before $q since "$query" contains "$q". True/false → _query_1/_query_2.
+            // Text before the $query marker (if any) is parsed normally first.
             if (s.Contains("$query"))
-            {
-                Match queryMatch = Regex.Match(s, @"\$query[^#]*#");
-                string remainder = queryMatch.Success
-                    ? s.Substring(queryMatch.Index + queryMatch.Length)
-                    : s;
-                return ParseDialogueWithIds(remainder, baseId);
-            }
+                return ParseQueryPrefixedWithIds(s, baseId);
 
-            // $q question — NPC's question text, single line, same ID
-            // (farmer responses are not voiced; no ID suffix needed)
+            // $q question — text before $q (if any) is parsed normally, then the
+            // question continues the _sv chain. $r response choices aren't voiced.
             if (HasQuestionMarker(s))
-            {
-                string question = ParseQuestionDialogue(s);
-                return ParseDialogueWithIds(question, baseId);
-            }
+                return ParseQDialogueWithIds(s, baseId);
 
             // $y festival question — NPC's question with voiced farmer response choices.
             // Format: $y 'Question_OptionLabel1_ResponseText1_OptionLabel2_ResponseText2...'
+            // Text before/after the $y block (if any) is parsed normally too.
             if (s.Contains("$y"))
                 return ParseYDialogueWithIds(s, baseId);
 
@@ -155,21 +126,25 @@ namespace StardewVoices.Utils.ParsingHelpers
                 }
             }
 
-            // || multiple-week dialogue — each segment gets _mw + _sv{n}
+            // || multiple-week dialogue — each segment is an independent line shown
+            // in a different week, not a continuation of the previous segment. Week 1
+            // keeps the original id; week 2+ get their own _mw{n} slot off the
+            // ORIGINAL id (never chained from the previous segment's last _sv id), so
+            // the _mw counter can't merge with the _sv continuation counter.
             if (s.Contains("||"))
             {
-                string[] segments = s.Split(new[] { "||" }, StringSplitOptions.None);
+                string[] segments = s.Split(new[] { "||" }, StringSplitOptions.None)
+                    .Where(x => x.Trim().Length > 0)
+                    .ToArray();
                 var results = new List<(string, string)>();
-                string mwId = baseId + "_mw";
 
-                foreach (string seg in segments.Where(x => x.Trim().Length > 0))
+                for (int i = 0; i < segments.Length; i++)
                 {
-                    // Recurse so segments containing #$b# or #$e# page breaks are
-                    // split into separate lines rather than collapsed with ## artifacts.
-                    var segLines = ParseDialogueWithIds(seg, mwId);
-                    if (segLines.Length == 0) continue;
-                    results.AddRange(segLines);
-                    mwId = AdvancePastLineId(segLines[^1].LineId);
+                    // Recurse so each segment's own #$b#/#$e# page breaks still split
+                    // into sequential _sv{n} lines, rooted fresh at this segment's id
+                    // (the sv counter resets per segment — it never carries over).
+                    string segBaseId = i == 0 ? baseId : $"{baseId}_mw{i}";
+                    results.AddRange(ParseDialogueWithIds(segments[i], segBaseId));
                 }
                 return results.ToArray();
             }
@@ -182,15 +157,10 @@ namespace StardewVoices.Utils.ParsingHelpers
             if (s.Contains("$c"))
                 return ParseCDialogueWithIds(s, baseId);
 
-            // $1 <id># only-once dialogue — like $query, a prefix command, not
-            // an infix separator: "$1 <id>" tags the line so the game shows it
-            // once, then the dialogue after the first # is parsed normally.
-            // Strip "$1 <id>#" (incl. any leading page #) and recurse.
-            if (s.Contains("#$1"))
-            {
-                string remainder = Regex.Replace(s, @"#?\$1[^#]*#", "");
-                return ParseDialogueWithIds(remainder, baseId);
-            }
+            // $1 <id># one-time-only dialogue — _{id}_1 / _{id}_2. Regex (not Contains)
+            // so stray "$1" text with no "#" after it doesn't match and recurse forever.
+            if (Regex.IsMatch(s, @"\$1\s+[^#]*#"))
+                return ParseOneTimeDialogueWithIds(s, baseId);
 
             // # multi-page break — $b# and plain # both split into sequential lines
             if (s.Contains("#"))
@@ -220,8 +190,11 @@ namespace StardewVoices.Utils.ParsingHelpers
                     currentId = AdvancePastLineId(pageLines[^1].LineId);
                 }
 
-                if (results.Count > 0)
-                    return results.ToArray();
+                // # is always a structural separator, never literal text — if every
+                // page cleaned to empty, there's genuinely nothing here. Return (even
+                // empty) rather than falling through to the plain-text fallback below,
+                // which would otherwise treat a bare "#" as real dialogue content.
+                return results.ToArray();
             }
 
             string parsed = Clean(s);
@@ -269,7 +242,12 @@ namespace StardewVoices.Utils.ParsingHelpers
 
         private static string ParseLineId(string lineId)
         {
-            return Regex.Replace(lineId, @"\(.*?\)", "");
+            lineId = Regex.Replace(lineId, @"\(.*?\)", "");
+
+            // Some raw keys use '*' as a wildcard (e.g. Strings/MovieReactions'
+            // "Penny_*_BeforeMovie" for "any movie"). '*' isn't safe in a line id
+            // / file name, so normalize it to "1".
+            return lineId.Replace("*", "1");
         }
 
         /// <summary>
@@ -280,16 +258,27 @@ namespace StardewVoices.Utils.ParsingHelpers
         /// </summary>
         private static (string LineId, string Text)[] ParsePDialogueWithIds(string s, string baseId)
         {
-            // Strip "$p {condition}#" or "$d {condition}#" to leave just the dialogue parts
-            string stripped = Regex.Replace(s, @"\$[pd][^#]*#", "");
-            string[] parts = stripped.Split('|');
+            Match pMatch = Regex.Match(s, @"\$[pd][^#]*#");
+            string before = pMatch.Success ? s.Substring(0, pMatch.Index) : "";
+            string remainder = pMatch.Success ? s.Substring(pMatch.Index + pMatch.Length) : s;
 
             var results = new List<(string, string)>();
+            string currentId = baseId;
+
+            if (Clean(before).Length > 0)
+            {
+                var beforeLines = ParseDialogueWithIds(before, baseId);
+                results.AddRange(beforeLines);
+                if (beforeLines.Length > 0)
+                    currentId = AdvancePastLineId(beforeLines[^1].LineId);
+            }
+
+            string[] parts = remainder.Split('|');
             for (int i = 0; i < parts.Length; i++)
             {
                 string text = Clean(parts[i].TrimStart('#'));
                 if (text.Length > 0)
-                    results.Add(($"{baseId}_prereq_{i + 1}", text));
+                    results.Add(($"{currentId}_prereq_{i + 1}", text));
             }
             return results.ToArray();
         }
@@ -331,34 +320,160 @@ namespace StardewVoices.Utils.ParsingHelpers
             return results.ToArray();
         }
 
+        // $1 {id}#{text_first_time} #$e# {text_every_time} → _{id}_1 / _{id}_2
+        private static (string LineId, string Text)[] ParseOneTimeDialogueWithIds(string s, string baseId)
+        {
+            Match idMatch = Regex.Match(s, @"\$1\s+([^#]*)#");
+            string idToken = idMatch.Success
+                ? Regex.Replace(idMatch.Groups[1].Value.Trim(), @"[^A-Za-z0-9_]", "_")
+                : "once";
+
+            // Split on the $1 marker to separate any text before it from the two branches
+            string[] outerSplit = Regex.Split(s, @"#?\$1[^#]*#");
+
+            var results = new List<(string, string)>();
+            string currentId = baseId;
+
+            if (outerSplit[0].Trim().Length > 0)
+            {
+                var beforeLines = ParseDialogueWithIds(outerSplit[0], baseId);
+                results.AddRange(beforeLines);
+                if (beforeLines.Length > 0)
+                    currentId = AdvancePastLineId(beforeLines[^1].LineId);
+            }
+
+            string remainder = string.Join("", outerSplit.Skip(1));
+            string[] branches = remainder.Split(new[] { "#$e#" }, StringSplitOptions.None);
+
+            for (int i = 0; i < branches.Length; i++)
+            {
+                string branch = branches[i].Trim();
+                if (branch.Length == 0) continue;
+
+                string branchId = i < 2 ? $"{currentId}_{idToken}_{i + 1}" : IncrementLineId(currentId);
+                results.AddRange(ParseDialogueWithIds(branch, branchId));
+            }
+            return results.ToArray();
+        }
+
+        // $query — text before the marker (if any) is parsed normally, then the
+        // true/false branches continue the chain via ParseQueryDialogueWithIds.
+        private static (string LineId, string Text)[] ParseQueryPrefixedWithIds(string s, string baseId)
+        {
+            Match queryMatch = Regex.Match(s, @"\$query[^#]*#");
+            string before = queryMatch.Success ? s.Substring(0, queryMatch.Index) : "";
+            string remainder = queryMatch.Success ? s.Substring(queryMatch.Index + queryMatch.Length) : s;
+
+            var results = new List<(string, string)>();
+            string currentId = baseId;
+
+            if (Clean(before).Length > 0)
+            {
+                var beforeLines = ParseDialogueWithIds(before, baseId);
+                results.AddRange(beforeLines);
+                if (beforeLines.Length > 0)
+                    currentId = AdvancePastLineId(beforeLines[^1].LineId);
+            }
+
+            results.AddRange(ParseQueryDialogueWithIds(remainder, currentId));
+            return results.ToArray();
+        }
+
+        // $query {condition}#{if_true}|{if_false} → _query_1 / _query_2, each with its own _sv chain
+        private static (string LineId, string Text)[] ParseQueryDialogueWithIds(string remainder, string baseId)
+        {
+            string[] branches = remainder.Split('|');
+            var results = new List<(string, string)>();
+
+            for (int i = 0; i < branches.Length; i++)
+            {
+                string branch = branches[i].Trim();
+                if (branch.Length == 0) continue;
+
+                string branchId = i < 2 ? $"{baseId}_query_{i + 1}" : IncrementLineId(baseId);
+                results.AddRange(ParseDialogueWithIds(branch, branchId));
+            }
+            return results.ToArray();
+        }
+
+        // $q — text before the marker (if any) is parsed normally, then the question
+        // continues the _sv chain. $r response choices aren't voiced, so they're dropped.
+        private static (string LineId, string Text)[] ParseQDialogueWithIds(string s, string baseId)
+        {
+            Match qMatch = Regex.Match(s, @"\$q(?:[^#]*)#(.*?)#");
+            if (!qMatch.Success)
+                return new[] { (baseId, Clean(s)) };
+
+            string before = s.Substring(0, qMatch.Index);
+            string question = qMatch.Groups[1].Value;
+
+            var results = new List<(string, string)>();
+            string currentId = baseId;
+
+            if (Clean(before).Length > 0)
+            {
+                var beforeLines = ParseDialogueWithIds(before, baseId);
+                results.AddRange(beforeLines);
+                if (beforeLines.Length > 0)
+                    currentId = AdvancePastLineId(beforeLines[^1].LineId);
+            }
+
+            results.AddRange(ParseDialogueWithIds(question, currentId));
+            return results.ToArray();
+        }
+
         /// <summary>
         /// $y festival question: NPC asks a question with voiced farmer response choices.
         /// Format: $y 'Question_Option1_Response1_Option2_Response2...'
-        /// Produces the question as baseId and each response as {baseId}__{sanitized_option}__response.
-        /// Option labels are lowercased with punctuation replaced by underscores so the IDs are valid file names.
+        /// Produces the question and each response as {id}__{sanitized_option}__response.
+        /// Text before/after the $y block (if any) is parsed normally and chained in.
         /// </summary>
         private static (string LineId, string Text)[] ParseYDialogueWithIds(string s, string baseId)
         {
-            // Strip "$y " prefix and surrounding single quotes.
             // Greedy .* ensures internal apostrophes (e.g. "I'm") don't close the match early.
             Match outerMatch = Regex.Match(s, @"\$y\s+'(.*)'");
-            string inner = outerMatch.Success
-                ? outerMatch.Groups[1].Value
-                : s.Substring(s.IndexOf("$y") + 2).Trim();
+            string before, inner, trailing;
+
+            if (outerMatch.Success)
+            {
+                before = s.Substring(0, outerMatch.Index);
+                inner = outerMatch.Groups[1].Value;
+                trailing = s.Substring(outerMatch.Index + outerMatch.Length);
+            }
+            else
+            {
+                int yIndex = s.IndexOf("$y");
+                before = s.Substring(0, yIndex);
+                inner = s.Substring(yIndex + 2).Trim();
+                trailing = "";
+            }
+
+            var results = new List<(string, string)>();
+            string currentId = baseId;
+
+            if (Clean(before).Length > 0)
+            {
+                var beforeLines = ParseDialogueWithIds(before, baseId);
+                results.AddRange(beforeLines);
+                if (beforeLines.Length > 0)
+                    currentId = AdvancePastLineId(beforeLines[^1].LineId);
+            }
 
             string[] parts = inner.Split('_');
-            var results = new List<(string, string)>();
 
             // Index 0 is the NPC's question; indices 1,3,5,... are option labels; 2,4,6,... are responses.
-            results.Add((baseId, Clean(parts[0])));
+            results.Add((currentId, Clean(parts[0])));
 
             for (int i = 1; i + 1 < parts.Length; i += 2)
             {
                 string sanitizedOption = SanitizeForLineId(parts[i]);
                 string responseText = Clean(parts[i + 1]);
                 if (responseText.Length > 0)
-                    results.Add(($"{baseId}__{sanitizedOption}__response", responseText));
+                    results.Add(($"{currentId}__{sanitizedOption}__response", responseText));
             }
+
+            if (Clean(trailing).Length > 0)
+                results.AddRange(ParseDialogueWithIds(trailing, AdvancePastLineId(currentId)));
 
             return results.ToArray();
         }

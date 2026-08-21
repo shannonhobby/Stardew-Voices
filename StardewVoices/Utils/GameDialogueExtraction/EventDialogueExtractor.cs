@@ -241,7 +241,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                     // Includes speak, textAboveHead, and end-dialogue lines together, in the
                     // order they appear in the raw script, so the shared per-character counter
                     // below advances across all three types instead of resetting per type.
-                    List<(string line, string characterName, EventActionType actionType)> speakLines =
+                    List<(string line, string characterName, EventActionType actionType, object chainGroup)> speakLines =
                         ParseSpeakingLines(kvp.Value);
                     if (speakLines.Count == 0) continue;
 
@@ -254,13 +254,26 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                         ? $"{eventId}_{keyTokens[^1]}"
                         : eventId;
 
-                    foreach ((string line, string characterName, EventActionType actionType) in speakLines)
+                    // Tracks the previous speak/textAboveHead/end-dialogue command's chain
+                    // group and the next id to use if the next command shares that same
+                    // group (i.e. came from the same quickQuestion branch) — so several
+                    // speak commands in one branch continue one _sv chain instead of each
+                    // grabbing a new event id. Top-level commands never share a group, so
+                    // they always fall through to GenerateEventLineId as before.
+                    object previousChainGroup = null;
+                    string chainId = null;
+
+                    foreach ((string line, string characterName, EventActionType actionType, object chainGroup) in speakLines)
                     {
+                        bool continuesChain = chainGroup != null && chainGroup == previousChainGroup;
+
                         // Generate the base ID first so ParseDialogueWithIds can append
                         // gender suffixes (_male_farmer / _female_farmer) when needed.
                         // Note: GenerateEventLineId handles speakerLineCount initialisation
                         // internally — do NOT pre-initialise here or the first line gets _event2.
-                        string baseId = GenerateEventLineId(locationName, sceneName, characterName, speakerLineCount, actionType);
+                        string baseId = (continuesChain && chainId != null)
+                            ? chainId
+                            : GenerateEventLineId(locationName, sceneName, characterName, speakerLineCount, actionType);
                         var parsedPairs = CharacterDialogueParser.ParseDialogueWithIds(line, baseId);
                         if (parsedPairs != null && parsedPairs.Length > 0)
                         {
@@ -272,11 +285,15 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                                 string finalId = isResponseEvent ? "response_" + lineId : lineId;
                                 results.Add(new EventLine(finalId, characterName, dialogue));
                             }
+                            chainId = CharacterDialogueParser.AdvancePastLineId(parsedPairs[^1].LineId);
                         }
                         else
                         {
                             ErrorLogger.Warn($"Error parsing event dialogue: {line}");
+                            chainId = null;
                         }
+
+                        previousChainGroup = chainGroup;
                     }
                 }
             }
@@ -314,7 +331,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 _ => throw new ArgumentOutOfRangeException(nameof(actionType))
             };
 
-            return $"{locationName}_{sceneName}_{speakerName}{suffix}";
+            return $"{locationName}_{sceneName}_{speakerName}{suffix}".Replace('/', '_');
         }
 
         /// <summary>
@@ -338,6 +355,48 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         }
 
 
+        // Yields each command in order, inlining quickQuestion branches (skipping the
+        // options text) so callers see one flat stream. Each command also carries a
+        // chainGroup marker: every command directly inside the same quickQuestion
+        // branch shares one marker (by reference), while every top-level command and
+        // every other branch gets its own distinct marker. This lets a branch with
+        // several speak commands be numbered as one continuing chain (_sv1, _sv2, ...)
+        // instead of each grabbing a new event id — a plain "is this the first token"
+        // flag doesn't work here since a branch's first token is usually a non-speak
+        // command (emote, jump, ...), not the first speak.
+        private static List<(string command, object chainGroup)> ExpandCommandStream(
+            string script, char delimiter, bool chain = false)
+        {
+            var result = new List<(string, object)>();
+
+            // One marker shared by every command directly in this call — i.e. every
+            // command belonging to the SAME branch (or, at the top level, null so
+            // top-level commands never chain with each other).
+            object branchMarker = chain ? new object() : null;
+
+            foreach (string rawCommand in script.Split(delimiter))
+            {
+                string trimmed = rawCommand.Trim();
+
+                if (!trimmed.StartsWith("quickQuestion "))
+                {
+                    result.Add((trimmed, chain ? branchMarker : new object()));
+                    continue;
+                }
+
+                string[] segments = trimmed.Substring("quickQuestion ".Length)
+                    .Split(new[] { "(break)" }, StringSplitOptions.None);
+
+                // segments[0] is the '#'-delimited options list shown to the player -
+                // skip it. segments[1..] are the branches, one per option, in order.
+                // Each nested branch gets its own fresh marker (a new recursive call).
+                for (int i = 1; i < segments.Length; i++)
+                    result.AddRange(ExpandCommandStream(segments[i], '\\', chain: true));
+            }
+
+            return result;
+        }
+
         // Extracts the displayed text from every `speak {characterName} "..."` agnostic of character name.
         // Splits on the Stardew page-break token so each page becomes its own entry.
         // TODO - ALSO NEED TEXT ABOVE HEAD AND END DIALOGUE
@@ -345,9 +404,8 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         {
             var lines = new List<(string line, string characterName)>();
 
-            foreach (string command in eventScript.Split('/'))
+            foreach (var (trimmed, _) in ExpandCommandStream(eventScript, '/'))
             {
-                string trimmed = command.Trim();
                 if (!trimmed.StartsWith("speak ")) continue;
 
                 Match m = Regex.Match(trimmed, @"^speak (\S+) ""(.+)""$");
@@ -375,16 +433,18 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         // Extracts speak, textAboveHead, and end-dialogue commands together, in the order
         // they appear in the raw script. Used by GetEventDialogue so the per-character line
         // counter in GenerateEventLineId advances across all three types instead of resetting
-        // per type. Splits each command's text on the Stardew page-break token so each page
-        // becomes its own entry, same as ParseSpeakLines.
-        private List<(string line, string characterName, EventActionType actionType)> ParseSpeakingLines(string eventScript)
+        // per type. Each command's text is kept whole (including any "#$b#" page breaks) so
+        // CharacterDialogueParser.ParseDialogueWithIds can split it and assign the _sv{n}
+        // continuation suffixes itself, same as regular dialogue. chainGroup is carried
+        // through from ExpandCommandStream so GetEventDialogue can tell which consecutive
+        // commands came from the same quickQuestion branch (continue the _sv chain) vs.
+        // which should grab a fresh event id.
+        private List<(string line, string characterName, EventActionType actionType, object chainGroup)> ParseSpeakingLines(string eventScript)
         {
-            var lines = new List<(string line, string characterName, EventActionType actionType)>();
+            var lines = new List<(string line, string characterName, EventActionType actionType, object chainGroup)>();
 
-            foreach (string command in eventScript.Split('/'))
+            foreach (var (trimmed, chainGroup) in ExpandCommandStream(eventScript, '/'))
             {
-                string trimmed = command.Trim();
-
                 EventActionType? actionType = trimmed switch
                 {
                     var s when s.StartsWith("speak ") => EventActionType.Speak,
@@ -398,9 +458,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 if (!m.Success) continue;
 
                 string characterName = m.Groups[1].Value;
-                string[] pages = m.Groups[2].Value.Split(PageBreakTokens, StringSplitOptions.RemoveEmptyEntries);
-                foreach (string page in pages)
-                    lines.Add((page, characterName, actionType.Value));
+                lines.Add((m.Groups[2].Value, characterName, actionType.Value, chainGroup));
             }
 
             return lines;
@@ -415,9 +473,8 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             var lines = new List<string>();
             string speakPrefix = $"speak {characterName} \"";
 
-            foreach (string command in eventScript.Split('/'))
+            foreach (var (trimmed, _) in ExpandCommandStream(eventScript, '/'))
             {
-                string trimmed = command.Trim();
                 if (!trimmed.StartsWith(speakPrefix)) continue;
 
                 Match m = Regex.Match(trimmed, $@"^speak {Regex.Escape(characterName)} ""(.+)""$");

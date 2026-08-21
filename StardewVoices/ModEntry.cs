@@ -3,6 +3,7 @@ using StardewValley;
 using StardewVoices.Testing;
 using StardewVoices.FileGeneration;
 using StardewVoices.Utils;
+using StardewVoices.Utils.GameDialogueExtraction;
 using System.IO;
 using StardewVoices.Config;
 using System;
@@ -44,6 +45,15 @@ namespace StardewVoices
                 "Usage: sv_play_line <characterName> <dialogueString...>\n" +
                 "Example: sv_play_line Alex Hi there, farmer!",
                 PlayDialogueLine
+            );
+
+            helper.ConsoleCommands.Add(
+                "sv_marriage_override_report",
+                "Prints generic marriage dialogue lines that are shadowed by a character's " +
+                "own MarriageDialogue{Name}.json (same id in both files). These generic lines " +
+                "are never shown in-game for that character, so their audio shouldn't be " +
+                "scripted/voiced generically. Read-only — does not touch any files.",
+                PrintMarriageOverrideReport
             );
 
             helper.ConsoleCommands.Add(
@@ -114,6 +124,29 @@ namespace StardewVoices
                 ErrorLogger.Warn($"[sv_play_line] NPC '{characterName}' not found — playing audio directly.");
                 managerHub.AudioManager.Play(lineId, characterName);
             }
+        }
+
+        private void PrintMarriageOverrideReport(string command, string[] args)
+        {
+            var extractor = new CharacterDialogueExtractor(helper);
+            int total = 0;
+
+            foreach (string characterName in Constants.LoveInterests)
+            {
+                var overrides = extractor.GetMarriageDialogueOverrides(characterName);
+                if (overrides.Count == 0) continue;
+
+                ErrorLogger.Info($"== {characterName} ({overrides.Count} overridden generic line(s)) ==");
+                foreach (var o in overrides)
+                {
+                    ErrorLogger.Info($"  [{o.DialogueId}]");
+                    ErrorLogger.Info($"    generic:  {o.GenericText}");
+                    ErrorLogger.Info($"    {characterName}: {o.CharacterText}");
+                }
+                total += overrides.Count;
+            }
+
+            ErrorLogger.Info($"[sv_marriage_override_report] {total} overridden generic marriage line(s) total across {Constants.LoveInterests.Count} character(s).");
         }
 
         private void GenerateFiles(string command, string[] args)
