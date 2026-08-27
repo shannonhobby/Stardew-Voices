@@ -324,7 +324,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             string suffix = actionType switch
             {
                 EventActionType.Speak => $"_event{n}",
-                EventActionType.TextAboveHead => $"_textAboveHead{n}",
+                EventActionType.TextAboveHead => $"_textAboveHeadEvent{n}",
                 EventActionType.EndDialogue => $"_endDialogue{n}",
                 _ => throw new ArgumentOutOfRangeException(nameof(actionType))
             };
