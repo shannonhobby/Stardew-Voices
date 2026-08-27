@@ -1,4 +1,5 @@
 ﻿using StardewVoices.Pathing;
+using StardewVoices.Utils;
 using StardewVoices.Utils.ParsingHelpers;
 using System.Collections.Generic;
 using System.IO;
@@ -27,11 +28,22 @@ namespace StardewVoices.FileGeneration.Models
 
         public bool isCharacterJson { get; }
 
+        // Festival dialogue jsons are read back at runtime by FestivalHandler with the
+        // current language baked into the file name (e.g. "fall16.ja-JP.json"), since
+        // the game can be relaunched under a different language without regenerating
+        // files — see LocalizationHelpers.GetLanguageJsonExtension. Character/generic
+        // jsons are looked up by a plain ".json" name regardless of language, so only
+        // festival output needs the language-coded extension.
+        private readonly string jsonExtension;
+
         // context: character, festival, generic
         public DialogueJson(string fileName, DialogueParentFolder parentFolder, PathManager pathManager)
         {
             FileName = fileName;
             isCharacterJson = parentFolder.Equals(DialogueParentFolder.Characters);
+            jsonExtension = parentFolder == DialogueParentFolder.Festivals
+                ? LocalizationHelpers.GetLanguageJsonExtension()
+                : "json";
 
             PathNode root = pathManager.GeneratedFilesRoot;
             PathString = GetPathString(root.FullPath, parentFolder, fileName);
@@ -42,11 +54,11 @@ namespace StardewVoices.FileGeneration.Models
         {
             if(isCharacterJson)
             {
-                ParentFolder.CreateJsonFile(FileName + ".json", CharacterDialogueDictionary);
+                ParentFolder.CreateJsonFile(FileName + "." + jsonExtension, CharacterDialogueDictionary);
 
             } else
             {
-                ParentFolder.CreateJsonFile(FileName + ".json", DialogueDictionary);
+                ParentFolder.CreateJsonFile(FileName + "." + jsonExtension, DialogueDictionary);
             }
         }
 
@@ -124,7 +136,7 @@ namespace StardewVoices.FileGeneration.Models
         private string GetPathString(string generatedFilesPathString, DialogueParentFolder context, string fileName)
         {
             string ParentFolderPath = Path.Combine(generatedFilesPathString, context.ToString());
-            return Path.Combine(ParentFolderPath, fileName + ".json");
+            return Path.Combine(ParentFolderPath, fileName + "." + jsonExtension);
         }
 
         private PathNode SetupFolderStructure(PathNode generatedFilesFolder, DialogueParentFolder parentFolder)

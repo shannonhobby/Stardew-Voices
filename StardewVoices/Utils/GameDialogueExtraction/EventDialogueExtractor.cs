@@ -1,4 +1,6 @@
 using StardewModdingAPI;
+using StardewValley;
+using StardewVoices.Utils;
 using StardewVoices.FileGeneration.Models;
 using StardewVoices.Utils.ParsingHelpers;
 using System;
@@ -11,6 +13,12 @@ namespace StardewVoices.Utils.GameDialogueExtraction
     public class EventDialogueExtractor
     {
         private readonly IModHelper helper;
+        private readonly bool isEnglish =
+            LocalizationHelpers.GetCurrentLanguage() == LocalizedContentManager.LanguageCode.en.ToString();
+
+        // locationName -> English event dict, loaded lazily since most locations are
+        // never visited by a given extraction. Only populated on non-English locales.
+        private readonly Dictionary<string, Dictionary<string, string>> _englishEventDataCache = new();
 
         // TODO - don't hardcode this incase of mods adding events
         // All locations that contain love interest events.
@@ -244,6 +252,21 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 ParseSpeakingLines(kvp.Value);
             if (speakLines.Count == 0) return results;
 
+            // English counterpart of this same event entry, positionally aligned to
+            // speakLines (same script, same command order — only the spoken text
+            // differs by locale). Used so ids derived from response-embedded text
+            // (see ParseYDialogueWithIds) resolve to the English source instead of
+            // whatever language the game is currently loaded with. Null on English
+            // locales or if the English asset/key can't be found — callers then fall
+            // back to deriving ids from the localized text itself.
+            List<(string line, string characterName, EventActionType actionType, object chainGroup)> englishSpeakLines = null;
+            if (!isEnglish
+                && GetEnglishGameEventData(locationName) is Dictionary<string, string> englishEventData
+                && englishEventData.TryGetValue(kvp.Key, out string englishScript))
+            {
+                englishSpeakLines = ParseSpeakingLines(englishScript);
+            }
+
             // The raw key's last precondition often carries a value that the scene name
             // needs to preserve (e.g. "733330/f Sam 750/.../y 1" -> "733330_1").
             // eventId alone (the part before the first '/') drops that segment, so
@@ -262,8 +285,9 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             object previousChainGroup = null;
             string chainId = null;
 
-            foreach ((string line, string characterName, EventActionType actionType, object chainGroup) in speakLines)
+            for (int i = 0; i < speakLines.Count; i++)
             {
+                (string line, string characterName, EventActionType actionType, object chainGroup) = speakLines[i];
                 bool continuesChain = chainGroup != null && chainGroup == previousChainGroup;
 
                 // Generate the base ID first so ParseDialogueWithIds can append
@@ -273,7 +297,10 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 string baseId = (continuesChain && chainId != null)
                     ? chainId
                     : GenerateEventLineId(locationName, sceneName, characterName, speakerLineCount, actionType);
-                var parsedPairs = CharacterDialogueParser.ParseDialogueWithIds(line, baseId);
+                string englishLine = englishSpeakLines != null && i < englishSpeakLines.Count
+                    ? englishSpeakLines[i].line
+                    : null;
+                var parsedPairs = CharacterDialogueParser.ParseDialogueWithIds(line, baseId, englishLine);
                 if (parsedPairs != null && parsedPairs.Length > 0)
                 {
                     foreach (var (lineId, dialogue) in parsedPairs)
@@ -350,6 +377,31 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 ErrorLogger.Warn($"Could not load event data for location: {locationName}");
                 return null;
             }
+        }
+
+        // Loads the English version of a location's event data regardless of current game
+        // language, so line ids derived from player-facing text (e.g. $y response option
+        // labels — see ParseYDialogueWithIds) stay identical across all languages, the
+        // same "resolve to English source" approach used for character/festival dialogue.
+        private Dictionary<string, string> GetEnglishGameEventData(string locationName)
+        {
+            if (_englishEventDataCache.TryGetValue(locationName, out var cached))
+                return cached;
+
+            Dictionary<string, string> data;
+            try
+            {
+                data = Game1.content.Load<Dictionary<string, string>>(
+                    $"Data/Events/{locationName}", LocalizedContentManager.LanguageCode.en);
+            }
+            catch
+            {
+                ErrorLogger.Warn($"Could not load English event data for location: {locationName}");
+                data = null;
+            }
+
+            _englishEventDataCache[locationName] = data;
+            return data;
         }
 
 

@@ -177,10 +177,13 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 if (!data.TryGetValue(sheetName, out string rawValue))
                     return new List<LabelledDialogue>();
 
+                Dictionary<string, string> englishData = isEnglish ? null : LoadEnglishContent("Characters\\Dialogue\\rainy");
+                string englishRawValue = (englishData != null && englishData.TryGetValue(sheetName, out string ev)) ? ev : null;
+
                 // Rainy uses a static TryGetDialogue overload with a colon-separated path
                 var sdvDialogue = StardewValley.Dialogue.TryGetDialogue(
                     character, "Characters\\Dialogue\\rainy:" + sheetName);
-                var labelledLines = CharacterDialogueParser.ParseRawValueToLines(rawValue, $"rainy_{sheetName}", DialogueType.Rainy);
+                var labelledLines = CharacterDialogueParser.ParseRawValueToLines(rawValue, $"rainy_{sheetName}", DialogueType.Rainy, englishRawValue);
 
                 return new List<LabelledDialogue>
                 {
@@ -374,24 +377,26 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             {
                 Dictionary<string, string> data =
                     helper.GameContent.Load<Dictionary<string, string>>("Strings/StringsFromCsFiles");
+                Dictionary<string, string> englishData = isEnglish ? null : LoadEnglishContent("Strings/StringsFromCsFiles");
 
                 var lines = new List<LabelledDialogue>();
 
-                AddStringsFromCsFilesGroup(character.Name, data, character, lines);
-                AddStringsFromCsFilesGroup("EVERYONE", data, character, lines);
+                AddStringsFromCsFilesGroup(character.Name, data, englishData, character, lines);
+                AddStringsFromCsFilesGroup("EVERYONE", data, englishData, character, lines);
 
                 if (character.datable.Value)
                 {
-                    AddStringsFromCsFilesGroup("LOVE INTERESTS", data, character, lines);
+                    AddStringsFromCsFilesGroup("LOVE INTERESTS", data, englishData, character, lines);
                     AddStringsFromCsFilesGroup(
                         character.GetData().Gender == Gender.Female ? "WIFE ONLY" : "HUSBAND ONLY" ,
                         data,
+                        englishData,
                         character,
                         lines);
                 }
-                    
+
                 if (character.GetData().Age == NpcAge.Child)
-                    AddStringsFromCsFilesGroup("CHILDREN", data, character, lines);
+                    AddStringsFromCsFilesGroup("CHILDREN", data, englishData, character, lines);
 
 
                 return lines;
@@ -513,6 +518,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         private void AddStringsFromCsFilesGroup(
             string group,
             Dictionary<string, string> data,
+            Dictionary<string, string> englishData,
             NPC character,
             List<LabelledDialogue> lines)
         {
@@ -522,10 +528,11 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             foreach (string rule in rules)
             {
                 if (rule.Contains("-"))
-                    lines.AddRange(GetDialogueRange(data, rule, character));
+                    lines.AddRange(GetDialogueRange(data, englishData, rule, character));
                 else if (data.TryGetValue(rule, out string value))
                 {
-                    lines.Add(BuildLabelledDialogue(character, rule, value, DialogueType.Generic));
+                    string englishValue = (englishData != null && englishData.TryGetValue(rule, out string ev)) ? ev : null;
+                    lines.Add(BuildLabelledDialogue(character, rule, value, DialogueType.Generic, englishValue));
                     if (rule == "NPC.cs.3985")
                         lines.AddRange(GetGiftDialogueVariants(character, data));
                 }
@@ -536,7 +543,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         /// Fetches all keys in the range "File.cs.1234-1333" from <paramref name="data"/>.
         /// </summary>
         private List<LabelledDialogue> GetDialogueRange(
-            Dictionary<string, string> data, string range, NPC character)
+            Dictionary<string, string> data, Dictionary<string, string> englishData, string range, NPC character)
         {
             var lines = new List<LabelledDialogue>();
 
@@ -553,7 +560,10 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             {
                 string key = prefix + current;
                 if (data.TryGetValue(key, out string value))
-                    lines.Add(BuildLabelledDialogue(character, key, value, DialogueType.Generic));
+                {
+                    string englishValue = (englishData != null && englishData.TryGetValue(key, out string ev)) ? ev : null;
+                    lines.Add(BuildLabelledDialogue(character, key, value, DialogueType.Generic, englishValue));
+                }
                 current++;
             }
 

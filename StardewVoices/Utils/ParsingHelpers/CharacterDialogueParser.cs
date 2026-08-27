@@ -69,6 +69,37 @@ namespace StardewVoices.Utils.ParsingHelpers
         ///   _male_farmer      — ^ / ${x^y}$ male variant
         ///   _female_farmer    — ^ / ${x^y}$ female variant
         /// </summary>
+        /// <summary>
+        /// Like <see cref="ParseDialogueWithIds(string, string)"/>, but for any
+        /// construct that embeds player-facing text into the generated id itself
+        /// (currently only $y festival-style responses, via their option label —
+        /// see ParseYDialogueWithIds), takes the id from parsing
+        /// <paramref name="englishRawValue"/> instead of <paramref name="rawValue"/>,
+        /// so the id stays identical across languages while the returned text is
+        /// still the localized text. Pass null (or use the two-arg overload) when no
+        /// English source is available — the id then falls back to whatever language
+        /// <paramref name="rawValue"/> is in, which is only safe for callers that
+        /// never hit an id-embeds-text construct.
+        /// If the two parses produce different line counts (malformed/mismatched
+        /// data), the extra lines fall back to the localized id.
+        /// </summary>
+        public static (string LineId, string Text)[] ParseDialogueWithIds(string rawValue, string baseLineId, string englishRawValue)
+        {
+            if (englishRawValue == null)
+                return ParseDialogueWithIds(rawValue, baseLineId);
+
+            var idPairs = ParseDialogueWithIds(englishRawValue, baseLineId);
+            var textPairs = ParseDialogueWithIds(rawValue, baseLineId);
+
+            var results = new (string LineId, string Text)[textPairs.Length];
+            for (int i = 0; i < textPairs.Length; i++)
+            {
+                string lineId = i < idPairs.Length ? idPairs[i].LineId : textPairs[i].LineId;
+                results[i] = (lineId, textPairs[i].Text);
+            }
+            return results;
+        }
+
         public static (string LineId, string Text)[] ParseDialogueWithIds(string s, string baseLineId)
         {
             string baseId = ParseLineId(baseLineId.Replace(".", "_"));
@@ -558,25 +589,9 @@ namespace StardewVoices.Utils.ParsingHelpers
         {
             bool isContinuation = IsContinuationDialogue(rawValue);
 
-            if (englishRawValue == null)
-            {
-                return ParseDialogueWithIds(rawValue, key)
-                    .Select(pair => new LabelledDialogueLine(pair.LineId, pair.Text, key, type, isContinuation))
-                    .ToList();
-            }
-
-            // IDs from the English parse, text from the localized parse.
-            // If the counts differ (malformed data), fall back to the localized ID for the extra lines.
-            var idPairs   = ParseDialogueWithIds(englishRawValue, key);
-            var textPairs = ParseDialogueWithIds(rawValue, key);
-
-            var results = new List<LabelledDialogueLine>();
-            for (int i = 0; i < textPairs.Length; i++)
-            {
-                string lineId = i < idPairs.Length ? idPairs[i].LineId : textPairs[i].LineId;
-                results.Add(new LabelledDialogueLine(lineId, textPairs[i].Text, key, type, isContinuation));
-            }
-            return results;
+            return ParseDialogueWithIds(rawValue, key, englishRawValue)
+                .Select(pair => new LabelledDialogueLine(pair.LineId, pair.Text, key, type, isContinuation))
+                .ToList();
         }
     }
 }
