@@ -64,9 +64,12 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             { "CHILDREN", new() { "Event.cs.1497-1498" } },
         };
 
+        private readonly BookPlaceholderResolver bookPlaceholderResolver;
+
         public CharacterDialogueExtractor(IModHelper helper)
         {
             this.helper = helper;
+            this.bookPlaceholderResolver = new BookPlaceholderResolver(helper);
         }
 
 
@@ -680,7 +683,30 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         {
             var sdvDialogue = character.TryGetDialogue(key);
             var labelledLines = CharacterDialogueParser.ParseRawValueToLines(rawValue, key, type, englishRawValue);
+            labelledLines = ResolveBookPlaceholders(labelledLines, type);
             return new LabelledDialogue(sdvDialogue, labelledLines, key, type);
+        }
+
+        // Resolves Elliott's "%book" placeholder (see BookPlaceholderResolver) in each
+        // parsed line, expanding any generic "your book" line into one entry per genre.
+        // A no-op for lines that don't contain the placeholder.
+        private List<LabelledDialogueLine> ResolveBookPlaceholders(List<LabelledDialogueLine> lines, DialogueType type)
+        {
+            List<LabelledDialogueLine> resolved = null;
+            for (int i = 0; i < lines.Count; i++)
+            {
+                LabelledDialogueLine line = lines[i];
+                if (!line.Text.Contains("%book"))
+                {
+                    resolved?.Add(line);
+                    continue;
+                }
+
+                resolved ??= new List<LabelledDialogueLine>(lines.Take(i));
+                foreach (var (resolvedId, resolvedText) in bookPlaceholderResolver.Resolve(line.LineId, line.Text))
+                    resolved.Add(new LabelledDialogueLine(resolvedId, resolvedText, line.OriginalKey, type, line.IsContinuation));
+            }
+            return resolved ?? lines;
         }
 
         // Loads the English version of a game content asset regardless of current language.
