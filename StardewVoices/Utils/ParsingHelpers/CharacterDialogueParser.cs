@@ -281,17 +281,28 @@ namespace StardewVoices.Utils.ParsingHelpers
             return lineId.Replace("*", "1");
         }
 
+        // Matches a "$p {condition}#" or "$d {condition}#" marker at the very start of
+        // a string — used to strip each branch's own condition token in ParsePDialogueWithIds.
+        private static readonly Regex BranchConditionMarker = new Regex(@"^\s*\$[pd][^#]*#");
+
         /// <summary>
         /// $p/$d prerequisite: strips the condition token and returns one
         /// (LineId, Text) pair per variant.
         /// Format: $p {condition}#{line_if_met}|{line_if_not_met}
         ///         $d {condition}#{line_if_met}|{line_if_not_met}
+        /// Branches can also chain more than one condition (each with its own
+        /// "$p {condition}#" marker) before a final unconditioned default, e.g.
+        /// "$p 20#A|$p 8820#B|$p 8821#C|D" — each '|'-separated part is stripped of
+        /// its own leading marker independently, not just the first.
         /// </summary>
         private static (string LineId, string Text)[] ParsePDialogueWithIds(string s, string baseId)
         {
             Match pMatch = Regex.Match(s, @"\$[pd][^#]*#");
             string before = pMatch.Success ? s.Substring(0, pMatch.Index) : "";
-            string remainder = pMatch.Success ? s.Substring(pMatch.Index + pMatch.Length) : s;
+            // Keep the marker itself in remainder (unlike a plain Substring past it) so
+            // the per-part stripping below handles the first branch the same way as
+            // every later branch, instead of only the first ever having it removed.
+            string remainder = pMatch.Success ? s.Substring(pMatch.Index) : s;
 
             var results = new List<(string, string)>();
             string currentId = baseId;
@@ -307,7 +318,9 @@ namespace StardewVoices.Utils.ParsingHelpers
             string[] parts = remainder.Split('|');
             for (int i = 0; i < parts.Length; i++)
             {
-                string text = Clean(parts[i].TrimStart('#'));
+                Match branchMarker = BranchConditionMarker.Match(parts[i]);
+                string rawPart = branchMarker.Success ? parts[i].Substring(branchMarker.Length) : parts[i];
+                string text = Clean(rawPart);
                 if (text.Length > 0)
                     results.Add(($"{currentId}_prereq_{i + 1}", text));
             }

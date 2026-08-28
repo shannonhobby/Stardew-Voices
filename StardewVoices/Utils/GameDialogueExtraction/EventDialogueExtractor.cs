@@ -5,6 +5,7 @@ using StardewVoices.FileGeneration.Models;
 using StardewVoices.Utils.ParsingHelpers;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 
@@ -20,23 +21,16 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         // never visited by a given extraction. Only populated on non-English locales.
         private readonly Dictionary<string, Dictionary<string, string>> _englishEventDataCache = new();
 
-        // TODO - don't hardcode this incase of mods adding events
-        // All locations that contain love interest events.
-        private static readonly List<string> EventLocations = new()
-        {
-            "ArchaeologyHouse", "AnimalShop", "Backwoods", "BathHouse_Pool",
-            "Beach", "BusStop", "ElliottHouse", "Farm", "FarmHouse",
-            "Forest", "HaleyHouse", "Hospital", "JoshHouse", "LeahHouse",
-            "ManorHouse", "Mine", "Mountain", "Railroad", "Saloon",
-            "SamHouse", "ScienceHouse", "SebastianRoom", "SeedShop",
-            "Town", "Trailer", "Woods",
-        };
+        // Every location name that has a "Data/Events/{name}" content asset, discovered
+        // dynamically instead of a fixed list — see GetEventLocationNames. Computed once
+        // per extractor instance and reused, since it touches disk.
+        private List<string> _eventLocationNames;
 
-
-        private static readonly List<string> eventSpokenLines = new()
-        {
-            "speak", "textAboveHead", "end dialogue"
-        };
+        // locationName -> raw event dict, memoized so repeated per-character callers
+        // (GetAllEventsForCharacter is called once per character in both Pass 1 and
+        // again in GenerateEventDialogueFiles) don't reload the same ~45 locations'
+        // content from SMAPI over and over.
+        private readonly Dictionary<string, Dictionary<string, string>> _gameEventDataCache = new();
 
         private readonly BookPlaceholderResolver bookPlaceholderResolver;
 
@@ -54,7 +48,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         {
             var results = new List<(string Text, string Context)>();
 
-            foreach (string locationName in EventLocations)
+            foreach (string locationName in GetEventLocationNames())
             {
                 Dictionary<string, string> gameEventData = LoadGameEventData(locationName);
                 if (gameEventData == null) continue;
@@ -77,7 +71,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         {
             var results = new List<(string Text, string Context)>();
 
-            foreach (string locationName in EventLocations)
+            foreach (string locationName in GetEventLocationNames())
             {
                 Dictionary<string, string> gameEventData = LoadGameEventData(locationName);
                 if (gameEventData == null) continue;
@@ -105,7 +99,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         {
             var results = new List<(string Location, string EventId)>();
 
-            foreach (string locationName in EventLocations)
+            foreach (string locationName in GetEventLocationNames())
             {
                 Dictionary<string, string> gameEventData = LoadGameEventData(locationName);
                 if (gameEventData == null) continue;
@@ -137,6 +131,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             var heartEvents = new List<(int friendshipLevel, string locationName, string eventId)>();
             var guestEvents = new List<(string locationName, string eventId)>();
             var locationCache = new Dictionary<string, Dictionary<string, string>>();
+            var forkTargetCache = new Dictionary<string, HashSet<string>>();
 
             foreach (var (locationName, eventId) in allEvents)
             {
@@ -145,14 +140,23 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                     locationData = LoadGameEventData(locationName);
                     if (locationData == null) continue;
                     locationCache[locationName] = locationData;
+                    forkTargetCache[locationName] = GetForkTargetIds(locationData);
                 }
 
                 // Find the full raw key (e.g. "423502/f Elliott 1500") for this event
                 var entry = locationData.FirstOrDefault(kvp => kvp.Key.Split('/')[0] == eventId);
                 if (entry.Key == null) continue;
 
-                // Response events (no '/') are appended after their parent — skip at top level
-                if (!entry.Key.Contains('/')) continue;
+                // A key with no '/' is usually a fork/switchEvent response reached only
+                // from another event in this location — those are appended after their
+                // parent below, so skip them here. But some locations (e.g. Temp, Tent)
+                // are triggered directly by game code rather than through the normal
+                // precondition/fork system, so ALL their keys lack '/' and none of them
+                // are ever a fork target either. Only skip when this key is actually
+                // reachable as a fork target — otherwise it's a standalone event that
+                // would vanish entirely if skipped unconditionally.
+                if (!entry.Key.Contains('/') && forkTargetCache[locationName].Contains(eventId))
+                    continue;
 
                 Match heartMatch = Regex.Match(entry.Key, $@"/f {Regex.Escape(characterName)} (\d+)");
                 if (heartMatch.Success)
@@ -216,6 +220,29 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 target.Add((locationName, responseId));
                 AppendResponseEvents(locationData, locationName, responseScript, target, seen);
             }
+        }
+
+        // Every event id referenced anywhere in this location as a fork/switchEvent
+        // target — i.e. every id that's only reachable as a response to some other
+        // event, not a standalone/top-level one. Used by GetEventOrderForCharacter to
+        // tell a genuine fork-response key (no '/', appended after its parent) apart
+        // from a location whose events simply aren't gated by the usual '/'-precondition
+        // format at all (e.g. Temp, Tent — triggered directly by game code).
+        private static HashSet<string> GetForkTargetIds(Dictionary<string, string> locationData)
+        {
+            var targets = new HashSet<string>();
+            foreach (string script in locationData.Values)
+            {
+                foreach (string command in script.Split('/'))
+                {
+                    string trimmed = command.Trim();
+                    if (trimmed.StartsWith("fork "))
+                        targets.Add(trimmed.Substring(5).Trim().Split(' ')[0]);
+                    else if (trimmed.StartsWith("switchEvent "))
+                        targets.Add(trimmed.Substring(12).Trim().Split(' ')[0]);
+                }
+            }
+            return targets;
         }
 
         public List<EventLine> GetEventDialogue(string locationName, string eventId)
@@ -366,17 +393,67 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         public Dictionary<string, string> GetLocationData(string locationName)
             => LoadGameEventData(locationName);
 
-        private Dictionary<string, string> LoadGameEventData(string locationName)
+        // Every location name that has a "Data/Events/{name}" content asset.
+        // Computed once per extractor instance and reused, since it touches disk.
+        private List<string> GetEventLocationNames()
         {
+            if (_eventLocationNames != null)
+                return _eventLocationNames;
+
+            string eventsContentPath = Path.Combine(StardewModdingAPI.Constants.GamePath, "Content", "Data", "Events");
+
+            var locationNames = new List<string>();
             try
             {
-                return helper.GameContent.Load<Dictionary<string, string>>($"Data/Events/{locationName}");
+                if (Directory.Exists(eventsContentPath))
+                {
+                    foreach (string file in Directory.EnumerateFiles(eventsContentPath, "*.xnb"))
+                    {
+                        string nameWithoutExtension = Path.GetFileNameWithoutExtension(file);
+                        if (!string.IsNullOrWhiteSpace(nameWithoutExtension) && !nameWithoutExtension.Contains('.'))
+                            locationNames.Add(nameWithoutExtension);
+                    }
+                }
+                else
+                {
+                    ErrorLogger.Warn($"Could not find game event content folder at {eventsContentPath}.");
+                }
+            }
+            catch (Exception ex)
+            {
+                ErrorLogger.Error($"Error scanning game event content folder at {eventsContentPath}. Falling back to whatever was found before the error.", ex);
+            }
+
+            ErrorLogger.Info($"Discovered {locationNames.Count} event location(s) from {eventsContentPath}: {string.Join(", ", locationNames)}");
+
+            _eventLocationNames = locationNames;
+            return locationNames;
+        }
+
+        private Dictionary<string, string> LoadGameEventData(string locationName)
+        {
+            if (string.IsNullOrEmpty(locationName))
+            {
+                ErrorLogger.Warn($"LoadGameEventData called with a null/empty location name. Stack: {Environment.StackTrace}");
+                return null;
+            }
+
+            if (_gameEventDataCache.TryGetValue(locationName, out var cached))
+                return cached;
+
+            Dictionary<string, string> data;
+            try
+            {
+                data = helper.GameContent.Load<Dictionary<string, string>>($"Data/Events/{locationName}");
             }
             catch
             {
                 ErrorLogger.Warn($"Could not load event data for location: {locationName}");
-                return null;
+                data = null;
             }
+
+            _gameEventDataCache[locationName] = data;
+            return data;
         }
 
         // Loads the English version of a location's event data regardless of current game
