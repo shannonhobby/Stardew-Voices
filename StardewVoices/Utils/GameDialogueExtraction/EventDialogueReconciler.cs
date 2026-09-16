@@ -23,6 +23,15 @@ namespace StardewVoices.Utils.GameDialogueExtraction
     ///   Within each group, finds (Character, Dialogue) pairs that appear more
     ///   than once and collapses later occurrences to the first-seen canonical
     ///   LineId. Lines in different event groups are never deduped.
+    ///
+    /// Step C — ApplyManualOverrides
+    ///   Renames LineIds listed in EventDialogueManualOverrides.Map to their
+    ///   canonical id, across the whole dataset (not scoped to one location).
+    ///   Covers duplicate lines that Step A/B structurally cannot see because
+    ///   no /fork or /switchEvent path connects the two occurrences — e.g. the
+    ///   same scene witnessed from one location and triggered directly from
+    ///   another. See that file for the hand-curated table and the rules used
+    ///   to pick each canonical id.
     /// </summary>
     public static class EventDialogueReconciler
     {
@@ -130,7 +139,47 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 DeduplicateLocation(locationName, eventIds, groups, reconciled, collapseLog);
             }
 
+            // Step C: apply hand-curated cross-location overrides
+            ApplyManualOverrides(reconciled, collapseLog);
+
             return (reconciled, collapseLog);
+        }
+
+        // ── Step C: manual cross-location overrides ─────────────────────────────
+
+        /// <summary>
+        /// Renames every LineId found in EventDialogueManualOverrides.Map to its
+        /// canonical value, across all locations. Unlike Step B this isn't scoped to
+        /// a fork-reachability group — these are duplicates the extractor has no
+        /// structural way to connect.
+        /// </summary>
+        private static void ApplyManualOverrides(
+            Dictionary<string, List<EventLine>> lines,
+            Dictionary<string, string> collapseLog)
+        {
+            var overrides = EventDialogueManualOverrides.Map;
+            var seenKeys = new HashSet<string>();
+
+            foreach (var eventLines in lines.Values)
+            {
+                for (int i = 0; i < eventLines.Count; i++)
+                {
+                    EventLine line = eventLines[i];
+                    if (!overrides.TryGetValue(line.LineId, out string canonicalId)) continue;
+
+                    seenKeys.Add(line.LineId);
+                    collapseLog[line.LineId] = canonicalId;
+                    eventLines[i] = line with { LineId = canonicalId };
+                }
+            }
+
+            foreach (string key in overrides.Keys)
+            {
+                if (!seenKeys.Contains(key))
+                    ErrorLogger.Warn($"[Pass 2, Step C] Manual override key not found in extracted data (stale mapping?): \"{key}\"");
+            }
+
+            ErrorLogger.Info($"[Pass 2, Step C] Applied {seenKeys.Count}/{overrides.Count} manual overrides.");
         }
 
         // ── Private helpers ──────────────────────────────────────────────────────
