@@ -59,10 +59,10 @@ namespace StardewVoices
             helper.ConsoleCommands.Add(
               "sv_generation",
               "Generates Dialogue JSONs and Scripts." +
-              "\n\nUsage: sv_generate_files [filesToGenerate] [scriptFormat]" +
+              "\n\nUsage: sv_generation [filesToGenerate] [scriptFormat] [generateGossipDialogue]" +
               "\n- filesToGenerate: \"json\", \"script\", \"both\" (default: both)" +
               "\n- scriptFormat: \"txt\", \"md\", \"both\" (default: both)" +
-              "\n- generateGossipDialogue: \"yes\", \"no\" (default: yes)",
+              "\n- generateGossipDialogue: \"yes\", \"no\" (default: no)",
               GenerateFiles
           );
 
@@ -153,7 +153,7 @@ namespace StardewVoices
         {
             string filesToGenerate      = args.Length > 0 ? args[0].ToLower() : "both";
             string scriptFormat         = args.Length > 1 ? args[1].ToLower() : "both";
-            string gossipArg            = args.Length > 2 ? args[2].ToLower() : "yes";
+            string gossipArg            = args.Length > 2 ? args[2].ToLower() : "no";
 
             bool generateJson           = filesToGenerate == "json"   || filesToGenerate == "both";
             bool generateScript         = filesToGenerate == "script" || filesToGenerate == "both";

@@ -71,6 +71,13 @@ namespace StardewVoices.FileGeneration
 
             Managers.TestingManager.ValidationIsRunning = true;
 
+            // Clear state from any previous run in this session so re-running the
+            // generation command doesn't try to re-add already-populated keys.
+            Jsons.Clear();
+            EventJsons.Clear();
+            Scripts.Clear();
+            EventScripts.Clear();
+
             // Setup extractor class instances
             characterDialogueExtractor= new CharacterDialogueExtractor(Helper);
             eventDialogueExtractor = new EventDialogueExtractor(Helper);
@@ -156,7 +163,7 @@ namespace StardewVoices.FileGeneration
             GenerateFestivalDialogueFiles(generateJson, generateScript);
 
 
-            WriteOutAllFiles();
+            WriteOutAllFiles(scriptFormat);
         }
 
         /*
@@ -179,7 +186,7 @@ namespace StardewVoices.FileGeneration
                 EventJsons[lastEventId].AddLine(GetLineId(Text), Text);
             }
         }*/
-        private void WriteOutAllFiles()
+        private void WriteOutAllFiles(string scriptFormat)
         {
             foreach (string key in Jsons.Keys)
             {
@@ -193,12 +200,12 @@ namespace StardewVoices.FileGeneration
 
             foreach (string key in Scripts.Keys)
             {
-                Scripts[key].WriteOut();
+                Scripts[key].WriteOut(scriptFormat);
             }
 
             foreach (string key in EventScripts.Keys)
             {
-                EventScripts[key].WriteOut();
+                EventScripts[key].WriteOut(scriptFormat);
             }
         }
         private void GenerateCharacterDialogueFiles(string characterName, bool generateJson, bool generateScript, bool generateGossipDialogue)

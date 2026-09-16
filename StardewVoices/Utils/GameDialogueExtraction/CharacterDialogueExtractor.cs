@@ -139,7 +139,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 character, $"Characters/Dialogue/{LocalizationHelpers.GetName(character?.getName())}", DialogueType.Dialogue);
 
             if (lines.Count == 0)
-                ErrorLogger.Warn($"No character dialogue found for {character?.Name}.");
+                ErrorLogger.Trace($"No character dialogue found for {character?.Name}.");
 
             return lines;
         }
@@ -205,7 +205,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                     character, $"Characters/Dialogue/MarriageDialogue{character.Name}", DialogueType.Marriage);
 
                 if (lines.Count == 0)
-                    ErrorLogger.Warn($"No marriage dialogue found for {character.Name}.");
+                    ErrorLogger.Trace($"No marriage dialogue found for {character.Name}.");
 
                 return lines;
             }
@@ -281,7 +281,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             {
                 var lines = GetMovieDialogue(character);
                 if (lines.Count == 0)
-                    ErrorLogger.Warn($"No movie dialogue found for {character.Name}.");
+                    ErrorLogger.Trace($"No movie dialogue found for {character.Name}.");
 
                 lines.AddRange(Get16Strings(character));
                 lines.AddRange(GetStringsFromCharactersFiles(character));
@@ -302,7 +302,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 character, "Strings/MovieReactions", DialogueType.Generic);
 
             if (lines.Count == 0)
-                ErrorLogger.Warn($"No movie reaction dialogue found for {character.Name}.");
+                ErrorLogger.Trace($"No movie reaction dialogue found for {character.Name}.");
 
             return lines;
         }
@@ -344,7 +344,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 character, "Strings/1_6_Strings", DialogueType.Generic);
 
             if (lines.Count == 0)
-                ErrorLogger.Warn($"No 1.6 dialogue found for {character.Name}.");
+                ErrorLogger.Trace($"No 1.6 dialogue found for {character.Name}.");
 
             return lines;
         }
@@ -414,7 +414,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 character, "Strings/SpeechBubbles", DialogueType.Generic);
 
             if (lines.Count == 0)
-                ErrorLogger.Warn($"No speech bubble dialogue found for {character.Name}.");
+                ErrorLogger.Trace($"No speech bubble dialogue found for {character.Name}.");
 
             return lines;
         }
@@ -455,7 +455,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 }
 
                 if (lines.Count == 0)
-                    ErrorLogger.Warn($"No gift taste dialogue found for {character.Name}.");
+                    ErrorLogger.Trace($"No gift taste dialogue found for {character.Name}.");
 
                 return lines;
             }
@@ -472,7 +472,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 character, $"Strings/schedules/{LocalizationHelpers.GetName(character.getName())}", DialogueType.Schedule);
 
             if (lines.Count == 0)
-                ErrorLogger.Warn($"No schedule dialogue found for {character.Name}.");
+                ErrorLogger.Trace($"No schedule dialogue found for {character.Name}.");
 
             return lines;
         }

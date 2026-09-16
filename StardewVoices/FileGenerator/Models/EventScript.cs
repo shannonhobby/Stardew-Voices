@@ -159,7 +159,7 @@ namespace StardewVoices.FileGeneration.Models
                 ParentFolder.CreateFile(CharacterName + " Events.txt", GetPlainText());
             }
 
-            if (fileType == "txt" || fileType == "both")
+            if (fileType == "md" || fileType == "both")
             {
                 ParentFolder.CreateFile(CharacterName + " Events.md", GetMarkdown());
             }
