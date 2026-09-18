@@ -434,7 +434,6 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         {
             if (string.IsNullOrEmpty(locationName))
             {
-                ErrorLogger.Warn($"LoadGameEventData called with a null/empty location name. Stack: {Environment.StackTrace}");
                 return null;
             }
 

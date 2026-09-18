@@ -64,8 +64,10 @@ namespace StardewVoices.FileGeneration.Models
 
             PathNode root = pathManager.GeneratedFilesRoot;
 
-            if (root.GetChild("Scripts") == null)
-                root.CreateFolder("Scripts");
+            // Always (re)create the folder on disk in case a previous run in this
+            // session deleted it — PathNode caches children in memory, so a cached
+            // "Scripts" node doesn't mean the folder still exists on disk.
+            root.CreateFolder("Scripts");
 
             root.GetChild("Scripts").CreateChild(CharacterName);
             ParentFolder = root.GetChild("Scripts");
@@ -138,7 +140,7 @@ namespace StardewVoices.FileGeneration.Models
                 ParentFolder.CreateFile(CharacterName + ".txt", GetPlainText());
             }
 
-            if (fileType == "txt" || fileType == "both")
+            if (fileType == "md" || fileType == "both")
             {
                 ParentFolder.CreateFile(CharacterName + ".md", GetMarkdown());
             }
