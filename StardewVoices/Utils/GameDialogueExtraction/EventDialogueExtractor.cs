@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 
 namespace StardewVoices.Utils.GameDialogueExtraction
@@ -393,6 +394,28 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         public Dictionary<string, string> GetLocationData(string locationName)
             => LoadGameEventData(locationName);
 
+        // Builds the on-disk path to the game's Content/Data/Events folder.
+        //
+        // StardewModdingAPI.Constants.GamePath points at the folder containing the game's
+        // executable/DLLs, which is where Content lives directly on Windows and Linux. On
+        // the Mac Steam build, though, GamePath resolves to .../Stardew Valley.app/Contents/MacOS
+        // (the .app bundle's executable folder), while the actual Content folder lives one
+        // level up in the bundle at .../Contents/Resources/Content instead of alongside the
+        // executable. Without accounting for that bundle layout, the naive Windows-style
+        // "GamePath/Content" join misses the folder entirely on Mac.
+        private string GetEventsContentPath()
+        {
+            string gamePath = StardewModdingAPI.Constants.GamePath;
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                string contentsDir = Directory.GetParent(gamePath)?.FullName ?? gamePath;
+                return Path.Combine(contentsDir, "Resources", "Content", "Data", "Events");
+            }
+
+            return Path.Combine(gamePath, "Content", "Data", "Events");
+        }
+
         // Every location name that has a "Data/Events/{name}" content asset.
         // Computed once per extractor instance and reused, since it touches disk.
         private List<string> GetEventLocationNames()
@@ -400,7 +423,8 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             if (_eventLocationNames != null)
                 return _eventLocationNames;
 
-            string eventsContentPath = Path.Combine(StardewModdingAPI.Constants.GamePath, "Content", "Data", "Events");
+            string eventsContentPath = GetEventsContentPath();
+            ErrorLogger.Info($"Resolved game event content folder path: {eventsContentPath}");
 
             var locationNames = new List<string>();
             try
