@@ -1,5 +1,6 @@
 using StardewModdingAPI;
 using StardewValley;
+using StardewVoices.Dialogue;
 using StardewVoices.Utils;
 using StardewVoices.FileGeneration.Models;
 using StardewVoices.Utils.ParsingHelpers;
@@ -311,17 +312,20 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             string locationName, string sceneName, string script, string englishScript, bool isResponseEvent)
         {
             var results = new List<EventLine>();
+            string contextLabel = $"{locationName}/{sceneName}";
 
             Dictionary<string, int> speakerLineCount = new Dictionary<string, int>();
-            // Includes speak, textAboveHead, and end-dialogue lines together, in the
-            // order they appear in the raw script, so the shared per-character counter
-            // below advances across all three types instead of resetting per type.
-            List<(string line, string characterName, EventActionType actionType, object chainGroup)> speakLines =
-                ParseSpeakingLines(script);
+            // Includes speak, textAboveHead, end-dialogue, and expanded splitSpeak/question-
+            // answer lines together, in the order they appear in the raw script, so the
+            // shared per-character counter below advances across all types instead of
+            // resetting per type. A "resolvedLine" entry (from a hardcoded question answer)
+            // already carries its own fixed id and bypasses the counter entirely — see below.
+            List<(string line, string characterName, EventActionType actionType, object chainGroup, EventLine resolvedLine)> speakLines =
+                ParseSpeakingLines(script, contextLabel);
             if (speakLines.Count == 0) return results;
 
-            List<(string line, string characterName, EventActionType actionType, object chainGroup)> englishSpeakLines =
-                englishScript != null ? ParseSpeakingLines(englishScript) : null;
+            List<(string line, string characterName, EventActionType actionType, object chainGroup, EventLine resolvedLine)> englishSpeakLines =
+                englishScript != null ? ParseSpeakingLines(englishScript, contextLabel) : null;
 
             // Tracks the previous speak/textAboveHead/end-dialogue command's chain
             // group and the next id to use if the next command shares that same
@@ -334,7 +338,19 @@ namespace StardewVoices.Utils.GameDialogueExtraction
 
             for (int i = 0; i < speakLines.Count; i++)
             {
-                (string line, string characterName, EventActionType actionType, object chainGroup) = speakLines[i];
+                (string line, string characterName, EventActionType actionType, object chainGroup, EventLine resolvedLine) = speakLines[i];
+
+                // A hardcoded question-answer line already has its own fixed line id
+                // (from Strings/StringsFromCsFiles) — add it as-is and reset the chain,
+                // since it never participates in the per-character _eventN counter.
+                if (resolvedLine != null)
+                {
+                    results.Add(resolvedLine);
+                    previousChainGroup = null;
+                    chainId = null;
+                    continue;
+                }
+
                 bool continuesChain = chainGroup != null && chainGroup == previousChainGroup;
 
                 // Generate the base ID first so ParseDialogueWithIds can append
@@ -587,21 +603,121 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             { EventActionType.EndDialogue,   new Regex(@"^end dialogue (\S+) ""(.+)""$") },
         };
 
-        // Extracts speak, textAboveHead, and end-dialogue commands together, in the order
-        // they appear in the raw script. Used by GetEventDialogue so the per-character line
-        // counter in GenerateEventLineId advances across all three types instead of resetting
-        // per type. Each command's text is kept whole (including any "#$b#" page breaks) so
-        // CharacterDialogueParser.ParseDialogueWithIds can split it and assign the _sv{n}
-        // continuation suffixes itself, same as regular dialogue. chainGroup is carried
-        // through from ExpandCommandStream so GetEventDialogue can tell which consecutive
-        // commands came from the same quickQuestion branch (continue the _sv chain) vs.
-        // which should grab a fresh event id.
-        private List<(string line, string characterName, EventActionType actionType, object chainGroup)> ParseSpeakingLines(string eventScript)
+        private static readonly Regex SplitSpeakRegex = new Regex(@"^splitSpeak (\S+) ""(.+)""$");
+        private static readonly Regex QuestionRegex = new Regex(@"^question (\S+)");
+
+        // Vanilla `question <key>` commands whose answer dialogue for each option is NOT
+        // present in the event script itself — Event.answerDialogue hardcodes these replies
+        // in the game's C# source rather than in Data/Events, keyed by the same question key.
+        // Not reflectively callable here (it mutates a live Event/Game1.CurrentEvent, which
+        // doesn't exist during offline extraction), so these are hardcoded from
+        // Strings/StringsFromCsFiles by hand. Kept under their "File.cs.Line" id rather than
+        // an event-scoped id, since the same hardcoded reply could be reused verbatim by other
+        // question keys/events, unlike ordinary event dialogue which is scoped to one event.
+        private static readonly Dictionary<string, (string Character, string[] CsFileKeys)> QuestionAnswerTable = new()
         {
-            var lines = new List<(string line, string characterName, EventActionType actionType, object chainGroup)>();
+            // "Are you going to jump?" cliffside scene (Forest event 3910975).
+            ["shaneCliffs"] = ("Shane", new[] { "Event.cs.1760", "Event.cs.1761", "Event.cs.1763", "Event.cs.1764" }),
+        };
+
+        private Dictionary<string, string> _stringsFromCsFilesCache;
+
+        private Dictionary<string, string> LoadStringsFromCsFiles()
+        {
+            if (_stringsFromCsFilesCache != null) return _stringsFromCsFilesCache;
+
+            try
+            {
+                _stringsFromCsFilesCache = helper.GameContent.Load<Dictionary<string, string>>("Strings/StringsFromCsFiles");
+            }
+            catch
+            {
+                ErrorLogger.Warn("Could not load 'Strings/StringsFromCsFiles'.");
+                _stringsFromCsFilesCache = new Dictionary<string, string>();
+            }
+
+            return _stringsFromCsFilesCache;
+        }
+
+        // Extracts speak, textAboveHead, end-dialogue, splitSpeak, and question-answer
+        // commands together, in the order they appear in the raw script. Used by
+        // GetScriptDialogue so the per-character line counter in GenerateEventLineId advances
+        // across all types instead of resetting per type. Each command's text is kept whole
+        // (including any "#$b#" page breaks) so CharacterDialogueParser.ParseDialogueWithIds
+        // can split it and assign the _sv{n} continuation suffixes itself, same as regular
+        // dialogue. chainGroup is carried through from ExpandCommandStream so GetScriptDialogue
+        // can tell which consecutive commands came from the same quickQuestion branch (continue
+        // the _sv chain) vs. which should grab a fresh event id.
+        private List<(string line, string characterName, EventActionType actionType, object chainGroup, EventLine resolvedLine)> ParseSpeakingLines(
+            string eventScript, string contextLabel)
+        {
+            var lines = new List<(string line, string characterName, EventActionType actionType, object chainGroup, EventLine resolvedLine)>();
+
+            // A question's answer dialogue is handled either by a following splitSpeak
+            // (key "null") or is already covered by fork/switchEvent commands elsewhere in
+            // this same script (the forked event gets extracted on its own when that key is
+            // reached) — in either case, no lookup or warning is needed. Checked once per
+            // script rather than per question command.
+            bool scriptHasForkOrSwitch = eventScript.Contains("fork ") || eventScript.Contains("switchEvent ");
 
             foreach (var (trimmed, chainGroup) in ExpandCommandStream(eventScript, '/'))
             {
+                // The question's own text is the farmer's answer choices, never NPC
+                // dialogue — this command itself never emits a line. If its answers are
+                // hardcoded (not "null" and not fork-resolved), look them up and emit them
+                // here, using their own fixed ids rather than the counter below.
+                if (trimmed.StartsWith("question "))
+                {
+                    Match questionMatch = QuestionRegex.Match(trimmed);
+                    string questionKey = questionMatch.Success ? questionMatch.Groups[1].Value : null;
+
+                    if (string.IsNullOrEmpty(questionKey) || questionKey == "null" || scriptHasForkOrSwitch)
+                        continue;
+
+                    if (!QuestionAnswerTable.TryGetValue(questionKey, out var mapping))
+                    {
+                        ErrorLogger.Warn($"Unmapped question key '{questionKey}' in {contextLabel} — its answer dialogue was not extracted.");
+                        continue;
+                    }
+
+                    Dictionary<string, string> csFileStrings = LoadStringsFromCsFiles();
+                    foreach (string csKey in mapping.CsFileKeys)
+                    {
+                        if (csKey == null)
+                        {
+                            ErrorLogger.Warn($"Question '{questionKey}' in {contextLabel} has an answer slot with no mapped Strings/StringsFromCsFiles key.");
+                            continue;
+                        }
+                        if (!csFileStrings.TryGetValue(csKey, out string rawText))
+                        {
+                            ErrorLogger.Warn($"Answer key '{csKey}' for question '{questionKey}' in {contextLabel} was not found in Strings/StringsFromCsFiles.");
+                            continue;
+                        }
+
+                        foreach (LabelledDialogueLine parsed in CharacterDialogueParser.ParseRawValueToLines(rawText, csKey, DialogueType.Event))
+                            lines.Add((null, mapping.Character, EventActionType.Speak, null,
+                                new EventLine(parsed.LineId, mapping.Character, parsed.Text)));
+                    }
+
+                    continue;
+                }
+
+                if (trimmed.StartsWith("splitSpeak "))
+                {
+                    Match splitMatch = SplitSpeakRegex.Match(trimmed);
+                    if (!splitMatch.Success) continue;
+
+                    string splitCharacterName = splitMatch.Groups[1].Value;
+                    // Each branch is a fresh, independent reply — never a continuation of
+                    // another branch or of whatever came before — so each gets its own
+                    // object() marker rather than sharing chainGroup with the splitSpeak
+                    // command itself or with one another.
+                    foreach (string branch in splitMatch.Groups[2].Value.Split('~'))
+                        lines.Add((branch, splitCharacterName, EventActionType.Speak, new object(), null));
+
+                    continue;
+                }
+
                 EventActionType? actionType = trimmed switch
                 {
                     var s when s.StartsWith("speak ") => EventActionType.Speak,
@@ -615,7 +731,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 if (!m.Success) continue;
 
                 string characterName = m.Groups[1].Value;
-                lines.Add((m.Groups[2].Value, characterName, actionType.Value, chainGroup));
+                lines.Add((m.Groups[2].Value, characterName, actionType.Value, chainGroup, null));
             }
 
             return lines;
