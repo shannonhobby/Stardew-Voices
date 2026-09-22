@@ -56,6 +56,7 @@ namespace StardewVoices.FileGeneration
             {DialogueType.Extra, "ExtraDialogue" },
             {DialogueType.Rainy, "rainy" },
             {DialogueType.GenericMarriage, "Marriage Dialogue Generic" },
+            {DialogueType.Quest, "quest" },
         };
 
         public void GenerateFiles(bool generateJson, bool generateScript, bool generateGossipDialogue, string scriptFormat, ModConfig config)
