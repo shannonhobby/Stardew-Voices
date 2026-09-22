@@ -328,6 +328,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                     lines.Add(BuildLabelledDialogue(character, key, value, DialogueType.GenericMarriage));
                 }
             }
+            return lines;
         }
 
         private List<LabelledDialogue> GetExtraDialogue(NPC character)

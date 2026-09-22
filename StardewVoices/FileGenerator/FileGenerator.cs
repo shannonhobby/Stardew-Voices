@@ -300,18 +300,46 @@ namespace StardewVoices.FileGeneration
 
                 foreach (string lineId in festivalDict.Keys)
                 {
+                    // Pure staging script with no dialogue of its own.
+                    if (lineId == "set-up") continue;
+
+                    string rawValue = festivalDict[lineId];
+                    string englishRawValue = (englishFestivalDict != null && englishFestivalDict.TryGetValue(lineId, out string ev))
+                        ? ev : null;
+
+                    // Event-script values (e.g. "governorReaction6", "afterEggHunt") are
+                    // detected structurally, not by key name, so fork targets like
+                    // "AbbyWin" get the same treatment as top-level keys.
+                    if (FestivalDialogueExtractor.IsEventScript(rawValue))
+                    {
+                        List<EventLine> eventLines =
+                            eventDialogueExtractor.GetFestivalScriptDialogue(date, lineId, rawValue, englishRawValue);
+
+                        foreach (EventLine eventLine in eventLines)
+                        {
+                            if (generateJson)
+                                Jsons[date].AddMiscLine(eventLine.LineId, eventLine.Dialogue);
+
+                            if (generateScript
+                                && Scripts.TryGetValue(LocalizationHelpers.GetLocalizedName(eventLine.Character), out Script targetScript))
+                            {
+                                targetScript.AddLine(
+                                    new LabelledDialogueLine(eventLine.LineId, eventLine.Dialogue, lineId, DialogueType.Festival));
+                            }
+                        }
+
+                        continue;
+                    }
+
                     if (DialogueHelpers.StringContainsCharacterToGenerate(lineId))
                     {
-                        string englishRawValue = (englishFestivalDict != null && englishFestivalDict.TryGetValue(lineId, out string ev))
-                            ? ev : null;
-
                         List<LabelledDialogueLine> parsedLines =
-                            CharacterDialogueParser.ParseRawValueToLines(festivalDict[lineId], lineId, DialogueType.Festival, englishRawValue);
-                        
-                     
+                            CharacterDialogueParser.ParseRawValueToLines(rawValue, lineId, DialogueType.Festival, englishRawValue);
+
+
                         foreach (LabelledDialogueLine dialogueLine in parsedLines)
                         {
-                           
+
                             dialogueLine.LineId = date + "_" + dialogueLine.LineId;
                         }
 
@@ -326,7 +354,7 @@ namespace StardewVoices.FileGeneration
                         if (generateScript)
                         {
                             string characterName = lineId.Split("_")[0];
-                          
+
                             bool firstInGroup = true;
                             foreach (LabelledDialogueLine line in parsedLines)
                             {

@@ -269,31 +269,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         // across every caller instead of drifting between two parsing paths.
         private List<EventLine> GetEventLinesForEntry(string locationName, string eventId, KeyValuePair<string, string> kvp)
         {
-            var results = new List<EventLine>();
-
             bool isResponseEvent = !kvp.Key.Contains('/');
-            Dictionary<string, int> speakerLineCount = new Dictionary<string, int>();
-            // Includes speak, textAboveHead, and end-dialogue lines together, in the
-            // order they appear in the raw script, so the shared per-character counter
-            // below advances across all three types instead of resetting per type.
-            List<(string line, string characterName, EventActionType actionType, object chainGroup)> speakLines =
-                ParseSpeakingLines(kvp.Value);
-            if (speakLines.Count == 0) return results;
-
-            // English counterpart of this same event entry, positionally aligned to
-            // speakLines (same script, same command order — only the spoken text
-            // differs by locale). Used so ids derived from response-embedded text
-            // (see ParseYDialogueWithIds) resolve to the English source instead of
-            // whatever language the game is currently loaded with. Null on English
-            // locales or if the English asset/key can't be found — callers then fall
-            // back to deriving ids from the localized text itself.
-            List<(string line, string characterName, EventActionType actionType, object chainGroup)> englishSpeakLines = null;
-            if (!isEnglish
-                && GetEnglishGameEventData(locationName) is Dictionary<string, string> englishEventData
-                && englishEventData.TryGetValue(kvp.Key, out string englishScript))
-            {
-                englishSpeakLines = ParseSpeakingLines(englishScript);
-            }
 
             // The raw key's last precondition often carries a value that the scene name
             // needs to preserve (e.g. "733330/f Sam 750/.../y 1" -> "733330_1").
@@ -303,6 +279,49 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             string sceneName = keyTokens.Length > 1
                 ? $"{eventId}_{keyTokens[^1]}"
                 : eventId;
+
+            // English counterpart of this same event entry, positionally aligned to
+            // ParseSpeakingLines(kvp.Value) (same script, same command order — only the
+            // spoken text differs by locale). Used so ids derived from response-embedded
+            // text (see ParseYDialogueWithIds) resolve to the English source instead of
+            // whatever language the game is currently loaded with. Null on English
+            // locales or if the English asset/key can't be found — GetScriptDialogue then
+            // falls back to deriving ids from the localized text itself.
+            string englishScript = null;
+            if (!isEnglish
+                && GetEnglishGameEventData(locationName) is Dictionary<string, string> englishEventData
+                && englishEventData.TryGetValue(kvp.Key, out string es))
+            {
+                englishScript = es;
+            }
+
+            return GetScriptDialogue(locationName, sceneName, kvp.Value, englishScript, isResponseEvent);
+        }
+
+        /// <summary>
+        /// Parses a raw event-script string (the "/"-delimited speak/textAboveHead/end
+        /// dialogue command stream shared by Data/Events and Data/Festivals) into fully
+        /// resolved EventLines — real line ids via GenerateEventLineId, with any "%book"
+        /// placeholder already resolved. Shared by GetEventLinesForEntry (Data/Events) and
+        /// GetFestivalScriptDialogue (Data/Festivals) so line-id generation, #$b# splitting,
+        /// and gender/book-placeholder resolution stay identical between the two instead of
+        /// drifting between two parsing paths.
+        /// </summary>
+        private List<EventLine> GetScriptDialogue(
+            string locationName, string sceneName, string script, string englishScript, bool isResponseEvent)
+        {
+            var results = new List<EventLine>();
+
+            Dictionary<string, int> speakerLineCount = new Dictionary<string, int>();
+            // Includes speak, textAboveHead, and end-dialogue lines together, in the
+            // order they appear in the raw script, so the shared per-character counter
+            // below advances across all three types instead of resetting per type.
+            List<(string line, string characterName, EventActionType actionType, object chainGroup)> speakLines =
+                ParseSpeakingLines(script);
+            if (speakLines.Count == 0) return results;
+
+            List<(string line, string characterName, EventActionType actionType, object chainGroup)> englishSpeakLines =
+                englishScript != null ? ParseSpeakingLines(englishScript) : null;
 
             // Tracks the previous speak/textAboveHead/end-dialogue command's chain
             // group and the next id to use if the next command shares that same
@@ -353,6 +372,17 @@ namespace StardewVoices.Utils.GameDialogueExtraction
 
             return results;
         }
+
+        /// <summary>
+        /// Parses one Data/Festivals event-script value (e.g. "governorReaction6") the same
+        /// way as a regular event: same speak/textAboveHead/end-dialogue extraction, #$b#
+        /// splitting, and per-character-per-key counters. Unlike Data/Events entries,
+        /// festival script keys never carry the "/"-precondition format used to distinguish
+        /// top-level events from fork-response branches, so isResponseEvent is always false
+        /// here — no "response_" id prefix.
+        /// </summary>
+        public List<EventLine> GetFestivalScriptDialogue(string festivalDate, string jsonKey, string script, string englishScript)
+            => GetScriptDialogue(festivalDate, jsonKey, script, englishScript, isResponseEvent: false);
 
         public enum EventActionType
         {
