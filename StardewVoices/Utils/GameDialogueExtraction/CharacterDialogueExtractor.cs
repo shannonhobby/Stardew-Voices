@@ -110,6 +110,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 return new Dictionary<DialogueType, List<LabelledDialogue>>
                 {
                     { DialogueType.Dialogue,        GetCharacterDialogue(character) },
+                    { DialogueType.Engagement,      GetEngagementDialogue(character) },
                     { DialogueType.Rainy,           GetRainyDialogue(character) },
                     { DialogueType.Extra,           GetExtraDialogue(character) },
                     { DialogueType.Generic,         GetGenericDialogue(character) },
@@ -210,6 +211,9 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             {
                 var lines = GetLabelledDialogueFromGameContent(
                     character, $"Characters/Dialogue/MarriageDialogue{character.Name}", DialogueType.Marriage);
+
+                // Get specific character lines from MarriageDialogue.json
+                lines.AddRange(GetLabelledLinesWithCharacterNameInId(character, $"Characters/Dialogue/MarriageDialogue", DialogueType.Marriage));
 
                 if (lines.Count == 0)
                     ErrorLogger.Trace($"No marriage dialogue found for {character.Name}.");
@@ -342,8 +346,9 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 foreach (var (key, value) in data)
                 {
                     if (StringContainsCharacter(key, character.getName())
-                        || StringContainsSpouse(key)
-                        || key.Contains("NewChild")
+                        || StringContainsSpouse(key) && character.isRoommate()
+                        || (key.Contains("PurchasedItem") && !DialogueHelpers.StringContainAnyCharacter(key))
+                        || key.Contains("NewChild") && character.isRoommate()
                         || key.Contains("LostItemQuest")
                         || key.Equals("Town_DumpsterDiveComment_Teen") && character.GetData().Age == NpcAge.Teen
                         || key.Equals("Town_DumpsterDiveComment_Adult") && character.GetData().Age == NpcAge.Adult
@@ -677,12 +682,16 @@ namespace StardewVoices.Utils.GameDialogueExtraction
 
         private bool StringContainsCharacter(string str, string characterName)
         {
-            return DialogueHelpers.StringContainsSupportedCharacter(str) && str.Contains(characterName);
+            if (characterName.Contains("Qi"))
+            {
+               return DialogueHelpers.StringContainsCharacterToGenerate(str) &&  str.Contains("Qi");
+            }
+            return DialogueHelpers.StringContainsCharacterToGenerate(str) && str.Contains(characterName);
         }
 
         private bool StringContainsSpouse(string str)
         {
-            return !DialogueHelpers.StringContainsSupportedCharacter(str) && str.Contains("Spouse");
+            return !DialogueHelpers.StringContainsCharacterToGenerate(str) && str.Contains("Spouse");
         }
 
 
