@@ -2,6 +2,7 @@
 using StardewVoices.Utils;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 
 namespace StardewVoices.FileGeneration.Models
@@ -137,14 +138,29 @@ namespace StardewVoices.FileGeneration.Models
         public void AddScriptSection(string sectionTitle, List<EventLine> lines)
         {
             AppendSectionHeader(sectionTitle);
-            foreach (var line in lines)
-                AddEventLine(line);
+            AddEventLines(lines);
+        }
+
+        /// <summary>
+        /// Adds a scene's lines in order, showing male/female farmer alternates side by
+        /// side instead of one after the other.
+        /// </summary>
+        public void AddEventLines(IEnumerable<EventLine> lines)
+        {
+            List<ScriptLine> scriptLines = lines.Select(line => new ScriptLine(line.LineId, line.Dialogue, line.Character)).ToList();
+
+            foreach (ScriptEntry entry in VariantGroupBuilder.Build(scriptLines))
+            {
+                if (entry is VariantGroup group)
+                    AddEventVariantGroup(group);
+                else if (entry is SingleLineEntry single)
+                    AddEventLine(new EventLine(single.Line.LineId, single.Line.Speaker, single.Line.Text));
+            }
         }
 
         public void AddEventLine(EventLine line)
         {
-            bool isTarget = string.Equals(
-                 LocalizationHelpers.GetLocalizedName(line.Character), CharacterName, StringComparison.OrdinalIgnoreCase);
+            bool isTarget = IsTargetCharacter(line.Character);
 
             if (isTarget) LineCount++;
 
@@ -214,15 +230,45 @@ namespace StardewVoices.FileGeneration.Models
 
         // ── Private helpers ──────────────────────────────────────────────────────────
 
-       
+        private bool IsTargetCharacter(string character)
+            => string.Equals(
+                 LocalizationHelpers.GetLocalizedName(character), CharacterName, StringComparison.OrdinalIgnoreCase);
+
+        // Character label: ★ NAME ★ for the target; · Name · for others
+        private string PlainTextSpeakerLabel(string character, bool isTarget)
+        {
+            string localizedCharacterName = LocalizationHelpers.GetLocalizedName(character);
+            return isTarget
+                ? CenterLine($"★  {localizedCharacterName.ToUpper()}  ★") + "\n"
+                : CenterLine($"· {localizedCharacterName} ·") + "\n";
+        }
+
+        /// <summary>
+        /// Renders mutually exclusive alternates side by side under the usual speaker label.
+        /// Only the target character's alternates count toward <see cref="Script.LineCount"/>
+        /// — every option, since each one still has to be recorded.
+        /// </summary>
+        private void AddEventVariantGroup(VariantGroup group)
+        {
+            bool isTarget = IsTargetCharacter(group.Speaker);
+            if (isTarget) LineCount += group.LineCount;
+
+            string localizedCharacterName = LocalizationHelpers.GetLocalizedName(group.Speaker);
+
+            PlainTextScript += PlainTextSpeakerLabel(group.Speaker, isTarget);
+            PlainTextScript += CenterLine(VariantGroupRenderer.PlainTextMarker) + "\n";
+            PlainTextScript += VariantGroupRenderer.RenderPlainText(group, PageWidth) + "\n";
+
+            MarkDownScript += isTarget
+                ? $"**★ {localizedCharacterName.ToUpper()} ★**\n\n"
+                : $"· *{localizedCharacterName}* ·\n\n";
+            MarkDownScript += VariantGroupRenderer.MarkdownMarker + "\n\n";
+            MarkDownScript += VariantGroupRenderer.RenderMarkdownTable(group, emphasizeText: isTarget) + "\n";
+        }
 
         private void AddEventLinePlainText(EventLine line, bool isTarget)
         {
-            string localizedCharacterName = LocalizationHelpers.GetLocalizedName(line.Character);
-            // Character label: ★ NAME ★ for the target; · Name · for others
-            PlainTextScript += isTarget
-                ? CenterLine($"★  {localizedCharacterName.ToUpper()}  ★") + "\n"
-                : CenterLine($"· {localizedCharacterName} ·") + "\n";
+            PlainTextScript += PlainTextSpeakerLabel(line.Character, isTarget);
 
             // Line ID
             PlainTextScript += CenterLine($"[ {line.LineId} ]") + "\n";

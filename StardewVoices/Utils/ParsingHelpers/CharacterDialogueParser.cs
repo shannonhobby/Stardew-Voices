@@ -250,7 +250,18 @@ namespace StardewVoices.Utils.ParsingHelpers
 
                 foreach (string part in parts.Where(x => x.Trim().Length > 0))
                 {
-                    results.Add((currentId, part.Trim()));
+                    // A part can still carry its own ^ gender split (e.g. "A|B^C") —
+                    // split it here rather than leaking a literal "^" into the text.
+                    if (part.Contains("^"))
+                    {
+                        string[] genderParts = part.Split('^');
+                        results.Add((currentId + "_male_farmer",   genderParts[0].Trim()));
+                        results.Add((currentId + "_female_farmer", genderParts[1].Trim()));
+                    }
+                    else
+                    {
+                        results.Add((currentId, part.Trim()));
+                    }
                     currentId = IncrementLineId(currentId);
                 }
                 return results.ToArray();

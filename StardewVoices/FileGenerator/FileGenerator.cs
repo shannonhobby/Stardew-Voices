@@ -4,6 +4,7 @@ using StardewVoices.Pathing;
 using StardewVoices.Utils.GameDialogueExtraction;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using StardewVoices.Dialogue;
 using StardewValley;
 using StardewVoices.Utils;
@@ -239,8 +240,6 @@ namespace StardewVoices.FileGeneration
                 {
                     if (line != null)
                     {
-                        // Used to track spacing between lines.
-                        bool firstInGroup = true;
                         foreach (LabelledDialogueLine dialogue in line.Lines)
                         {
                             if (generateJson)
@@ -261,12 +260,11 @@ namespace StardewVoices.FileGeneration
                                     Jsons[characterName].AddContinuationDialogue(dialogue.LineId);
                                 }
                             }
+                        }
 
-                            if (generateScript)
-                            {
-                                Scripts[characterName].AddLine(dialogue, grouped: !firstInGroup);
-                                firstInGroup = false;
-                            }
+                        if (generateScript)
+                        {
+                            Scripts[characterName].AddLines(line.Lines);
                         }
                     }
                 }
@@ -315,16 +313,22 @@ namespace StardewVoices.FileGeneration
                         List<EventLine> eventLines =
                             eventDialogueExtractor.GetFestivalScriptDialogue(date, lineId, rawValue, englishRawValue);
 
-                        foreach (EventLine eventLine in eventLines)
+                        if (generateJson)
                         {
-                            if (generateJson)
+                            foreach (EventLine eventLine in eventLines)
                                 Jsons[date].AddMiscLine(eventLine.LineId, eventLine.Dialogue);
+                        }
 
-                            if (generateScript
-                                && Scripts.TryGetValue(LocalizationHelpers.GetLocalizedName(eventLine.Character), out Script targetScript))
+                        if (generateScript)
+                        {
+                            List<ScriptLine> scriptLines = eventLines
+                                .Select(eventLine => new ScriptLine(eventLine.LineId, eventLine.Dialogue, eventLine.Character))
+                                .ToList();
+
+                            foreach (ScriptEntry entry in VariantGroupBuilder.Build(scriptLines))
                             {
-                                targetScript.AddLine(
-                                    new LabelledDialogueLine(eventLine.LineId, eventLine.Dialogue, lineId, DialogueType.Festival));
+                                if (Scripts.TryGetValue(LocalizationHelpers.GetLocalizedName(entry.Speaker), out Script targetScript))
+                                    targetScript.AddEntry(entry);
                             }
                         }
 
@@ -355,12 +359,7 @@ namespace StardewVoices.FileGeneration
                         {
                             string characterName = lineId.Split("_")[0];
 
-                            bool firstInGroup = true;
-                            foreach (LabelledDialogueLine line in parsedLines)
-                            {
-                                Scripts[LocalizationHelpers.GetLocalizedName(characterName)].AddLine(line, !firstInGroup);
-                                firstInGroup = false;
-                            }
+                            Scripts[LocalizationHelpers.GetLocalizedName(characterName)].AddLines(parsedLines);
                         }
                     }
                 }
@@ -419,8 +418,7 @@ namespace StardewVoices.FileGeneration
                     {
                         eventScript.ChangeEvent(eventId);
                         eventScript.AddLocationChange(locationName);
-                        foreach (EventLine e in eventLines)
-                            eventScript.AddEventLine(e);
+                        eventScript.AddEventLines(eventLines);
                     }
                 }
             }
