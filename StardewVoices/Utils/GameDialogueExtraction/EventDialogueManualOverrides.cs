@@ -69,9 +69,6 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             ["response_SebastianRoom_healer_Sebastian_event1_sv1"]  = "response_SebastianRoom_Sebastian_event1_sv1",
             ["response_SebastianRoom_warrior_Sebastian_event1_sv1"] = "response_SebastianRoom_Sebastian_event1_sv1",
 
-            // ── Sam — SamHouse "stayPut" vs Town "triggered" (samMessage) ──────────
-            ["response_SamHouse_stayPut_Sam_event2"] = "Town_233104_samMessage_Sam_event12",
-
             // ── Battle of the bands — song genre stripped from the id entirely ─────
             // Emily
             ["response_Temp_heavy_Emily_event1_prereq_1"]     = "response_Temp_Emily_event1_prereq_1",

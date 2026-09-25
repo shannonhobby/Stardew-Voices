@@ -126,7 +126,8 @@ namespace StardewVoices.FileGeneration
             {
                 var (reconciled, collapseLog) = EventDialogueReconciler.Reconcile(
                     rawEventLines,
-                    locationName => eventDialogueExtractor.GetLocationData(locationName));
+                    locationName => eventDialogueExtractor.GetLocationData(locationName),
+                    eventDialogueExtractor.GetForks);
 
                 reconciledEventLines = reconciled;
 
@@ -224,9 +225,39 @@ namespace StardewVoices.FileGeneration
               gossipDialogueExtractor.GetAllPossibleGossipDialogues(character));
             }
 
+            bool IsSkippedType(DialogueType type) => MarriageDialogueTypes.Contains(type) && !character.GetData().CanBeRomanced;
+
+            // $q questions: the game plays the reply to the chosen answer from the
+            // character's own dialogue file, so look reply keys up there. Replies shown
+            // under their question — here or in an event script — aren't repeated on their
+            // own (the json still gets every line).
+            Dictionary<string, LabelledDialogue> dialogueByKey = new Dictionary<string, LabelledDialogue>();
+            if (characterDialogue.TryGetValue(DialogueType.Dialogue, out var ownDialogue))
+            {
+                foreach (LabelledDialogue entry in ownDialogue)
+                    if (entry != null) dialogueByKey.TryAdd(entry.OriginalKey, entry);
+            }
+
+            HashSet<string> repliesShownUnderQuestion = new HashSet<string>(characterDialogue
+                .Where(kvp => !IsSkippedType(kvp.Key))
+                .SelectMany(kvp => kvp.Value)
+                .Where(entry => entry != null && entry.QuestionResponses.Count >= 2)
+                .SelectMany(entry => entry.QuestionResponses)
+                .Select(response => response.ReplyKey)
+                .Where(dialogueByKey.ContainsKey));
+
+            // Replies to $q questions asked by this character in events come from this same
+            // dialogue file and are already shown under the question in the event script
+            // (Pass 1 has extracted every event by now) — don't repeat them here either.
+            foreach (EventDialogueQuestion question in eventDialogueExtractor.DialogueQuestionsByEvent.Values.SelectMany(questions => questions))
+            {
+                if (question.Speaker == englishCharacterName)
+                    repliesShownUnderQuestion.UnionWith(question.RepliesByKey.Keys);
+            }
+
             foreach (DialogueType type in characterDialogue.Keys)
             {
-                if (MarriageDialogueTypes.Contains(type) && !character.GetData().CanBeRomanced)
+                if (IsSkippedType(type))
                 {
                     continue;
                 }
@@ -264,7 +295,19 @@ namespace StardewVoices.FileGeneration
 
                         if (generateScript)
                         {
-                            Scripts[characterName].AddLines(line.Lines);
+                            if (line.QuestionResponses.Count >= 2)
+                            {
+                                Scripts[characterName].AddQuestion(
+                                    line.Lines,
+                                    line.QuestionResponses,
+                                    replyKey => dialogueByKey.TryGetValue(replyKey, out LabelledDialogue reply)
+                                        ? reply.Lines
+                                        : new List<LabelledDialogueLine>());
+                            }
+                            else if (!(type == DialogueType.Dialogue && repliesShownUnderQuestion.Contains(line.OriginalKey)))
+                            {
+                                Scripts[characterName].AddLines(line.Lines);
+                            }
                         }
                     }
                 }
@@ -418,7 +461,13 @@ namespace StardewVoices.FileGeneration
                     {
                         eventScript.ChangeEvent(eventId);
                         eventScript.AddLocationChange(locationName);
-                        eventScript.AddEventLines(eventLines);
+
+                        // Recorded alongside these lines when they were extracted; Pass 2 only
+                        // renames ids, so the line indexes still line up with eventLines.
+                        eventDialogueExtractor.QuestionBranchesByEvent.TryGetValue(key, out var questionBranches);
+                        eventDialogueExtractor.DialogueQuestionsByEvent.TryGetValue(key, out var dialogueQuestions);
+                        eventDialogueExtractor.ForkPointsByEvent.TryGetValue(key, out var forks);
+                        eventScript.AddEventLines(eventLines, questionBranches, dialogueQuestions, forks);
                     }
                 }
             }

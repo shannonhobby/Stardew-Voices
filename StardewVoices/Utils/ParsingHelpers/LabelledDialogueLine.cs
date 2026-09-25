@@ -29,6 +29,12 @@ namespace StardewVoices.Utils.ParsingHelpers
     }
 
     /// <summary>
+    /// One player answer to a $q question: the answer text shown to the player, and the
+    /// key (in the same character's dialogue file) of the NPC's reply to it.
+    /// </summary>
+    public record DialogueQuestionResponse(string AnswerText, string ReplyKey);
+
+    /// <summary>
     /// Wraps a StardewValley.Dialogue together with its parsed line IDs.
     /// 
     /// Consumers that need game-engine context (testing manager, anything that
@@ -53,16 +59,24 @@ namespace StardewVoices.Utils.ParsingHelpers
         public string OriginalKey { get; }
         public DialogueType Type { get; }
 
+        /// <summary>
+        /// The player's answers when this dialogue asks a $q question (empty otherwise),
+        /// each pointing at the dialogue key of the NPC's reply.
+        /// </summary>
+        public IReadOnlyList<DialogueQuestionResponse> QuestionResponses { get; }
+
         public LabelledDialogue(
             StardewValley.Dialogue dialogue,
             List<LabelledDialogueLine> lines,
             string originalKey,
-            DialogueType type)
+            DialogueType type,
+            IReadOnlyList<DialogueQuestionResponse> questionResponses = null)
         {
             Dialogue = dialogue;
             Lines = lines;
             OriginalKey = originalKey;
             Type = type;
+            QuestionResponses = questionResponses ?? new List<DialogueQuestionResponse>();
         }
     }
 }

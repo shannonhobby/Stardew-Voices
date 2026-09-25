@@ -785,7 +785,8 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             var sdvDialogue = character.TryGetDialogue(key);
             var labelledLines = CharacterDialogueParser.ParseRawValueToLines(rawValue, key, type, englishRawValue);
             labelledLines = ResolveBookPlaceholders(labelledLines, type);
-            return new LabelledDialogue(sdvDialogue, labelledLines, key, type);
+            return new LabelledDialogue(sdvDialogue, labelledLines, key, type,
+                CharacterDialogueParser.GetQuestionResponses(rawValue));
         }
 
         // Resolves Elliott's "%book" placeholder (see BookPlaceholderResolver) in each

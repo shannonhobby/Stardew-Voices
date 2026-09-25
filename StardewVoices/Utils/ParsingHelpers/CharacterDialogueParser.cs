@@ -45,6 +45,31 @@ namespace StardewVoices.Utils.ParsingHelpers
         private static bool HasQuestionMarker(string s)
             => Regex.IsMatch(s, @"\$q(?!uery)");
 
+        /// <summary>
+        /// The player answers of a $q question, in order: each "$r {responseId} {friendship} {replyKey}"
+        /// token followed by its "#{answer text}". The reply key names the NPC's response in the
+        /// same character's dialogue file. Empty if the value isn't a $q question.
+        /// </summary>
+        public static List<DialogueQuestionResponse> GetQuestionResponses(string rawValue)
+        {
+            var responses = new List<DialogueQuestionResponse>();
+            if (!HasQuestionMarker(rawValue)) return responses;
+
+            string[] tokens = rawValue.Split('#');
+            for (int i = 0; i < tokens.Length; i++)
+            {
+                string token = tokens[i].Trim();
+                if (!token.StartsWith("$r ")) continue;
+
+                string[] args = token.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (args.Length < 4) continue;
+
+                string answerText = i + 1 < tokens.Length ? tokens[i + 1].Trim() : string.Empty;
+                responses.Add(new DialogueQuestionResponse(answerText, args[3]));
+            }
+            return responses;
+        }
+
         // Returns the id one past <lineId> to continue _sv numbering across pages.
         // Gender variants (..._sv1_male_farmer / _female_farmer) are one slot, not
         // two — only one ever plays. Strip that suffix so IncrementLineId sees the
