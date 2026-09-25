@@ -345,7 +345,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 var lines = new List<LabelledDialogue>();
                 foreach (var (key, value) in data)
                 {
-                    if (StringContainsCharacter(key, character.getName())
+                    if (StringContainsCharacter(key, character.Name)
                         || StringContainsSpouse(key) && character.isRoommate()
                         || (key.Contains("PurchasedItem") && !DialogueHelpers.StringContainAnyCharacter(key))
                         || key.Contains("NewChild") && character.isRoommate()
@@ -733,7 +733,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 var lines = new List<LabelledDialogue>();
                 foreach (var (key, value) in data)
                 {
-                    if (!StringContainsCharacter(key, character.getName())) continue;
+                    if (!StringContainsCharacter(key, character.Name)) continue;
                     string englishRawValue = (englishData != null && englishData.TryGetValue(key, out string ev)) ? ev : null;
                     lines.Add(BuildLabelledDialogue(character, key, value, type, englishRawValue));
                 }

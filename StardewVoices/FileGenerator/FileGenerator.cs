@@ -144,22 +144,29 @@ namespace StardewVoices.FileGeneration
             }
 
             // ── Phase 3: generate per-character files using reconciled data ───────
-            foreach(string characterName in config.CharactersToGenerate)
+            // CharactersToGenerate may hold English or localized names. Jsons are keyed and
+            // named by the English name (the runtime loads them by SupportedCharacters);
+            // scripts by the localized name, which is what they display and what festival
+            // lines look them up by.
+            foreach(string configName in config.CharactersToGenerate)
             {
+                string englishName = LocalizationHelpers.GetName(configName);
+                string localizedName = LocalizationHelpers.GetLocalizedName(englishName);
+
                 if(generateJson)
                 {
-                    Jsons.Add(characterName, new DialogueJson(characterName, DialogueParentFolder.Characters, Managers.PathManager));
+                    Jsons.Add(englishName, new DialogueJson(englishName, DialogueParentFolder.Characters, Managers.PathManager));
                 }
                 if(generateScript)
                 {
-                    Scripts.Add(characterName, new Script(characterName, Managers.PathManager));
-                    EventScripts.Add(characterName, new EventScript(characterName, Managers.PathManager));
+                    Scripts.Add(localizedName, new Script(localizedName, Managers.PathManager));
+                    EventScripts.Add(localizedName, new EventScript(localizedName, Managers.PathManager));
 
                 }
 
-                GenerateCharacterDialogueFiles(characterName, generateJson, generateScript, generateGossipDialogue);
+                GenerateCharacterDialogueFiles(englishName, generateJson, generateScript, generateGossipDialogue);
 
-                GenerateEventDialogueFiles(characterName, generateJson, generateScript, reconciledEventLines);
+                GenerateEventDialogueFiles(englishName, generateJson, generateScript, reconciledEventLines);
             }
 
 
@@ -211,9 +218,9 @@ namespace StardewVoices.FileGeneration
                 EventScripts[key].WriteOut(scriptFormat);
             }
         }
-        private void GenerateCharacterDialogueFiles(string characterName, bool generateJson, bool generateScript, bool generateGossipDialogue)
+        private void GenerateCharacterDialogueFiles(string englishCharacterName, bool generateJson, bool generateScript, bool generateGossipDialogue)
         {
-            string englishCharacterName = LocalizationHelpers.GetName(characterName);
+            string localizedCharacterName = LocalizationHelpers.GetLocalizedName(englishCharacterName);
             NPC character = Game1.getCharacterFromName(englishCharacterName);
 
             // Get all character dialogue
@@ -264,7 +271,7 @@ namespace StardewVoices.FileGeneration
 
                 if (generateScript)
                 {
-                    Scripts[characterName].AppendSectionHeader(type + " lines!");
+                    Scripts[localizedCharacterName].AppendSectionHeader(type + " lines!");
                 }
 
                 foreach (LabelledDialogue line in characterDialogue[type])
@@ -283,12 +290,12 @@ namespace StardewVoices.FileGeneration
                                 } else
                                 {
                                     // AddLine already takes care of adding the dialogue type to the json correctly
-                                    Jsons[characterName].AddLine(dialogue, jsonTypeLabel);
+                                    Jsons[englishCharacterName].AddLine(dialogue, jsonTypeLabel);
                                 }
 
                                 if (dialogue.IsContinuation)
                                 {
-                                    Jsons[characterName].AddContinuationDialogue(dialogue.LineId);
+                                    Jsons[englishCharacterName].AddContinuationDialogue(dialogue.LineId);
                                 }
                             }
                         }
@@ -297,7 +304,7 @@ namespace StardewVoices.FileGeneration
                         {
                             if (line.QuestionResponses.Count >= 2)
                             {
-                                Scripts[characterName].AddQuestion(
+                                Scripts[localizedCharacterName].AddQuestion(
                                     line.Lines,
                                     line.QuestionResponses,
                                     replyKey => dialogueByKey.TryGetValue(replyKey, out LabelledDialogue reply)
@@ -306,7 +313,7 @@ namespace StardewVoices.FileGeneration
                             }
                             else if (!(type == DialogueType.Dialogue && repliesShownUnderQuestion.Contains(line.OriginalKey)))
                             {
-                                Scripts[characterName].AddLines(line.Lines);
+                                Scripts[localizedCharacterName].AddLines(line.Lines);
                             }
                         }
                     }
@@ -402,7 +409,8 @@ namespace StardewVoices.FileGeneration
                         {
                             string characterName = lineId.Split("_")[0];
 
-                            Scripts[LocalizationHelpers.GetLocalizedName(characterName)].AddLines(parsedLines);
+                            if (Scripts.TryGetValue(LocalizationHelpers.GetLocalizedName(characterName), out Script targetScript))
+                                targetScript.AddLines(parsedLines);
                         }
                     }
                 }
@@ -410,12 +418,12 @@ namespace StardewVoices.FileGeneration
         }
 
         private void GenerateEventDialogueFiles(
-            string characterName,
+            string englishName,
             bool generateJson,
             bool generateScript,
             Dictionary<string, List<EventLine>> reconciledEventLines)
         {
-            string englishName = LocalizationHelpers.GetName(characterName);
+            string localizedName = LocalizationHelpers.GetLocalizedName(englishName);
 
             // Get events for character
             List<(string locationName, string eventId)> events
@@ -425,7 +433,7 @@ namespace StardewVoices.FileGeneration
             if (generateScript)
             {
                 events = eventDialogueExtractor.GetEventOrderForCharacter(englishName, events);
-                EventScripts.TryGetValue(characterName, out EventScript eventScript);
+                EventScripts.TryGetValue(localizedName, out EventScript eventScript);
                 eventScript.AppendSectionHeader("<3 HEART EVENTS <3");
             }
 
@@ -451,7 +459,7 @@ namespace StardewVoices.FileGeneration
                 // Add to event script for character — never skip
                 if (generateScript)
                 {
-                    EventScripts.TryGetValue(characterName, out EventScript eventScript);
+                    EventScripts.TryGetValue(localizedName, out EventScript eventScript);
 
                     if (locationName == null)
                     {
