@@ -22,21 +22,28 @@ namespace StardewVoices.Audio
         public AudioManager(CharacterManager characterManager, PathManager pathManager) {
             AudioPath = pathManager.GetPath("Audio");
             ErrorLogger.Trace($"Audio path located: {AudioPath}");
-            AudioEngine = new AudioEngine(AudioPathHelper.GetGameRelativeAudioPath(AudioPath.ToString(), "Stardew Voices.xgs"));
             CharacterManager = characterManager;
-            try
-            {
-                foreach (string character in characterManager.SupportedCharacters)
-                {
-                    CharacterAudio newCharacterAudio = new CharacterAudio(character, this);
-                    characterManager.SetCharacterAudio(character, newCharacterAudio);
-                }
 
-            }
-            catch (Exception e)
+            // Engine and banks are opened by bare file name relative to the Audio folder,
+            // wherever the mod is installed. See AudioPathHelper.LoadFromDirectory.
+            AudioEngine = AudioPathHelper.LoadFromDirectory(AudioPath.ToString(), () =>
             {
-                ErrorLogger.Error($"Error loading sound bank, audio cannot play:", e);
-            }
+                AudioEngine audioEngine = new AudioEngine("Stardew Voices.xgs");
+                try
+                {
+                    foreach (string character in characterManager.SupportedCharacters)
+                    {
+                        CharacterAudio newCharacterAudio = new CharacterAudio(character, audioEngine);
+                        characterManager.SetCharacterAudio(character, newCharacterAudio);
+                    }
+
+                }
+                catch (Exception e)
+                {
+                    ErrorLogger.Error($"Error loading sound bank, audio cannot play:", e);
+                }
+                return audioEngine;
+            });
         }
 
         public void Play(Cue cue)
