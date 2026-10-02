@@ -62,10 +62,21 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             FestivalDates = GetAllFestivalDates();
         }
 
+        // Date → festival name, in the current game language.
+        private Dictionary<string, string> LoadFestivalDates()
+        {
+            return helper.GameContent.Load<Dictionary<string, string>>($"Data/Festivals/FestivalDates");
+        }
+
         public string[] GetAllFestivalDates()
         {
-            Dictionary<string, string> festivalDates = helper.GameContent.Load<Dictionary<string, string>>($"Data/Festivals/FestivalDates");
-            return festivalDates.Keys.ToArray();
+            return LoadFestivalDates().Keys.ToArray();
+        }
+
+        // Festival name (matching Event.FestivalName) → date, the reverse of the game's data.
+        public Dictionary<string, string> GetFestivalNameToDateDict()
+        {
+            return LoadFestivalDates().ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
         }
 
         // Returns (Text, Context) pairs where Context is the festival date (e.g. "spring13").

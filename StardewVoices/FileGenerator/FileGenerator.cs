@@ -326,6 +326,16 @@ namespace StardewVoices.FileGeneration
             string[] festivalDates = festivalDialogueExtractor.GetAllFestivalDates();
             bool isEnglish = LocalizationHelpers.GetCurrentLanguage() == LocalizedContentManager.LanguageCode.en.ToString();
 
+            // FestivalHandler maps the in-game festival name to its date json via this file,
+            // so it's written alongside the festival jsons with the same language extension.
+            if (generateJson)
+            {
+                PathNode root = Managers.PathManager.GeneratedFilesRoot;
+                root.CreateFolder(DialogueParentFolder.Festivals.ToString());
+                root.GetChild(DialogueParentFolder.Festivals.ToString())
+                    .CreateJsonFile(Managers.PathManager.FestivalDatesJsonName, festivalDialogueExtractor.GetFestivalNameToDateDict());
+            }
+
             foreach (string date in festivalDates)
             {
                 Dictionary<string, string> festivalDict = festivalDialogueExtractor.LoadGameFestivalData(date);
