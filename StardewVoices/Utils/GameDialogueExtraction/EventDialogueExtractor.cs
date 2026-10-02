@@ -224,7 +224,11 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 foreach (var kvp in gameEventData)
                 {
                     string eventId = kvp.Key.Split('/')[0];
-                    if (!kvp.Value.Contains($"speak {characterName} \"")) continue;
+                    if (!kvp.Value.Contains($"speak {characterName} \"")
+                       && !kvp.Value.Contains($"textAboveHead {characterName} \"")
+                       && !kvp.Value.Contains($"end dialogue {characterName} \""))
+                        continue;
+
 
                     results.Add((locationName, eventId));
                 }
