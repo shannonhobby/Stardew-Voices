@@ -126,7 +126,7 @@ namespace StardewVoices.FileGeneration.Models
         public void AddLocationChange(string location, string? timeOfDay = null)
         {
             string label = timeOfDay is not null ? $"{location}  ·  {timeOfDay}" : location;
-            int dashCount = Math.Max(2, PageWidth - 10 - label.Length);
+            int dashCount = Math.Max(2, PageWidth - 10 - TextLayout.DisplayWidth(label));
             PlainTextScript += $"\n✦── at: {label} {new string('─', dashCount)}✦\n\n";
             MarkDownScript += $"\n> *✦ at: {label} ✦*\n\n";
         }

@@ -88,9 +88,9 @@ namespace StardewVoices.FileGeneration.Models
         {
             // Plain text full-width rule:
             // "✿── " (4) + TITLE + " " (1) + dashes + "✿" (1) = PageWidth
-            // => dashCount = PageWidth - 6 - title.Length
+            // => dashCount = PageWidth - 6 - title width
             string upper = title.ToUpper();
-            int dashCount = Math.Max(2, PageWidth - 6 - upper.Length);
+            int dashCount = Math.Max(2, PageWidth - 6 - TextLayout.DisplayWidth(upper));
             PlainTextScript += $"\n\n✿── {upper} {new string('─', dashCount)}✿\n\n";
 
             // Markdown: h3 keeps section below the character-name h2 in the hierarchy
@@ -275,7 +275,7 @@ namespace StardewVoices.FileGeneration.Models
         /// </summary>
         protected string BuildQuotedBlock(string dialogue)
         {
-            var wrapped = WordWrap(dialogue, DialogueWidth - 2);
+            var wrapped = TextLayout.Wrap(dialogue, DialogueWidth - 2);
             var result = string.Empty;
 
             if (wrapped.Count == 1)
@@ -299,41 +299,10 @@ namespace StardewVoices.FileGeneration.Models
         /// </summary>
         protected string CenterLine(string text)
         {
-            if (text.Length >= PageWidth) return text;
-            int leftPad = (PageWidth - text.Length) / 2;
+            int width = TextLayout.DisplayWidth(text);
+            if (width >= PageWidth) return text;
+            int leftPad = (PageWidth - width) / 2;
             return new string(' ', leftPad) + text;
-        }
-
-        /// <summary>
-        /// Greedy word-wrap: splits <paramref name="text"/> into lines of at most
-        /// <paramref name="maxWidth"/> characters, breaking only on spaces.
-        /// </summary>
-        protected static List<string> WordWrap(string text, int maxWidth)
-        {
-            var lines = new List<string>();
-            var current = new StringBuilder();
-
-            foreach (var word in text.Split(' '))
-            {
-                if (current.Length == 0)
-                {
-                    current.Append(word);
-                }
-                else if (current.Length + 1 + word.Length <= maxWidth)
-                {
-                    current.Append(' ').Append(word);
-                }
-                else
-                {
-                    lines.Add(current.ToString());
-                    current.Clear().Append(word);
-                }
-            }
-
-            if (current.Length > 0)
-                lines.Add(current.ToString());
-
-            return lines.Count > 0 ? lines : new List<string> { string.Empty };
         }
     }
 }

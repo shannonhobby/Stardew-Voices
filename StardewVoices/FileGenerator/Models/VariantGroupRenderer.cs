@@ -128,7 +128,7 @@ namespace StardewVoices.FileGeneration.Models
             var sb = new StringBuilder();
 
             sb.Append(rule).Append('\n');
-            AppendRow(sb, group.Options.Select(option => Wrap(option.Label, columnWidth)).ToList(), columnWidth);
+            AppendRow(sb, group.Options.Select(option => TextLayout.Wrap(option.Label, columnWidth)).ToList(), columnWidth);
             sb.Append(rule).Append('\n');
             AppendRow(sb, group.Options.Select(option => BuildPlainTextCell(option, columnWidth, lineLabel)).ToList(), columnWidth);
             sb.Append(rule).Append('\n');
@@ -144,19 +144,19 @@ namespace StardewVoices.FileGeneration.Models
             {
                 if (cell.Count > 0) cell.Add(string.Empty);
                 string label = lineLabel?.Invoke(line);
-                if (!string.IsNullOrEmpty(label)) cell.AddRange(Wrap(label, columnWidth));
-                cell.AddRange(Wrap($"[{line.LineId}]", columnWidth));
-                cell.AddRange(Wrap($"\"{line.Text}\"", columnWidth));
+                if (!string.IsNullOrEmpty(label)) cell.AddRange(TextLayout.Wrap(label, columnWidth));
+                cell.AddRange(TextLayout.Wrap($"[{line.LineId}]", columnWidth));
+                cell.AddRange(TextLayout.Wrap($"\"{line.Text}\"", columnWidth));
             }
 
             if (!string.IsNullOrEmpty(option.Note))
             {
                 if (cell.Count > 0) cell.Add(string.Empty);
-                cell.AddRange(Wrap(option.Note, columnWidth));
+                cell.AddRange(TextLayout.Wrap(option.Note, columnWidth));
             }
             else if (cell.Count == 0)
             {
-                cell.AddRange(Wrap(NoLinesText, columnWidth));
+                cell.AddRange(TextLayout.Wrap(NoLinesText, columnWidth));
             }
 
             return cell;
@@ -173,7 +173,7 @@ namespace StardewVoices.FileGeneration.Models
                 foreach (List<string> cell in cells)
                 {
                     string text = row < cell.Count ? cell[row] : string.Empty;
-                    sb.Append(' ').Append(text.PadRight(columnWidth)).Append(" |");
+                    sb.Append(' ').Append(text).Append(' ', Math.Max(0, columnWidth - TextLayout.DisplayWidth(text))).Append(" |");
                 }
                 sb.Append('\n');
             }
@@ -193,7 +193,7 @@ namespace StardewVoices.FileGeneration.Models
                 // Blank line between options, so each one reads as its own block.
                 if (i > 0) sb.Append('\n');
 
-                List<string> label = Wrap(option.Label, textWidth);
+                List<string> label = TextLayout.Wrap(option.Label, textWidth);
                 sb.Append(bulletIndent).Append("▸ ").Append(label[0]).Append('\n');
                 foreach (string labelLine in label.Skip(1))
                     sb.Append(textIndent).Append(labelLine).Append('\n');
@@ -208,12 +208,12 @@ namespace StardewVoices.FileGeneration.Models
                 {
                     string speakerLabel = lineLabel?.Invoke(line);
                     if (!string.IsNullOrEmpty(speakerLabel))
-                        foreach (string speakerLine in Wrap(speakerLabel, textWidth))
+                        foreach (string speakerLine in TextLayout.Wrap(speakerLabel, textWidth))
                             sb.Append(textIndent).Append(speakerLine).Append('\n');
 
-                    foreach (string idLine in Wrap($"[{line.LineId}]", textWidth))
+                    foreach (string idLine in TextLayout.Wrap($"[{line.LineId}]", textWidth))
                         sb.Append(textIndent).Append(idLine).Append('\n');
-                    foreach (string textLine in Wrap($"\"{line.Text}\"", textWidth))
+                    foreach (string textLine in TextLayout.Wrap($"\"{line.Text}\"", textWidth))
                         sb.Append(textIndent).Append(textLine).Append('\n');
                 }
 
@@ -221,61 +221,12 @@ namespace StardewVoices.FileGeneration.Models
                 {
                     // Set apart from the lines, as in the side-by-side layout.
                     if (option.Lines.Count > 0) sb.Append('\n');
-                    foreach (string noteLine in Wrap(option.Note, textWidth))
+                    foreach (string noteLine in TextLayout.Wrap(option.Note, textWidth))
                         sb.Append(textIndent).Append(noteLine).Append('\n');
                 }
             }
 
             return sb.ToString();
-        }
-
-        /// <summary>
-        /// Greedy word-wrap like <see cref="Script"/>'s, except words wider than the
-        /// column (long line ids, text with no spaces) are broken so they can't push
-        /// past the box border — preferring to break just after an underscore.
-        /// </summary>
-        private static List<string> Wrap(string text, int maxWidth)
-        {
-            var lines = new List<string>();
-            var current = new StringBuilder();
-
-            foreach (string rawWord in text.Split(' '))
-            {
-                string word = rawWord;
-
-                while (word.Length > maxWidth)
-                {
-                    if (current.Length > 0)
-                    {
-                        lines.Add(current.ToString());
-                        current.Clear();
-                    }
-
-                    int underscore = word.LastIndexOf('_', maxWidth - 1);
-                    int cut = underscore > 0 ? underscore + 1 : maxWidth;
-                    lines.Add(word[..cut]);
-                    word = word[cut..];
-                }
-
-                if (current.Length == 0)
-                {
-                    current.Append(word);
-                }
-                else if (current.Length + 1 + word.Length <= maxWidth)
-                {
-                    current.Append(' ').Append(word);
-                }
-                else
-                {
-                    lines.Add(current.ToString());
-                    current.Clear().Append(word);
-                }
-            }
-
-            if (current.Length > 0)
-                lines.Add(current.ToString());
-
-            return lines.Count > 0 ? lines : new List<string> { string.Empty };
         }
     }
 }
