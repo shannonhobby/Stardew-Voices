@@ -59,8 +59,11 @@ namespace StardewVoices.Dialogue
                     // If it's not found in a nearby event it could be in dialogue
                     if (eventDialogue.Contains("not found"))
                     {
-
-                        characterDialogueHandler.CheckEverydayCharacterDictionariesForDialogue(currentSpeaker, dialogue);
+                        string characterDialogue = characterDialogueHandler.CheckEverydayCharacterDictionariesForDialogue(currentSpeaker, dialogue);
+                        if (characterDialogue != null)
+                        {
+                            return characterDialogue;
+                        }
                     }
                     else
                     {

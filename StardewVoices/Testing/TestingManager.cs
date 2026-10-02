@@ -163,16 +163,16 @@ namespace StardewVoices.Testing
             eventsToTest.Add("611944_Forest");
             eventsToTest.Add("3910674_AnimalShop");
             // Night
-             eventsToTest.Add("3910975_Forest");
-             eventsToTest.Add("2118991_Farm");
-             eventsToTest.Add("3910974_AnimalShop");
-             eventsToTest.Add("831125_Town");
-             eventsToTest.Add("3900074_AnimalShop");
-             eventsToTest.Add("2128292_Farm");
-           eventsToTest.Add("9581348_BusStop");
-              eventsToTest.Add("3917584_Town");
-              eventsToTest.Add("3917585_Town");
-           eventsToTest.Add("3917586_Town");
+            eventsToTest.Add("3910975_Forest");
+            eventsToTest.Add("2118991_Farm");
+            eventsToTest.Add("3910974_AnimalShop");
+            eventsToTest.Add("831125_Town");
+            eventsToTest.Add("3900074_AnimalShop");
+            eventsToTest.Add("2128292_Farm");
+            eventsToTest.Add("9581348_BusStop");
+            eventsToTest.Add("3917584_Town");
+            eventsToTest.Add("3917585_Town");
+            eventsToTest.Add("3917586_Town");
 
 
 

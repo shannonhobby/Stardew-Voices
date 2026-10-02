@@ -18,6 +18,9 @@ namespace StardewVoices.EventManager
         private GameLocation lastLocation { get; set; }
         /// <summary>The in-game event detected on the last update tick.</summary>
         private Event lastEvent { get; set; }
+        /// <summary>The last non-festival event whose dialogue json was loaded, and the location it started in.</summary>
+        private Event startedEvent { get; set; }
+        private string startedEventLocationName { get; set; }
         private WorldDate lastDate { get; set; }
 
         private ManagerHub _managers { get; }
@@ -169,7 +172,16 @@ namespace StardewVoices.EventManager
 
             if (Game1.CurrentEvent != null && !Game1.CurrentEvent.isFestival && this.lastEvent == null)
             {
-                string locationFilePath = Path.Combine(_managers.PathManager.GetPathString("Events"), this.lastLocation.Name);
+                // A changeLocation command moves the event to a new location, and for a tick
+                // in between Game1.CurrentEvent is null — so the same event shows up here
+                // again. Its json lives under the location it started in, not the new one.
+                if (!ReferenceEquals(Game1.CurrentEvent, this.startedEvent))
+                {
+                    this.startedEvent = Game1.CurrentEvent;
+                    this.startedEventLocationName = this.lastLocation.Name;
+                }
+
+                string locationFilePath = Path.Combine(_managers.PathManager.GetPathString("Events"), this.startedEventLocationName);
                 string lastEventId = Game1.CurrentEvent.id;
 
                 if (lastEventId != null && lastEventId.Length > 0)
