@@ -4,11 +4,8 @@ using StardewVoices.Testing;
 using StardewVoices.FileGeneration;
 using StardewVoices.Utils;
 using StardewVoices.Utils.GameDialogueExtraction;
-using System.IO;
 using StardewVoices.Config;
-using System;
 using StardewValley.Menus;
-using System.Runtime.InteropServices;
 
 namespace StardewVoices
 {
@@ -27,8 +24,6 @@ namespace StardewVoices
         {
             ErrorLogger.Init(this.Monitor);
             this.helper = helper;
-
-            CreateSymlinkForMac();
 
             managerHub = new ManagerHub(helper, this.ModManifest);
 
@@ -75,24 +70,6 @@ namespace StardewVoices
             helper.Events.Input.ButtonPressed += managerHub.GameEventManager.OnButtonPressed;
             helper.Events.GameLoop.GameLaunched += managerHub.GameEventManager.OnGameLaunched;
             helper.Events.GameLoop.SaveLoaded += managerHub.GameEventManager.OnSaveLoaded;
-        }
-
-        // TODO: EXPLAIN WHAT THIS DOES
-        private void CreateSymlinkForMac()
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                string exeDir = AppDomain.CurrentDomain.BaseDirectory; // .../Contents/MacOS/
-                string macosMods = Path.Combine(exeDir, "Mods", "StardewVoices");
-                string resourcesRoot = Path.GetFullPath(Path.Combine(exeDir, "..", "Resources"));
-                string resourcesMods = Path.Combine(resourcesRoot, "Mods", "StardewVoices");
-
-                if (Directory.Exists(macosMods) && !Directory.Exists(resourcesMods) && !File.Exists(resourcesMods))
-                {
-                    Directory.CreateDirectory(Path.Combine(resourcesRoot, "Mods")); // ensure parent exists
-                    Directory.CreateSymbolicLink(resourcesMods, macosMods); // .NET 6+ (Directory.CreateSymbolicLink)
-                }
-            }
         }
 
         private void RunVoiceValidationCommand(

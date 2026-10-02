@@ -104,6 +104,55 @@ namespace StardewVoices.FileGeneration.Models
         /// Grouped lines appear tight with no gap; ungrouped lines are separated by two blank lines.
         /// </summary>
         public void AddLine(LabelledDialogueLine dialogue, bool grouped = false)
+            => AddLine(dialogue.LineId, dialogue.Text, grouped);
+
+        /// <summary>
+        /// Adds the lines of one dialogue sequence in order (the first ungrouped, the rest
+        /// grouped), showing male/female farmer alternates side by side instead of one
+        /// after the other.
+        /// </summary>
+        public void AddLines(IEnumerable<LabelledDialogueLine> lines)
+        {
+            bool firstInGroup = true;
+            foreach (ScriptEntry entry in VariantGroupBuilder.Build(lines.Select(line => new ScriptLine(line.LineId, line.Text)).ToList()))
+            {
+                AddEntry(entry, grouped: !firstInGroup);
+                firstInGroup = false;
+            }
+        }
+
+        /// <summary>
+        /// Adds a $q question's own lines, then the NPC's replies side by side — one column
+        /// per distinct reply, headed by the player answer(s) that lead to it — since only
+        /// the reply to the chosen answer plays.
+        /// </summary>
+        /// <param name="replyLinesForKey">The reply's lines for a reply key (empty if none).</param>
+        public void AddQuestion(
+            IEnumerable<LabelledDialogueLine> questionLines,
+            IReadOnlyList<DialogueQuestionResponse> responses,
+            Func<string, IEnumerable<LabelledDialogueLine>> replyLinesForKey)
+        {
+            List<LabelledDialogueLine> questionLineList = questionLines.ToList();
+            AddLines(questionLineList);
+
+            VariantGroup replies = VariantGroupBuilder.BuildDialogueQuestionReplies(
+                responses,
+                key => replyLinesForKey(key).Select(line => new ScriptLine(line.LineId, line.Text)));
+
+            // Sits tight under the question, like the rest of one dialogue sequence.
+            AddEntry(replies, grouped: questionLineList.Count > 0);
+        }
+
+        /// <summary>Adds a normal line or a group of alternates. See <see cref="AddLine(LabelledDialogueLine, bool)"/> for <paramref name="grouped"/>.</summary>
+        public void AddEntry(ScriptEntry entry, bool grouped = false)
+        {
+            if (entry is VariantGroup group)
+                AddVariantGroup(group, grouped);
+            else if (entry is SingleLineEntry single)
+                AddLine(single.Line.LineId, single.Line.Text, grouped);
+        }
+
+        private void AddLine(string lineId, string text, bool grouped)
         {
             LineCount++;
             if (LineCount > 1)
@@ -111,9 +160,29 @@ namespace StardewVoices.FileGeneration.Models
                 PlainTextScript += grouped ? "" : "\n\n";
                 MarkDownScript  += grouped ? "" : "\n";
             }
-            PlainTextScript += CenterLine($"[ {dialogue.LineId} ]") + "\n";
-            PlainTextScript += BuildQuotedBlock(dialogue.Text);
-            MarkDownScript  += $"**`{dialogue.LineId}`**\n\n> {dialogue.Text}\n\n";
+            PlainTextScript += CenterLine($"[ {lineId} ]") + "\n";
+            PlainTextScript += BuildQuotedBlock(text);
+            MarkDownScript  += $"**`{lineId}`**\n\n> {text}\n\n";
+        }
+
+        /// <summary>
+        /// Renders mutually exclusive alternates side by side. Every option's lines count
+        /// toward <see cref="LineCount"/> since each one still has to be recorded.
+        /// </summary>
+        private void AddVariantGroup(VariantGroup group, bool grouped)
+        {
+            if (LineCount > 0)
+            {
+                PlainTextScript += grouped ? "" : "\n\n";
+                MarkDownScript  += grouped ? "" : "\n";
+            }
+            LineCount += group.LineCount;
+
+            PlainTextScript += CenterLine(VariantGroupRenderer.PlainTextMarkerFor(group.Kind)) + "\n";
+            PlainTextScript += VariantGroupRenderer.RenderPlainText(group, PageWidth);
+
+            MarkDownScript += VariantGroupRenderer.MarkdownMarkerFor(group.Kind) + "\n\n";
+            MarkDownScript += VariantGroupRenderer.RenderMarkdownTable(group) + "\n";
         }
 
         /// <summary>

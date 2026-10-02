@@ -1,39 +1,42 @@
-using StardewModdingAPI;
-using StardewValley;
+using Microsoft.Xna.Framework;
 using System;
-using System.IO;
+using System.Reflection;
 
 namespace StardewVoices.Utils
 {
     public static class AudioPathHelper
     {
         /// <summary>
-        /// Converts a mod-local audio file path into a MonoGame-compatible
-        /// relative path from the game root directory.
+        /// Runs <paramref name="load"/> with MonoGame's TitleContainer temporarily rooted at
+        /// <paramref name="directory"/>, so XACT files (AudioEngine/SoundBank/WaveBank) can be
+        /// opened by bare file name from any folder.
         /// </summary>
-        public static string GetGameRelativeAudioPath(string modDirectory, string relativeFilePath)
+        /// <remarks>
+        /// XACT classes only open files through TitleContainer.OpenStream, which rejects absolute
+        /// paths and strips leading "../" segments, so files outside the game folder (e.g. mods
+        /// installed by Stardrop or via --mods-path) can't be reached with a relative path.
+        /// TitleContainer resolves names against its internal static Location, so we swap that
+        /// instead. Only non-streaming wave banks are safe to load this way, since streaming ones
+        /// reopen their file after the original Location is restored.
+        /// </remarks>
+        public static T LoadFromDirectory<T>(string directory, Func<T> load)
         {
-            if (string.IsNullOrWhiteSpace(modDirectory))
-                throw new ArgumentException("Mod directory cannot be null or empty.", nameof(modDirectory));
+            if (string.IsNullOrWhiteSpace(directory))
+                throw new ArgumentException("Directory cannot be null or empty.", nameof(directory));
 
-            if (string.IsNullOrWhiteSpace(relativeFilePath))
-                throw new ArgumentException("File path cannot be null or empty.", nameof(relativeFilePath));
+            PropertyInfo locationProperty = typeof(TitleContainer).GetProperty("Location", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
+                ?? throw new InvalidOperationException("Couldn't find MonoGame's TitleContainer.Location, so voice audio can't be loaded. A game update may have changed it.");
 
-            // 1. Build absolute path to file inside mod
-            string absolutePath = Path.Combine(modDirectory, relativeFilePath);
-
-            // 2. Game root (what TitleContainer expects as base)
-            string gameRoot = AppDomain.CurrentDomain.BaseDirectory;
-
-            // 3. Convert to relative path from game root
-            string relativeToGame = Path.GetRelativePath(gameRoot, absolutePath);
-
-            // 4. Normalize separators for MonoGame/XNA
-            relativeToGame = relativeToGame
-                .Replace(Path.DirectorySeparatorChar, '/')
-                .Replace(Path.AltDirectorySeparatorChar, '/');
-
-            return relativeToGame;
+            object originalLocation = locationProperty.GetValue(null);
+            locationProperty.SetValue(null, directory);
+            try
+            {
+                return load();
+            }
+            finally
+            {
+                locationProperty.SetValue(null, originalLocation);
+            }
         }
     }
 }

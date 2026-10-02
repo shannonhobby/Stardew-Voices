@@ -14,10 +14,11 @@ namespace StardewVoices.Utils.GameDialogueExtraction
     /// Operates on raw List&lt;EventLine&gt; records produced by Pass 1
     /// (EventDialogueExtractor.GetEventDialogue). Never touches Pass 1 logic.
     ///
-    /// Step A — BuildEventGroupsForLocation
-    ///   Walks each root event's script for /fork and /switchEvent commands
-    ///   (transitively) and groups the root with every fork/response event ID it
-    ///   can reach. Logs the mapping so it can be sanity-checked.
+    /// Step A — BuildEventGroups
+    ///   Follows each root event's /fork and /switchEvent commands (transitively) and
+    ///   groups the root with every fork/response event it can reach — including ones
+    ///   in another location's file, reached after a changeLocation (see
+    ///   EventDialogueExtractor.GetForks). Logs the mapping so it can be sanity-checked.
     ///
     /// Step B — Reconcile
     ///   Within each group, finds (Character, Dialogue) pairs that appear more
@@ -38,8 +39,9 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         // ── Step A: Build event groups ────────────────────────────────────────────
 
         /// <summary>
-        /// Returns the event groups for a single location: root event ID mapped to
-        /// the list of fork/response event IDs transitively reachable from it.
+        /// Returns the event groups for a single location: root event key
+        /// ("Location/eventId") mapped to the "Location/eventId" keys of every fork/response
+        /// event transitively reachable from it — which may live in other locations.
         ///
         /// Root events have '/' in their raw dictionary key (e.g.
         /// "2481135/f Alex 1000/t 900 1600"). Response/fork events have no '/'.
@@ -49,7 +51,8 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         /// </summary>
         public static Dictionary<string, List<string>> BuildEventGroupsForLocation(
             string locationName,
-            Dictionary<string, string> locationData)
+            Dictionary<string, string> locationData,
+            Func<string, IReadOnlyList<EventFork>> getForks)
         {
             var groups = new Dictionary<string, List<string>>();
 
@@ -57,22 +60,24 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             {
                 if (!kvp.Key.Contains('/')) continue;      // skip response-only events
 
-                string rootId = kvp.Key.Split('/')[0];
-                if (groups.ContainsKey(rootId)) continue;  // root already processed
+                string rootKey = $"{locationName}/{kvp.Key.Split('/')[0]}";
+                if (groups.ContainsKey(rootKey)) continue;  // root already processed
 
-                var reached = new HashSet<string>();
-                CollectForkTargets(locationData, kvp.Value, reached);
-                groups[rootId] = reached.ToList();
+                var visited = new HashSet<string> { rootKey };
+                var reached = new List<string>();
+                CollectForkTargets(rootKey, getForks, visited, reached);
+                groups[rootKey] = reached;
             }
 
             // ── Log the mapping so the caller can sanity-check it ────────────────
             ErrorLogger.Info($"[Pass 2] Event groups in '{locationName}':");
-            foreach (var (rootId, forkIds) in groups)
+            foreach (var (rootKey, forkKeys) in groups)
             {
+                string rootId = rootKey.Split('/', 2)[1];
                 string fullKey = locationData.Keys.FirstOrDefault(k => k.Split('/')[0] == rootId)
                     ?? rootId;
-                string forks = forkIds.Count > 0
-                    ? string.Join(", ", forkIds.Select(f => $"\"{f}\""))
+                string forks = forkKeys.Count > 0
+                    ? string.Join(", ", forkKeys.Select(f => $"\"{f}\""))
                     : "(none)";
                 ErrorLogger.Info($"  \"{fullKey}\" → [{forks}]");
             }
@@ -99,7 +104,11 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         /// </param>
         /// <param name="getLocationData">
         /// Returns the full event-script dictionary for a given location name.
-        /// Used to build the fork graph without re-running extraction.
+        /// Used to find each location's root events.
+        /// </param>
+        /// <param name="getForks">
+        /// Returns the resolved fork/switchEvent targets of an event ("Location/eventId"),
+        /// already following changeLocation — see EventDialogueExtractor.GetForks.
         /// </param>
         /// <returns>
         /// reconciledLines — same structure as input, with duplicate LineIds replaced.
@@ -110,7 +119,8 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             Dictionary<string, string> collapseLog
         ) Reconcile(
             Dictionary<string, List<EventLine>> linesByEventKey,
-            Func<string, Dictionary<string, string>> getLocationData)
+            Func<string, Dictionary<string, string>> getLocationData,
+            Func<string, IReadOnlyList<EventFork>> getForks)
         {
             // Shallow-copy per-event lists so we don't mutate the caller's data
             var reconciled = linesByEventKey.ToDictionary(
@@ -119,25 +129,21 @@ namespace StardewVoices.Utils.GameDialogueExtraction
 
             var collapseLog = new Dictionary<string, string>();
 
-            // Group event keys by location name (first segment before '/')
-            var byLocation = reconciled.Keys
-                .Select(k => k.Split('/', 2))
-                .Where(p => p.Length == 2)
-                .Select(p => (location: p[0], eventId: p[1]))
-                .GroupBy(t => t.location)
-                .ToDictionary(g => g.Key, g => g.Select(t => t.eventId).ToList());
-
-            foreach (var (locationName, eventIds) in byLocation)
+            // Step A: build (and log) the fork graph, one location's roots at a time.
+            // A group's forks can reach into other locations, so groups are merged into
+            // one map and deduped together rather than per location.
+            var groups = new Dictionary<string, List<string>>();
+            foreach (string locationName in reconciled.Keys.Select(k => k.Split('/', 2)[0]).Distinct())
             {
                 Dictionary<string, string> locationData = getLocationData(locationName);
                 if (locationData == null) continue;
 
-                // Step A: build (and log) the fork graph for this location
-                var groups = BuildEventGroupsForLocation(locationName, locationData);
-
-                // Step B: dedup within each group
-                DeduplicateLocation(locationName, eventIds, groups, reconciled, collapseLog);
+                foreach (var (rootKey, forkKeys) in BuildEventGroupsForLocation(locationName, locationData, getForks))
+                    groups[rootKey] = forkKeys;
             }
+
+            // Step B: dedup within each group
+            Deduplicate(groups, reconciled, collapseLog);
 
             // Step C: apply hand-curated cross-location overrides
             ApplyManualOverrides(reconciled, collapseLog);
@@ -173,9 +179,17 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 }
             }
 
+            var presentIds = new HashSet<string>(lines.Values.SelectMany(eventLines => eventLines).Select(line => line.LineId));
             foreach (string key in overrides.Keys)
             {
-                if (!seenKeys.Contains(key))
+                if (seenKeys.Contains(key)) continue;
+
+                // Step B can collapse a key before Step C sees it, when fork reachability
+                // already connects the two occurrences. Only warn if the rename didn't
+                // land either way.
+                if (collapseLog.TryGetValue(key, out _) && presentIds.Contains(overrides[key]))
+                    ErrorLogger.Info($"[Pass 2, Step C] Manual override \"{key}\" already covered by fork dedup — can be removed.");
+                else
                     ErrorLogger.Warn($"[Pass 2, Step C] Manual override key not found in extracted data (stale mapping?): \"{key}\"");
             }
 
@@ -184,38 +198,34 @@ namespace StardewVoices.Utils.GameDialogueExtraction
 
         // ── Private helpers ──────────────────────────────────────────────────────
 
-        private static void DeduplicateLocation(
-            string locationName,
-            List<string> presentEventIds,
+        private static void Deduplicate(
             Dictionary<string, List<string>> groups,
             Dictionary<string, List<EventLine>> lines,
             Dictionary<string, string> collapseLog)
         {
-            // Build a fast lookup: eventId → its root event ID
+            // Build a fast lookup: event key → its root event key
             var eventToRoot = new Dictionary<string, string>();
-            foreach (var (rootId, forkIds) in groups)
+            foreach (var (rootKey, forkKeys) in groups)
             {
-                eventToRoot[rootId] = rootId;
-                foreach (string forkId in forkIds)
-                    eventToRoot[forkId] = rootId;
+                eventToRoot[rootKey] = rootKey;
+                foreach (string forkKey in forkKeys)
+                    eventToRoot[forkKey] = rootKey;
             }
 
             var processedRoots = new HashSet<string>();
 
-            foreach (string eventId in presentEventIds)
+            foreach (string eventKey in lines.Keys.ToList())
             {
-                if (!eventToRoot.TryGetValue(eventId, out string rootId)) continue;
-                if (!processedRoots.Add(rootId)) continue;  // group already handled
+                if (!eventToRoot.TryGetValue(eventKey, out string rootKey)) continue;
+                if (!processedRoots.Add(rootKey)) continue;  // group already handled
 
                 // Collect event keys for this group: root first, then forks in order
                 var groupKeys = new List<string>();
-                string rootKey = $"{locationName}/{rootId}";
                 if (lines.ContainsKey(rootKey))
                     groupKeys.Add(rootKey);
 
-                foreach (string forkId in groups[rootId])
+                foreach (string forkKey in groups[rootKey])
                 {
-                    string forkKey = $"{locationName}/{forkId}";
                     if (lines.ContainsKey(forkKey))
                         groupKeys.Add(forkKey);
                 }
@@ -249,30 +259,22 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         }
 
         /// <summary>
-        /// Recursively collects all event IDs reachable from <paramref name="script"/>
-        /// via /fork and /switchEvent commands, adding them to <paramref name="reached"/>.
-        /// Cycles are handled by the HashSet — an ID is only followed once.
+        /// Recursively collects every event key reachable from <paramref name="eventKey"/>
+        /// via /fork and /switchEvent, in discovery order, adding them to <paramref name="reached"/>.
+        /// Cycles are handled by <paramref name="visited"/> — a key is only followed once.
         /// </summary>
         private static void CollectForkTargets(
-            Dictionary<string, string> locationData,
-            string script,
-            HashSet<string> reached)
+            string eventKey,
+            Func<string, IReadOnlyList<EventFork>> getForks,
+            HashSet<string> visited,
+            List<string> reached)
         {
-            foreach (string command in script.Split('/'))
+            foreach (EventFork fork in getForks(eventKey))
             {
-                string trimmed = command.Trim();
-                string targetId = null;
+                if (!visited.Add(fork.TargetEventKey)) continue;  // already visited; prevents cycles
 
-                if (trimmed.StartsWith("fork "))
-                    targetId = trimmed.Substring(5).Trim().Split(' ')[0];
-                else if (trimmed.StartsWith("switchEvent "))
-                    targetId = trimmed.Substring(12).Trim().Split(' ')[0];
-
-                if (string.IsNullOrEmpty(targetId)) continue;
-                if (!locationData.ContainsKey(targetId)) continue;
-                if (!reached.Add(targetId)) continue;  // already visited; prevents cycles
-
-                CollectForkTargets(locationData, locationData[targetId], reached);
+                reached.Add(fork.TargetEventKey);
+                CollectForkTargets(fork.TargetEventKey, getForks, visited, reached);
             }
         }
     }

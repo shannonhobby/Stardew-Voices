@@ -1,7 +1,9 @@
 ﻿using StardewVoices.Pathing;
 using StardewVoices.Utils;
+using StardewVoices.Utils.GameDialogueExtraction;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 
 namespace StardewVoices.FileGeneration.Models
@@ -137,14 +139,58 @@ namespace StardewVoices.FileGeneration.Models
         public void AddScriptSection(string sectionTitle, List<EventLine> lines)
         {
             AppendSectionHeader(sectionTitle);
-            foreach (var line in lines)
-                AddEventLine(line);
+            AddEventLines(lines);
+        }
+
+        /// <summary>
+        /// Adds a scene's lines in order, showing alternates side by side instead of one
+        /// after the other: male/female farmer variants, prerequisite versions, and — when
+        /// <paramref name="questionBranches"/> is given — each player question's replies,
+        /// one column per answer.
+        /// </summary>
+        /// <param name="questionBranches">
+        /// This event's inline question branches (EventDialogueExtractor.QuestionBranchesByEvent),
+        /// whose line indexes refer to <paramref name="lines"/>. Null = no question grouping.
+        /// </param>
+        /// <param name="dialogueQuestions">
+        /// This event's $q dialogue questions (EventDialogueExtractor.DialogueQuestionsByEvent).
+        /// Their replies come from the speaker's dialogue file and are shown right after the
+        /// question line, one column per reply. Null = none.
+        /// </param>
+        /// <param name="forks">
+        /// This event's fork/switchEvent points (EventDialogueExtractor.ForkPointsByEvent), shown
+        /// where they happen: a player-choice fork as a table of answers pointing to the scene
+        /// each leads to, anything else as a one-line pointer to the scene. Null = none.
+        /// </param>
+        public void AddEventLines(
+            IEnumerable<EventLine> lines,
+            IReadOnlyList<EventQuestionBranches> questionBranches = null,
+            IReadOnlyList<EventDialogueQuestion> dialogueQuestions = null,
+            IReadOnlyList<EventFork> forks = null)
+        {
+            List<ScriptLine> scriptLines = lines.Select(line => new ScriptLine(line.LineId, line.Dialogue, line.Character)).ToList();
+
+            foreach (ScriptEntry entry in VariantGroupBuilder.Build(scriptLines, questionBranches, dialogueQuestions, forks))
+            {
+                if (entry is VariantGroup group)
+                    AddEventVariantGroup(group);
+                else if (entry is SingleLineEntry single)
+                    AddEventLine(new EventLine(single.Line.LineId, single.Line.Speaker, single.Line.Text));
+                else if (entry is SceneJumpEntry jump)
+                    AddSceneJump(jump.Text);
+            }
+        }
+
+        // A quiet pointer to where the event jumps to another scene — not a line to record.
+        private void AddSceneJump(string text)
+        {
+            PlainTextScript += CenterLine(text) + "\n\n";
+            MarkDownScript += $"*{text}*\n\n";
         }
 
         public void AddEventLine(EventLine line)
         {
-            bool isTarget = string.Equals(
-                 LocalizationHelpers.GetLocalizedName(line.Character), CharacterName, StringComparison.OrdinalIgnoreCase);
+            bool isTarget = IsTargetCharacter(line.Character);
 
             if (isTarget) LineCount++;
 
@@ -214,15 +260,67 @@ namespace StardewVoices.FileGeneration.Models
 
         // ── Private helpers ──────────────────────────────────────────────────────────
 
-       
+        private bool IsTargetCharacter(string character)
+            => string.Equals(
+                 LocalizationHelpers.GetLocalizedName(character), CharacterName, StringComparison.OrdinalIgnoreCase);
+
+        // Character label: ★ NAME ★ for the target; · Name · for others
+        private string PlainTextSpeakerLabel(string character, bool isTarget)
+        {
+            string localizedCharacterName = LocalizationHelpers.GetLocalizedName(character);
+            return isTarget
+                ? CenterLine($"★  {localizedCharacterName.ToUpper()}  ★") + "\n"
+                : CenterLine($"· {localizedCharacterName} ·") + "\n";
+        }
+
+        /// <summary>
+        /// Renders mutually exclusive alternates side by side under the usual speaker label.
+        /// Only the target character's lines count toward <see cref="Script.LineCount"/>
+        /// — in every option, since each one still has to be recorded.
+        /// A question group can mix speakers (e.g. Sam replies, then Lewis); then there's no
+        /// single speaker label and each line in a cell is labelled with its speaker instead.
+        /// </summary>
+        private void AddEventVariantGroup(VariantGroup group)
+        {
+            LineCount += group.Options.Sum(option => option.Lines.Count(line => IsTargetCharacter(line.Speaker)));
+
+            string plainTextMarker = VariantGroupRenderer.PlainTextMarkerFor(group.Kind);
+            string markdownMarker = VariantGroupRenderer.MarkdownMarkerFor(group.Kind);
+
+            Func<ScriptLine, bool> emphasize = line => IsTargetCharacter(line.Speaker);
+            Func<ScriptLine, string> plainTextLineLabel = null;
+            Func<ScriptLine, string> markdownLineLabel = null;
+
+            if (group.Speaker != null)
+            {
+                bool isTarget = IsTargetCharacter(group.Speaker);
+                string localizedCharacterName = LocalizationHelpers.GetLocalizedName(group.Speaker);
+
+                PlainTextScript += PlainTextSpeakerLabel(group.Speaker, isTarget);
+                MarkDownScript += isTarget
+                    ? $"**★ {localizedCharacterName.ToUpper()} ★**\n\n"
+                    : $"· *{localizedCharacterName}* ·\n\n";
+            }
+            else
+            {
+                plainTextLineLabel = line => IsTargetCharacter(line.Speaker)
+                    ? $"★ {LocalizationHelpers.GetLocalizedName(line.Speaker).ToUpper()}"
+                    : $"· {LocalizationHelpers.GetLocalizedName(line.Speaker)}";
+                markdownLineLabel = line => IsTargetCharacter(line.Speaker)
+                    ? $"**★ {LocalizationHelpers.GetLocalizedName(line.Speaker).ToUpper()}**"
+                    : $"*{LocalizationHelpers.GetLocalizedName(line.Speaker)}*";
+            }
+
+            PlainTextScript += CenterLine(plainTextMarker) + "\n";
+            PlainTextScript += VariantGroupRenderer.RenderPlainText(group, PageWidth, plainTextLineLabel) + "\n";
+
+            MarkDownScript += markdownMarker + "\n\n";
+            MarkDownScript += VariantGroupRenderer.RenderMarkdownTable(group, emphasize, markdownLineLabel) + "\n";
+        }
 
         private void AddEventLinePlainText(EventLine line, bool isTarget)
         {
-            string localizedCharacterName = LocalizationHelpers.GetLocalizedName(line.Character);
-            // Character label: ★ NAME ★ for the target; · Name · for others
-            PlainTextScript += isTarget
-                ? CenterLine($"★  {localizedCharacterName.ToUpper()}  ★") + "\n"
-                : CenterLine($"· {localizedCharacterName} ·") + "\n";
+            PlainTextScript += PlainTextSpeakerLabel(line.Character, isTarget);
 
             // Line ID
             PlainTextScript += CenterLine($"[ {line.LineId} ]") + "\n";
