@@ -95,6 +95,7 @@ namespace StardewVoices.FileGeneration
                 }
             }
 
+           
             // ── Pass 1: collect raw EventLine records for every event ─────────────
             // One entry per unique "LocationName/eventId" across all characters.
             // Fork/response events are included because GetEventOrderForCharacter
@@ -120,7 +121,7 @@ namespace StardewVoices.FileGeneration
                 }
             }
 
-            // ── Pass 2: reconcile duplicate names across forked branches ──────────
+            // ── Pass 2: reconcile duplicate lines across forked branches ──────────
             var reconciledEventLines = rawEventLines;
             if (rawEventLines.Count > 0)
             {
@@ -133,19 +134,19 @@ namespace StardewVoices.FileGeneration
 
                 if (collapseLog.Count > 0)
                 {
-                    ErrorLogger.Info($"[Pass 2] Collapsed {collapseLog.Count} duplicate name(s):");
+                    ErrorLogger.Info($"[Pass 2] Collapsed {collapseLog.Count} duplicate dialogue line(s):");
                     foreach (var (oldId, canonicalId) in collapseLog)
                         ErrorLogger.Info($"  {oldId}  →  {canonicalId}");
                 }
                 else
                 {
-                    ErrorLogger.Info("[Pass 2] No duplicate names found.");
+                    ErrorLogger.Info("[Pass 2] No duplicate dialogue lines found.");
                 }
             }
 
             // ── Phase 3: generate per-character files using reconciled data ───────
             // CharactersToGenerate may hold English or localized names. Jsons are keyed and
-            // named by the English name (the runtime loads them by SupportedCharacters);
+            // named by the English name (the runtime loads them by CharactersToGenerate in config.json);
             // scripts by the localized name, which is what they display and what festival
             // lines look them up by.
             foreach(string configName in config.CharactersToGenerate)
@@ -176,26 +177,7 @@ namespace StardewVoices.FileGeneration
             WriteOutAllFiles(scriptFormat);
         }
 
-        /*
-        // might be obsoltete if i do it in GenerateFilesForCharacter
-        private void GenerateEventDialogueJsons(EventDialogueExtractor eventDialogueExtractor)
-        {
-            // Context is "{locationName}/{eventId}/{characterName}".
-            List<(string Text, string Context)> eventLines = eventDialogueExtractor.GetAllEventDialogue();
-            string lastEventId = "";
 
-            foreach((string Text, string Context) in eventLines)
-            {
-                string[] c = Context.Split("/");
-                if (c[1] != lastEventId)
-                {
-                    lastEventId = c[1];
-                    EventJsons.Add(lastEventId, new EventDialogueJson(lastEventId, c[0], Managers.PathManager));
-                }
-
-                EventJsons[lastEventId].AddLine(GetLineId(Text), Text);
-            }
-        }*/
         private void WriteOutAllFiles(string scriptFormat)
         {
             foreach (string key in Jsons.Keys)

@@ -78,7 +78,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         }
 
 
-        // ── Public API ───────────────────────────────────────────────────────
+        // ── Public  ───────────────────────────────────────────────────────
 
         /// <summary>
         /// Returns all dialogue for a character grouped by type. Each
@@ -236,9 +236,9 @@ namespace StardewVoices.Utils.GameDialogueExtraction
 
                 lines.AddRange(GetSpouseAttackedLines(character));
 
-                // A character-specific file fully shadows the generic line for the same
-                // id — the game will never show it, so it must not be scripted/voiced as
-                // this character's generic dialogue either.
+                // If a line id is found in the generic marriage dialogue that exists in the
+                // character-specific marriage file the generic line should be dropped as the
+                // game will always defer to character-specific files first.
                 var overriddenIds = new HashSet<string>(
                     GetMarriageDialogueOverrides(character.Name).Select(o => o.DialogueId));
 

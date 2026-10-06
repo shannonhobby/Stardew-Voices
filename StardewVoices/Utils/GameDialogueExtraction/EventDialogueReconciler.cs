@@ -7,12 +7,14 @@ using System.Linq;
 namespace StardewVoices.Utils.GameDialogueExtraction
 {
     /// <summary>
-    /// Pass 2 reconciler: collapses duplicate audio-file names that arise when
+    /// Pass 2 reconciler: collapses duplicate lines that arise when
     /// branching event paths (/fork, /switchEvent) independently reach the same
-    /// (character, dialogue) pair and each generate a distinct name.
+    /// (character, dialogue) pair and each generate a distinct name. This is a problem
+    /// as it requires multiple versions of the same audio files to exist in order to 
+    /// be named correctly.
     ///
-    /// Operates on raw List&lt;EventLine&gt; records produced by Pass 1
-    /// (EventDialogueExtractor.GetEventDialogue). Never touches Pass 1 logic.
+    /// Operates on records produced by Pass 1
+    /// (FileGenerator.GenerateFiles). Never touches Pass 1 logic.
     ///
     /// Step A — BuildEventGroups
     ///   Follows each root event's /fork and /switchEvent commands (transitively) and
@@ -96,7 +98,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         ///   • Exact Dialogue    (no normalisation — punctuation, emotion tags such
         ///     as "$s"/"$h", and page-break tokens like "#$b#" are all significant)
         ///
-        /// First-seen wins. Later occurrences are renamed to the canonical LineId.
+        /// First-seen lineId wins. Later occurrences are renamed to the canonical LineId.
         /// Lines in different event groups are NEVER deduped, even if identical.
         /// </summary>
         /// <param name="linesByEventKey">
