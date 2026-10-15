@@ -42,17 +42,19 @@ namespace StardewVoices.Utils
         }
 
 
+        // Accepts either a localized or an English name and returns the English one.
+        // Names not in the localized map (already English, or not a known NPC) are
+        // returned unchanged.
         public static string GetName(string name)
         {
-            if (Constants.SpecialCharacterLanguages.Contains(_currentLanguage))
+            if (name != null
+                && Constants.SpecialCharacterLanguages.Contains(_currentLanguage)
+                && _localizedToEnglishNameMap.TryGetValue(name, out string englishName))
             {
-                _localizedToEnglishNameMap.TryGetValue(name, out string localizedCharacterName);
-                return localizedCharacterName;
+                return englishName;
             }
-            else
-            {
-                return name;
-            }
+
+            return name;
         }
 
         public static string GetLanguageJsonExtension()
@@ -66,22 +68,28 @@ namespace StardewVoices.Utils
 
         }
 
+        // Accepts either a localized or an English name and returns the localized one.
+        // Names with no localized entry (e.g. one-off event actors) are returned unchanged.
         public static string GetLocalizedName(string name)
         {
-            if (Constants.SpecialCharacterLanguages.Contains(_currentLanguage))
-            {
-                if (name == "LeoMainland")
-                {
-                    name = "Leo";
-                }
-                Constants.LocalizedNpcNames.TryGetValue(name, out Dictionary<string, string> localizedCharacterNames);
-                localizedCharacterNames.TryGetValue(_currentLanguage, out string localizedCharacterName);
-                return localizedCharacterName;
-            }
-            else
+            if (name == null || !Constants.SpecialCharacterLanguages.Contains(_currentLanguage))
             {
                 return name;
             }
+
+            string englishName = GetName(name);
+            if (englishName == "LeoMainland")
+            {
+                englishName = "Leo";
+            }
+
+            if (Constants.LocalizedNpcNames.TryGetValue(englishName, out Dictionary<string, string> localizedCharacterNames)
+                && localizedCharacterNames.TryGetValue(_currentLanguage, out string localizedCharacterName))
+            {
+                return localizedCharacterName;
+            }
+
+            return name;
         }
     }
 }

@@ -110,35 +110,19 @@ namespace StardewVoices.Dialogue
             return "Could not find supported character in string :I";
         }
 
+        // Whether a game dialogue key/line id names any character. Keys are always
+        // English regardless of game language, so compare against English names.
         internal static Boolean StringContainAnyCharacter(string input)
         {
             for (int i = 0; i < Constants.AllCharacterNames.Count; i++)
             {
-                string characterName = LocalizationHelpers.GetLocalizedName(Constants.AllCharacterNames[i]);
-
-
-                if (input.Contains(characterName))
+                if (input.Contains(Constants.AllCharacterNames[i]))
                 {
                     return true;
                 }
             }
 
             return false;
-        }
-
-
-        internal static string GetAnyCharacterFromString(string input)
-        {
-            for (int i = 0; i < Constants.AllCharacterNames.Count; i++)
-            {
-                string characterName = LocalizationHelpers.GetLocalizedName(Constants.AllCharacterNames[i]);
-                if (input.Contains(characterName))
-                {
-                    return Constants.AllCharacterNames[i];
-                }
-            }
-
-            return "Could not find supported character in string :I";
         }
 
         internal static string ContainsCloseEnoughLine(Dictionary<string, string> dictionary, string line)
@@ -220,10 +204,20 @@ namespace StardewVoices.Dialogue
 
 
 
+        // Plain string.Replace matches substrings, so a farm/player/kid name that's also
+        // a prefix of an unrelated word (e.g. a farm named "Farm" inside "Farming") would
+        // get corrupted mid-word. Only replace where the match isn't glued to another
+        // letter on either side.
+        private static string ReplaceWholeWord(string input, string target, string replacement)
+        {
+            if (string.IsNullOrEmpty(target)) return input;
+            return Regex.Replace(input, $@"(?<!\p{{L}}){Regex.Escape(target)}(?!\p{{L}})", replacement.Replace("$", "$$"));
+        }
+
         internal static string formatDialogueString(string dialogueString)
         {
-            dialogueString = dialogueString.Replace(Game1.player.Name, "@");
-            dialogueString = dialogueString.Replace(Game1.getFarm().Name, "%farm");
+            dialogueString = ReplaceWholeWord(dialogueString, Game1.player.Name, "@");
+            dialogueString = ReplaceWholeWord(dialogueString, Game1.getFarm().Name, "%farm");
             dialogueString = Regex.Replace(dialogueString, @"\[.*?\]", "").Trim();
 
             // If in event replace baby and the second baby??? what??
@@ -244,7 +238,7 @@ namespace StardewVoices.Dialogue
 
             for (int i = 0; i < Game1.player.getChildren().Count; i++)
             {
-                dialogueString = dialogueString.Replace(Game1.player.getChildren()[i].Name, $"%kid{i + 1}");
+                dialogueString = ReplaceWholeWord(dialogueString, Game1.player.getChildren()[i].Name, $"%kid{i + 1}");
             }
 
             return Normalize(dialogueString);

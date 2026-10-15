@@ -15,16 +15,68 @@ namespace StardewVoices.Utils.GameDialogueExtraction
 
         private static readonly string[] PageBreakTokens = { "#$b#", "#$e#" };
 
+        // Leading words of known top-level event-script commands (see Data/Events /
+        // Data/Festivals command grammar). Used by IsEventScript to tell an event-script
+        // value apart from plain per-character dialogue by structure, not by key name, so
+        // fork targets (e.g. "AbbyWin") are detected the same way as top-level keys (e.g.
+        // "mainEvent"). Case-sensitive on purpose — event commands are always lowercase
+        // camelCase, while dialogue text starts with a capital letter, so this avoids
+        // false-positiving on dialogue that happens to start with a word like "End" or "Move".
+        private static readonly HashSet<string> EventCommandVerbs = new(StringComparer.Ordinal)
+        {
+            "speak", "textAboveHead", "splitSpeak", "message", "question", "end", "pause",
+            "playMusic", "stopMusic", "playSound", "emote", "jump", "shake", "showFrame",
+            "specificTemporarySprite", "temporarySprite", "globalFade", "fade", "viewport",
+            "warp", "warpFarmers", "faceDirection", "move", "advancedMove", "positionOffset",
+            "proceedPosition", "waitForOtherPlayers", "fork", "switchEvent", "quickQuestion",
+            "skippable", "removeQuest", "addQuest", "changeLocation", "animate", "halt",
+            "changeToTemporaryMap", "cutscene", "addItem", "changePortrait",
+            "addConversationTopic", "mail", "setRunning", "itemAboveHead",
+            "netSpeak", "netTextAboveHead", "opacity", "glow", "bloom", "playerControl",
+        };
+
+        /// <summary>
+        /// Detects festival values that are event scripts (a "/"-delimited command stream)
+        /// rather than plain per-character dialogue, by checking whether any command's
+        /// leading word is a known event-script verb.
+        /// </summary>
+        public static bool IsEventScript(string value)
+        {
+            if (string.IsNullOrEmpty(value) || !value.Contains('/'))
+                return false;
+
+            foreach (string command in value.Split('/'))
+            {
+                string trimmed = command.TrimStart();
+                int spaceIndex = trimmed.IndexOf(' ');
+                string verb = spaceIndex >= 0 ? trimmed.Substring(0, spaceIndex) : trimmed;
+                if (EventCommandVerbs.Contains(verb))
+                    return true;
+            }
+            return false;
+        }
+
         public FestivalDialogueExtractor(IModHelper helper)
         {
             this.helper = helper;
             FestivalDates = GetAllFestivalDates();
         }
 
+        // Date → festival name, in the current game language.
+        private Dictionary<string, string> LoadFestivalDates()
+        {
+            return helper.GameContent.Load<Dictionary<string, string>>($"Data/Festivals/FestivalDates");
+        }
+
         public string[] GetAllFestivalDates()
         {
-            Dictionary<string, string> festivalDates = helper.GameContent.Load<Dictionary<string, string>>($"Data/Festivals/FestivalDates");
-            return festivalDates.Keys.ToArray();
+            return LoadFestivalDates().Keys.ToArray();
+        }
+
+        // Festival name (matching Event.FestivalName) → date, the reverse of the game's data.
+        public Dictionary<string, string> GetFestivalNameToDateDict()
+        {
+            return LoadFestivalDates().ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
         }
 
         // Returns (Text, Context) pairs where Context is the festival date (e.g. "spring13").

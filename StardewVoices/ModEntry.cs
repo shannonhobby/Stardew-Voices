@@ -3,9 +3,8 @@ using StardewValley;
 using StardewVoices.Testing;
 using StardewVoices.FileGeneration;
 using StardewVoices.Utils;
-using System.IO;
+using StardewVoices.Utils.GameDialogueExtraction;
 using StardewVoices.Config;
-using System;
 using StardewValley.Menus;
 
 namespace StardewVoices
@@ -47,12 +46,21 @@ namespace StardewVoices
             );
 
             helper.ConsoleCommands.Add(
+                "sv_marriage_override_report",
+                "Prints generic marriage dialogue lines that are shadowed by a character's " +
+                "own MarriageDialogue{Name}.json (same id in both files). These generic lines " +
+                "are never shown in-game for that character, so their audio shouldn't be " +
+                "scripted/voiced generically. Read-only — does not touch any files.",
+                PrintMarriageOverrideReport
+            );
+
+            helper.ConsoleCommands.Add(
               "sv_generation",
               "Generates Dialogue JSONs and Scripts." +
-              "\n\nUsage: sv_generate_files [filesToGenerate] [scriptFormat]" +
+              "\n\nUsage: sv_generation [filesToGenerate] [scriptFormat] [generateGossipDialogue]" +
               "\n- filesToGenerate: \"json\", \"script\", \"both\" (default: both)" +
               "\n- scriptFormat: \"txt\", \"md\", \"both\" (default: both)" +
-              "\n- generateGossipDialogue: \"yes\", \"no\" (default: yes)",
+              "\n- generateGossipDialogue: \"yes\", \"no\" (default: no)",
               GenerateFiles
           );
 
@@ -116,11 +124,34 @@ namespace StardewVoices
             }
         }
 
+        private void PrintMarriageOverrideReport(string command, string[] args)
+        {
+            var extractor = new CharacterDialogueExtractor(helper);
+            int total = 0;
+
+            foreach (string characterName in Constants.LoveInterests)
+            {
+                var overrides = extractor.GetMarriageDialogueOverrides(characterName);
+                if (overrides.Count == 0) continue;
+
+                ErrorLogger.Info($"== {characterName} ({overrides.Count} overridden generic line(s)) ==");
+                foreach (var o in overrides)
+                {
+                    ErrorLogger.Info($"  [{o.DialogueId}]");
+                    ErrorLogger.Info($"    generic:  {o.GenericText}");
+                    ErrorLogger.Info($"    {characterName}: {o.CharacterText}");
+                }
+                total += overrides.Count;
+            }
+
+            ErrorLogger.Info($"[sv_marriage_override_report] {total} overridden generic marriage line(s) total across {Constants.LoveInterests.Count} character(s).");
+        }
+
         private void GenerateFiles(string command, string[] args)
         {
             string filesToGenerate      = args.Length > 0 ? args[0].ToLower() : "both";
             string scriptFormat         = args.Length > 1 ? args[1].ToLower() : "both";
-            string gossipArg            = args.Length > 2 ? args[2].ToLower() : "yes";
+            string gossipArg            = args.Length > 2 ? args[2].ToLower() : "no";
 
             bool generateJson           = filesToGenerate == "json"   || filesToGenerate == "both";
             bool generateScript         = filesToGenerate == "script" || filesToGenerate == "both";

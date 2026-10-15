@@ -116,7 +116,7 @@ namespace StardewVoices.StardewVoices.Testing
                     {
                         foreach (LabelledDialogueLine dialogueBox in line.Lines)
                         {
-                            if (dialogueBox.Text.StartsWith('%') || dialogueBox.Text.Equals("..."))
+                            if (ShouldSkipTestCase(dialogueBox.Text))
                                 continue;
 
                             DialogueTestCase newTestCase = new DialogueTestCase(characterName, key, dialogueBox, Managers.DialogueManager, helper);
@@ -140,7 +140,7 @@ namespace StardewVoices.StardewVoices.Testing
                 return;
             }
             foreach (var (text, context) in lines)
-                if (text == null || text.StartsWith('%'))
+                if (ShouldSkipTestCase(text))
                 {
                     continue;
                 }
@@ -159,7 +159,7 @@ namespace StardewVoices.StardewVoices.Testing
                 return;
             }
             foreach (var (text, context) in lines)
-                if (text == null || text.StartsWith('%'))
+                if (ShouldSkipTestCase(text))
                 {
                     continue;
                 } else
@@ -187,6 +187,11 @@ namespace StardewVoices.StardewVoices.Testing
         private ValidationResult ValidateTestCase(DialogueTestCase testCase)
         {
             return new ValidationResult(testCase, Managers.AudioManager, Managers.DialogueManager, Managers.PathManager, helper);
+        }
+
+        private bool ShouldSkipTestCase(string text)
+        {
+            return text == null || text.StartsWith('%') || text.Equals("...");
         }
     }
 }

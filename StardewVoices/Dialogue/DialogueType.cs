@@ -8,6 +8,7 @@ namespace StardewVoices.Dialogue
         Marriage,
         Generic,
         Extra,
+        GiftTastes,
         GenericMarriage,
         Engagement,
         Schedule,
@@ -15,7 +16,8 @@ namespace StardewVoices.Dialogue
         Event,
         Festival,
         Gossip,
-        SpeechBubble
+        SpeechBubble,
+        Quest,
     }
 
 }

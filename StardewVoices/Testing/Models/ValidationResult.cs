@@ -110,18 +110,41 @@ namespace StardewVoices.Testing.Models
             }
         }
 
-        // <summary>Whether the given Cue name maps to a Cue in the Sound Bank</summary>
+        // <summary>
+        // Whether the given Cue name maps to a Cue in the Sound Bank.
+        //
+        // Dash-suffixed cue names (e.g. "NPC_cs_3985-Abigail") are name/genre-substituted
+        // variants of one base line — AudioManager.Play falls back to the un-suffixed cue
+        // for these at runtime if the specific variant wasn't recorded. That fallback keeps
+        // the game silent about a missing recording, so validation checks the exact id
+        // itself (allowFallback: false) and always fails when it's missing, distinguishing
+        // two severities: the base cue still exists (this character just doesn't have a
+        // dedicated recording — a normal failure) vs. the base cue is ALSO missing (this
+        // line won't play at all in-game — a worse failure).
+        // </summary>
         public bool CueExists(DialogueTestCase testCase)
         {
             try
             {
-                bool CueExists = AudioManager.GetCueFromDialogueId(testCase.CueName, testCase.CharacterName) != null;
-                if (!CueExists)
+                if (AudioManager.GetCueFromDialogueId(testCase.CueName, testCase.CharacterName, allowFallback: false) != null)
+                    return true;
+
+                string fallbackCueName = GetFallbackCueName(testCase.CueName);
+                if (fallbackCueName != null &&
+                    AudioManager.GetCueFromDialogueId(fallbackCueName, testCase.CharacterName, allowFallback: false) != null)
                 {
-                    ErrorMessages.Add($"2. [FAILURE] CueExists: Cue not found for ID {testCase.CueName}");
+                    ErrorMessages.Add(
+                        $"2. [FAILURE] CueExists: Cue not found for ID {testCase.CueName} — falls back to generic " +
+                        $"cue {fallbackCueName} at runtime. Record a dedicated line for this character.");
+                }
+                else
+                {
+                    ErrorMessages.Add(
+                        $"2. [SEVERE FAILURE] CueExists: Cue not found for ID {testCase.CueName}, and its fallback " +
+                        $"cue {fallbackCueName ?? "(none)"} is also missing — this line will not play at all.");
                 }
 
-                return CueExists;
+                return false;
             }
             catch (Exception e)
             {
@@ -129,6 +152,13 @@ namespace StardewVoices.Testing.Models
                 return false;
             }
 
+        }
+
+        // "NPC_cs_3985-Abigail" -> "NPC_cs_3985". Null if cueName has no "-{suffix}" to strip.
+        private static string GetFallbackCueName(string cueName)
+        {
+            int dashIndex = cueName?.LastIndexOf('-') ?? -1;
+            return dashIndex > 0 ? cueName.Substring(0, dashIndex) : null;
         }
 
         // <summary>Whether the given Cue name maps to a Cue in the Sound Bank</summary>

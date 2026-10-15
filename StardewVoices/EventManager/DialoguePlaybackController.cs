@@ -113,7 +113,19 @@ namespace StardewVoices.EventManager
 
             string currentDialogueBoxString = GetCurrentDialogueBoxString();
 
-            _dialogueManager.CheckForTextAboveHead();
+            var textAboveHead = _dialogueManager.CheckForTextAboveHead();
+            if (textAboveHead != null)
+            {
+                (string textAboveHeadLineId, string textAboveHeadSpeaker) = textAboveHead.Value;
+                if (textAboveHeadLineId.Contains("not found"))
+                {
+                    ErrorLogger.Trace($"Text above head line not found: {textAboveHeadLineId}");
+                }
+                else
+                {
+                    _audioManager.Play(textAboveHeadLineId, textAboveHeadSpeaker);
+                }
+            }
 
             // If the last dialogue box string stored doesn't equal the current dialogue box string that means there's been a change! (yay!)
             if (!string.Equals(LastDialogueBoxString, currentDialogueBoxString))

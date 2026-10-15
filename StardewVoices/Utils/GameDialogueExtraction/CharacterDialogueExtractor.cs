@@ -1,6 +1,7 @@
 ﻿using StardewModdingAPI;
 using StardewValley;
 using StardewValley.GameData.Characters;
+using StardewVoices.Characters;
 using StardewVoices.Dialogue;
 using StardewVoices.Utils.ParsingHelpers;
 using System;
@@ -37,6 +38,9 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             { "EVERYONE", new() {
                 "ItemDeliveryQuest.cs.13526-13528",
                 "ItemDeliveryQuest.cs.13530-13544",
+                "NPC.cs.4058-4066",
+                "Event.cs.1499-1504",
+                "Event.cs.1801",
                 "NPC.cs.4274-4281",
                 "NPC.cs.4293-4294" } },
             { "WIFE ONLY", new() {
@@ -60,17 +64,21 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 "NPC.cs.4444",
                 "NPC.cs.4446-4447",
                 "NPC.cs.4449-4500",
+                "Event.cs.1736-1738",
                 "MultiplePetBowls_watered" } },
             { "CHILDREN", new() { "Event.cs.1497-1498" } },
         };
 
+        private readonly BookPlaceholderResolver bookPlaceholderResolver;
+
         public CharacterDialogueExtractor(IModHelper helper)
         {
             this.helper = helper;
+            this.bookPlaceholderResolver = new BookPlaceholderResolver(helper);
         }
 
 
-        // ── Public API ───────────────────────────────────────────────────────
+        // ── Public  ───────────────────────────────────────────────────────
 
         /// <summary>
         /// Returns all dialogue for a character grouped by type. Each
@@ -93,18 +101,23 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                     { DialogueType.Extra,           GetExtraDialogue(character) },
                     { DialogueType.GenericMarriage, GetGenericMarriageDialogue(character) },
                     { DialogueType.Generic,         GetGenericDialogue(character) },
+                    { DialogueType.GiftTastes,      GetGiftTasteDialogue(character) },
                     { DialogueType.Schedule,        GetScheduleDialogue(character) },
                     { DialogueType.SpeechBubble,    GetSpeechBubbleDialogue(character) },
+                    { DialogueType.Quest,           GetQuestDialogue(character) },
                 };
             } else if (character.Name == "Krobus") {
                 return new Dictionary<DialogueType, List<LabelledDialogue>>
                 {
                     { DialogueType.Dialogue,        GetCharacterDialogue(character) },
+                    { DialogueType.Engagement,      GetEngagementDialogue(character) },
                     { DialogueType.Rainy,           GetRainyDialogue(character) },
                     { DialogueType.Extra,           GetExtraDialogue(character) },
                     { DialogueType.Generic,         GetGenericDialogue(character) },
                     { DialogueType.Marriage,        GetMarriageDialogue(character) },
-                    { DialogueType.SpeechBubble,    GetSpeechBubbleDialogue(character) }
+                    { DialogueType.SpeechBubble,    GetSpeechBubbleDialogue(character) },
+                    { DialogueType.GiftTastes,      GetGiftTasteDialogue(character) },
+
                 };
             }
             else
@@ -116,6 +129,9 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                     { DialogueType.Extra,           GetExtraDialogue(character) },
                     { DialogueType.Generic,         GetGenericDialogue(character) },
                     { DialogueType.SpeechBubble,    GetSpeechBubbleDialogue(character) },
+                    { DialogueType.GiftTastes,      GetGiftTasteDialogue(character) },
+                    { DialogueType.Quest,           GetQuestDialogue(character) },
+
                 };
             }
 
@@ -131,7 +147,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 character, $"Characters/Dialogue/{LocalizationHelpers.GetName(character?.getName())}", DialogueType.Dialogue);
 
             if (lines.Count == 0)
-                ErrorLogger.Warn($"No character dialogue found for {character?.Name}.");
+                ErrorLogger.Trace($"No character dialogue found for {character?.Name}.");
 
             return lines;
         }
@@ -169,10 +185,13 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 if (!data.TryGetValue(sheetName, out string rawValue))
                     return new List<LabelledDialogue>();
 
+                Dictionary<string, string> englishData = isEnglish ? null : LoadEnglishContent("Characters\\Dialogue\\rainy");
+                string englishRawValue = (englishData != null && englishData.TryGetValue(sheetName, out string ev)) ? ev : null;
+
                 // Rainy uses a static TryGetDialogue overload with a colon-separated path
                 var sdvDialogue = StardewValley.Dialogue.TryGetDialogue(
                     character, "Characters\\Dialogue\\rainy:" + sheetName);
-                var labelledLines = CharacterDialogueParser.ParseRawValueToLines(rawValue, $"rainy_{sheetName}", DialogueType.Rainy);
+                var labelledLines = CharacterDialogueParser.ParseRawValueToLines(rawValue, $"rainy_{sheetName}", DialogueType.Rainy, englishRawValue);
 
                 return new List<LabelledDialogue>
                 {
@@ -193,8 +212,11 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 var lines = GetLabelledDialogueFromGameContent(
                     character, $"Characters/Dialogue/MarriageDialogue{character.Name}", DialogueType.Marriage);
 
+                // Get specific character lines from MarriageDialogue.json
+                lines.AddRange(GetLabelledLinesWithCharacterNameInId(character, $"Characters/Dialogue/MarriageDialogue", DialogueType.Marriage));
+
                 if (lines.Count == 0)
-                    ErrorLogger.Warn($"No marriage dialogue found for {character.Name}.");
+                    ErrorLogger.Trace($"No marriage dialogue found for {character.Name}.");
 
                 return lines;
             }
@@ -209,13 +231,60 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         {
             try
             {
-                return GetLabelledLinesWithoutCharacterNameInId(
+                var lines = GetLabelledLinesWithoutCharacterNameInId(
                     character, "Characters/Dialogue/MarriageDialogue", DialogueType.GenericMarriage);
+
+                lines.AddRange(GetSpouseAttackedLines(character));
+
+                // If a line id is found in the generic marriage dialogue that exists in the
+                // character-specific marriage file the generic line should be dropped as the
+                // game will always defer to character-specific files first.
+                var overriddenIds = new HashSet<string>(
+                    GetMarriageDialogueOverrides(character.Name).Select(o => o.DialogueId));
+
+                return lines.Where(line => !overriddenIds.Contains(line.OriginalKey)).ToList();
             }
             catch (Exception e)
             {
                 ErrorLogger.Error($"Error getting generic marriage dialogue for {character.Name}. {e}");
                 return new List<LabelledDialogue>();
+            }
+        }
+
+        /// <summary>
+        /// Finds marriage dialogue IDs that exist in both the generic MarriageDialogue.json
+        /// and <paramref name="characterName"/>'s own MarriageDialogue{characterName}.json —
+        /// an exact (non-prefix, non-substring) key match. The character-specific entry
+        /// always shadows the generic one for that id, so the generic line is never
+        /// shown/heard for this character.
+        /// </summary>
+        public List<MarriageDialogueOverride> GetMarriageDialogueOverrides(string characterName)
+        {
+            Dictionary<string, string> generic = TryLoadDialogueDict("Characters/Dialogue/MarriageDialogue");
+            Dictionary<string, string> characterFile = TryLoadDialogueDict($"Characters/Dialogue/MarriageDialogue{characterName}");
+
+            if (generic == null || generic.Count == 0 || characterFile == null)
+                return new List<MarriageDialogueOverride>();
+
+            var overrides = new List<MarriageDialogueOverride>();
+            foreach (var (id, characterText) in characterFile)
+            {
+                if (generic.TryGetValue(id, out string genericText))
+                    overrides.Add(new MarriageDialogueOverride(id, genericText, characterText));
+            }
+
+            return overrides;
+        }
+
+        private Dictionary<string, string> TryLoadDialogueDict(string path)
+        {
+            try
+            {
+                return helper.GameContent.Load<Dictionary<string, string>>(path);
+            }
+            catch
+            {
+                return null;
             }
         }
 
@@ -225,7 +294,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             {
                 var lines = GetMovieDialogue(character);
                 if (lines.Count == 0)
-                    ErrorLogger.Warn($"No movie dialogue found for {character.Name}.");
+                    ErrorLogger.Trace($"No movie dialogue found for {character.Name}.");
 
                 lines.AddRange(Get16Strings(character));
                 lines.AddRange(GetStringsFromCharactersFiles(character));
@@ -246,8 +315,23 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 character, "Strings/MovieReactions", DialogueType.Generic);
 
             if (lines.Count == 0)
-                ErrorLogger.Warn($"No movie reaction dialogue found for {character.Name}.");
+                ErrorLogger.Trace($"No movie reaction dialogue found for {character.Name}.");
 
+            return lines;
+        }
+
+        private List<LabelledDialogue> GetSpouseAttackedLines(NPC character)
+        {
+            Dictionary<string, string> data =
+                                helper.GameContent.Load<Dictionary<string, string>>("Strings/Locations");
+            var lines = new List<LabelledDialogue>();
+            foreach (var (key, value) in data)
+            {
+                if (key.Contains("FarmHouse_SpouseAttacked"))
+                {
+                    lines.Add(BuildLabelledDialogue(character, key, value, DialogueType.GenericMarriage));
+                }
+            }
             return lines;
         }
 
@@ -261,9 +345,10 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 var lines = new List<LabelledDialogue>();
                 foreach (var (key, value) in data)
                 {
-                    if (StringContainsCharacter(key, character.getName())
-                        || StringContainsSpouse(key)
-                        || key.Contains("NewChild")
+                    if (StringContainsCharacter(key, character.Name)
+                        || StringContainsSpouse(key) && character.isRoommate()
+                        || (key.Contains("PurchasedItem") && !DialogueHelpers.StringContainAnyCharacter(key))
+                        || key.Contains("NewChild") && character.isRoommate()
                         || key.Contains("LostItemQuest")
                         || key.Equals("Town_DumpsterDiveComment_Teen") && character.GetData().Age == NpcAge.Teen
                         || key.Equals("Town_DumpsterDiveComment_Adult") && character.GetData().Age == NpcAge.Adult
@@ -288,7 +373,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 character, "Strings/1_6_Strings", DialogueType.Generic);
 
             if (lines.Count == 0)
-                ErrorLogger.Warn($"No 1.6 dialogue found for {character.Name}.");
+                ErrorLogger.Trace($"No 1.6 dialogue found for {character.Name}.");
 
             return lines;
         }
@@ -315,30 +400,54 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             }
         }
 
+        private List<LabelledDialogue> GetQuestDialogue(NPC character)
+        {
+            try
+            {
+                Dictionary<string, string> data =
+                  helper.GameContent.Load<Dictionary<string, string>>("Data/Quests");
+
+                var lines = new List<LabelledDialogue>();
+                foreach (var (key, value) in data)
+                {
+                    if (ShouldAddLineFromQuestsFile(value, character, out string dialogueText))
+                        lines.Add(BuildLabelledDialogue(character, $"ItemDelivery_{key}_{character.Name.ToLower()}", dialogueText, DialogueType.Quest));
+                }
+                return lines;
+            }
+            catch (Exception e)
+            {
+                ErrorLogger.Warn($"Could not load 'Data/Quests' for {character.Name}. {e}");
+                return new List<LabelledDialogue>();
+            }
+        }
+
         private List<LabelledDialogue> GetLinesFromStringsFromCsFile(NPC character)
         {
             try
             {
                 Dictionary<string, string> data =
                     helper.GameContent.Load<Dictionary<string, string>>("Strings/StringsFromCsFiles");
+                Dictionary<string, string> englishData = isEnglish ? null : LoadEnglishContent("Strings/StringsFromCsFiles");
 
                 var lines = new List<LabelledDialogue>();
 
-                AddStringsFromCsFilesGroup(character.Name, data, character, lines);
-                AddStringsFromCsFilesGroup("EVERYONE", data, character, lines);
+                AddStringsFromCsFilesGroup(character.Name, data, englishData, character, lines);
+                AddStringsFromCsFilesGroup("EVERYONE", data, englishData, character, lines);
 
                 if (character.datable.Value)
                 {
-                    AddStringsFromCsFilesGroup("LOVE INTERESTS", data, character, lines);
+                    AddStringsFromCsFilesGroup("LOVE INTERESTS", data, englishData, character, lines);
                     AddStringsFromCsFilesGroup(
                         character.GetData().Gender == Gender.Female ? "WIFE ONLY" : "HUSBAND ONLY" ,
                         data,
+                        englishData,
                         character,
                         lines);
                 }
-                    
+
                 if (character.GetData().Age == NpcAge.Child)
-                    AddStringsFromCsFilesGroup("CHILDREN", data, character, lines);
+                    AddStringsFromCsFilesGroup("CHILDREN", data, englishData, character, lines);
 
 
                 return lines;
@@ -356,9 +465,56 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 character, "Strings/SpeechBubbles", DialogueType.Generic);
 
             if (lines.Count == 0)
-                ErrorLogger.Warn($"No speech bubble dialogue found for {character.Name}.");
+                ErrorLogger.Trace($"No speech bubble dialogue found for {character.Name}.");
 
             return lines;
+        }
+
+        // Fixed category order of Data/NPCGiftTastes: dialogue line, item-ID list
+        // (discarded), repeated once per category. IDs are the category's 1-based
+        // position in this order, not a count of non-empty lines seen so far.
+        private static readonly string[] GiftTasteCategories = { "Love", "Like", "Dislike", "Hate", "Neutral" };
+
+        private List<LabelledDialogue> GetGiftTasteDialogue(NPC character)
+        {
+            try
+            {
+                Dictionary<string, string> data =
+                    helper.GameContent.Load<Dictionary<string, string>>("Data/NPCGiftTastes");
+
+                if (!data.TryGetValue(character.Name, out string rawValue))
+                {
+                    ErrorLogger.Warn($"No gift taste dialogue found for {character.Name}.");
+                    return new List<LabelledDialogue>();
+                }
+
+                string[] sections = rawValue.Split('/');
+                var lines = new List<LabelledDialogue>();
+
+                for (int i = 0; i < GiftTasteCategories.Length; i++)
+                {
+                    int textIndex = i * 2;
+                    if (textIndex >= sections.Length) break;
+
+                    string text = sections[textIndex].Trim();
+                    if (string.IsNullOrEmpty(text)) continue;
+
+                    string lineId = $"{character.Name}GiftTaste_{i + 1}";
+                    var sdvDialogue = new StardewValley.Dialogue(character, null, text);
+                    var labelledLine = new LabelledDialogueLine(lineId, text, lineId, DialogueType.GiftTastes);
+                    lines.Add(new LabelledDialogue(sdvDialogue, new List<LabelledDialogueLine> { labelledLine }, lineId, DialogueType.GiftTastes));
+                }
+
+                if (lines.Count == 0)
+                    ErrorLogger.Trace($"No gift taste dialogue found for {character.Name}.");
+
+                return lines;
+            }
+            catch (Exception e)
+            {
+                ErrorLogger.Error($"Error getting gift taste dialogue for {character.Name}. {e}");
+                return new List<LabelledDialogue>();
+            }
         }
 
         private List<LabelledDialogue> GetScheduleDialogue(NPC character)
@@ -367,7 +523,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 character, $"Strings/schedules/{LocalizationHelpers.GetName(character.getName())}", DialogueType.Schedule);
 
             if (lines.Count == 0)
-                ErrorLogger.Warn($"No schedule dialogue found for {character.Name}.");
+                ErrorLogger.Trace($"No schedule dialogue found for {character.Name}.");
 
             return lines;
         }
@@ -413,6 +569,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         private void AddStringsFromCsFilesGroup(
             string group,
             Dictionary<string, string> data,
+            Dictionary<string, string> englishData,
             NPC character,
             List<LabelledDialogue> lines)
         {
@@ -422,10 +579,11 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             foreach (string rule in rules)
             {
                 if (rule.Contains("-"))
-                    lines.AddRange(GetDialogueRange(data, rule, character));
+                    lines.AddRange(GetDialogueRange(data, englishData, rule, character));
                 else if (data.TryGetValue(rule, out string value))
                 {
-                    lines.Add(BuildLabelledDialogue(character, rule, value, DialogueType.Generic));
+                    string englishValue = (englishData != null && englishData.TryGetValue(rule, out string ev)) ? ev : null;
+                    lines.Add(BuildLabelledDialogue(character, rule, value, DialogueType.Generic, englishValue));
                     if (rule == "NPC.cs.3985")
                         lines.AddRange(GetGiftDialogueVariants(character, data));
                 }
@@ -436,7 +594,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         /// Fetches all keys in the range "File.cs.1234-1333" from <paramref name="data"/>.
         /// </summary>
         private List<LabelledDialogue> GetDialogueRange(
-            Dictionary<string, string> data, string range, NPC character)
+            Dictionary<string, string> data, Dictionary<string, string> englishData, string range, NPC character)
         {
             var lines = new List<LabelledDialogue>();
 
@@ -453,7 +611,10 @@ namespace StardewVoices.Utils.GameDialogueExtraction
             {
                 string key = prefix + current;
                 if (data.TryGetValue(key, out string value))
-                    lines.Add(BuildLabelledDialogue(character, key, value, DialogueType.Generic));
+                {
+                    string englishValue = (englishData != null && englishData.TryGetValue(key, out string ev)) ? ev : null;
+                    lines.Add(BuildLabelledDialogue(character, key, value, DialogueType.Generic, englishValue));
+                }
                 current++;
             }
 
@@ -467,8 +628,44 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         {
             return StringContainsCharacter(lineId, character.Name)
                 || ((lineId.Contains("WipedMemory") || lineId.Contains("Divorced")) && character.datable.Value)
-                || (lineId.Contains("Saloon") && (character.Name == "Kent" || character.Name == "Alex" || character.Name == "George"))
+                || (lineId.Contains("Saloon") && (character.Name == "Kent" || character.Name == "Alex" || character.Name == "George" || character.Name == "Shane"))
                 || ShouldAddMovieInviteLineForCharacter(lineId, character);
+        }
+
+        // Characters known to have at least one item-delivery/lost-item quest entry
+        // with attached dialogue in Data/Quests. Most quest entries (tutorial/basic
+        // quests) have no dialogue at all, so this lets us short-circuit everyone
+        // else without splitting and pattern-matching every entry for every character.
+        private static readonly HashSet<string> CharactersWithQuestDialogue = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "Robin", "Jodi", "Lewis", "Pam", "Demetrius", "George", "Marnie", "Linus",
+            "Caroline", "Willy", "Emily", "Wizard", "Clint", "Gus", "Evelyn", "Pierre",
+            "Kent", "Abigail"
+        };
+
+        /// <summary>
+        /// Checks whether a Data/Quests entry has item-delivery dialogue for
+        /// <paramref name="character"/> and, if so, extracts the raw dialogue text.
+        /// Entry format is "/"-delimited; field[4] holds "{Name} (O){itemData}" for
+        /// dialogue-bearing quests, followed by exactly four more fields and then the
+        /// dialogue itself as the final field. Quests with no dialogue only have 9 fields.
+        /// </summary>
+        private bool ShouldAddLineFromQuestsFile(string entry, NPC character, out string dialogueText)
+        {
+            dialogueText = null;
+
+            if (!CharactersWithQuestDialogue.Contains(character.Name))
+                return false;
+
+            string[] fields = entry.Split('/');
+            if (fields.Length != 10)
+                return false;
+
+            if (!fields[4].StartsWith($"{character.Name} (O)"))
+                return false;
+
+            dialogueText = fields[9];
+            return true;
         }
 
         private bool ShouldAddMovieInviteLineForCharacter(string lineId, NPC character)
@@ -485,12 +682,16 @@ namespace StardewVoices.Utils.GameDialogueExtraction
 
         private bool StringContainsCharacter(string str, string characterName)
         {
-            return DialogueHelpers.StringContainsSupportedCharacter(str) && str.Contains(characterName);
+            if (characterName.Contains("Qi"))
+            {
+               return DialogueHelpers.StringContainsCharacterToGenerate(str) &&  str.Contains("Qi");
+            }
+            return DialogueHelpers.StringContainsCharacterToGenerate(str) && str.Contains(characterName);
         }
 
         private bool StringContainsSpouse(string str)
         {
-            return !DialogueHelpers.StringContainsSupportedCharacter(str) && str.Contains("Spouse");
+            return !DialogueHelpers.StringContainsCharacterToGenerate(str) && str.Contains("Spouse");
         }
 
 
@@ -532,7 +733,7 @@ namespace StardewVoices.Utils.GameDialogueExtraction
                 var lines = new List<LabelledDialogue>();
                 foreach (var (key, value) in data)
                 {
-                    if (!StringContainsCharacter(key, character.getName())) continue;
+                    if (!StringContainsCharacter(key, character.Name)) continue;
                     string englishRawValue = (englishData != null && englishData.TryGetValue(key, out string ev)) ? ev : null;
                     lines.Add(BuildLabelledDialogue(character, key, value, type, englishRawValue));
                 }
@@ -583,7 +784,31 @@ namespace StardewVoices.Utils.GameDialogueExtraction
         {
             var sdvDialogue = character.TryGetDialogue(key);
             var labelledLines = CharacterDialogueParser.ParseRawValueToLines(rawValue, key, type, englishRawValue);
-            return new LabelledDialogue(sdvDialogue, labelledLines, key, type);
+            labelledLines = ResolveBookPlaceholders(labelledLines, type);
+            return new LabelledDialogue(sdvDialogue, labelledLines, key, type,
+                CharacterDialogueParser.GetQuestionResponses(rawValue));
+        }
+
+        // Resolves Elliott's "%book" placeholder (see BookPlaceholderResolver) in each
+        // parsed line, expanding any generic "your book" line into one entry per genre.
+        // A no-op for lines that don't contain the placeholder.
+        private List<LabelledDialogueLine> ResolveBookPlaceholders(List<LabelledDialogueLine> lines, DialogueType type)
+        {
+            List<LabelledDialogueLine> resolved = null;
+            for (int i = 0; i < lines.Count; i++)
+            {
+                LabelledDialogueLine line = lines[i];
+                if (!line.Text.Contains("%book"))
+                {
+                    resolved?.Add(line);
+                    continue;
+                }
+
+                resolved ??= new List<LabelledDialogueLine>(lines.Take(i));
+                foreach (var (resolvedId, resolvedText) in bookPlaceholderResolver.Resolve(line.LineId, line.Text))
+                    resolved.Add(new LabelledDialogueLine(resolvedId, resolvedText, line.OriginalKey, type, line.IsContinuation));
+            }
+            return resolved ?? lines;
         }
 
         // Loads the English version of a game content asset regardless of current language.
