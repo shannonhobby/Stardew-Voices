@@ -1,168 +1,207 @@
-using Microsoft.Xna.Framework.Audio;
-using StardewModdingAPI;
-using StardewValley.Audio;
 using StardewVoices.Utils;
-using System.Threading;
 using System;
-using StardewVoices.Characters;
-using StardewVoices.Pathing;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using StardewVoices.Pathing;
 
 namespace StardewVoices.Audio
 {
     public class AudioManager
     {
-        internal AudioEngine AudioEngine { get; }
-        internal PathNode AudioPath { get; }
-        internal CharacterManager CharacterManager { get; }
+        internal VoiceResolver Resolver { get; } = new VoiceResolver();
 
-        private Cue lastCue { get; set; }
-        private Cue currentCue { get; set; }
+        private FileVoiceLine lastLine { get; set; }
+        private FileVoiceLine currentLine { get; set; }
 
-        public AudioManager(CharacterManager characterManager, PathManager pathManager) {
-            AudioPath = pathManager.GetPath("Audio");
-            ErrorLogger.Trace($"Audio path located: {AudioPath}");
-            CharacterManager = characterManager;
+        private float _volume = 1f;
+        private bool _muted;
 
-            // Engine and banks are opened by bare file name relative to the Audio folder,
-            // wherever the mod is installed. See AudioPathHelper.LoadFromDirectory.
-            AudioEngine = AudioPathHelper.LoadFromDirectory(AudioPath.ToString(), () =>
-            {
-                AudioEngine audioEngine = new AudioEngine("Stardew Voices.xgs");
-                try
-                {
-                    foreach (string character in characterManager.SupportedCharacters)
-                    {
-                        CharacterAudio newCharacterAudio = new CharacterAudio(character, audioEngine);
-                        characterManager.SetCharacterAudio(character, newCharacterAudio);
-                    }
-
-                }
-                catch (Exception e)
-                {
-                    ErrorLogger.Error($"Error loading sound bank, audio cannot play:", e);
-                }
-                return audioEngine;
-            });
+        /// <summary>0 (silent) to 1 (full). Applies to the playing line and every line after it.</summary>
+        public float Volume
+        {
+            get => _volume;
+            set { _volume = value; ApplyVolume(); }
         }
 
-        public void Play(Cue cue)
+        /// <summary>Silences voices without losing <see cref="Volume"/>. Used while validation runs.</summary>
+        public bool Muted
         {
-            StopLastCue();
+            get => _muted;
+            set { _muted = value; ApplyVolume(); }
+        }
 
-            if (cue != null)
+        private float EffectiveVolume => Muted ? 0f : Volume;
+
+        /// <summary>Every installed source for each character, default first. For the config menu.</summary>
+        internal Dictionary<string, List<VoiceSourceOption>> VoiceOptions { get; }
+
+        /// <param name="voicePacks">Installed voice packs.</param>
+        /// <param name="characterVoices">The player's choice of voice per character (see ModConfig.CharacterVoices).</param>
+        public AudioManager(PathManager pathManager, IEnumerable<VoicePack> voicePacks, IDictionary<string, string> characterVoices) {
+            string modPath = pathManager.ModPath.ToString();
+            string voicesFolder = FileManipulationHelpers.FindFolder(modPath, VoicePackLoader.VoicesFolderName)
+                ?? Path.Combine(modPath, VoicePackLoader.VoicesFolderName);
+            FolderVoiceSource builtInVoices = new FolderVoiceSource("Built-in voices", voicesFolder);
+
+            // Each character gets exactly one source: a pack or the built-in voices.
+            VoiceOptions = VoiceSourceSelector.GetOptions(builtInVoices, voicePacks);
+            Dictionary<string, VoiceSourceOption> chosen = VoiceSourceSelector.Choose(VoiceOptions, characterVoices);
+            VoiceSourceSelector.LogChoices(VoiceOptions, chosen, characterVoices);
+            UseVoices(chosen);
+
+            if (builtInVoices.LineCount == 0)
+                ErrorLogger.Warn($"No voice files found in {builtInVoices.RootPath}, so voices won't play.");
+            else
+                ErrorLogger.Info($"Built-in voices: {builtInVoices.Characters.Count} characters, {builtInVoices.LineCount} lines.");
+
+            WarnAboutOldXactFiles(modPath);
+        }
+
+        /// <summary>
+        /// Re-applies the player's choice of voice per character, e.g. after they change one in the
+        /// config menu. Takes effect from the next line; a line already playing finishes as it was.
+        /// </summary>
+        public void ApplyVoiceChoices(IDictionary<string, string> characterVoices)
+        {
+            UseVoices(VoiceSourceSelector.Choose(VoiceOptions, characterVoices));
+        }
+
+        private void UseVoices(Dictionary<string, VoiceSourceOption> chosen)
+        {
+            foreach ((string character, VoiceSourceOption option) in chosen)
+                Resolver.SetSource(character, option.Source);
+        }
+
+        /// <summary>
+        /// Before 3.1 voices shipped as XACT banks in an Audio folder. Updating the mod doesn't
+        /// always delete them, and they're about 3 GB, so tell the player they're safe to remove.
+        /// </summary>
+        private static void WarnAboutOldXactFiles(string modPath)
+        {
+            string oldAudioFolder = Path.Combine(modPath, "Audio");
+            if (!Directory.Exists(oldAudioFolder))
+                return;
+
+            string[] waveBanks = Directory.GetFiles(oldAudioFolder, "*.xwb");
+            if (waveBanks.Length == 0)
+                return;
+
+            double sizeInGb = waveBanks.Sum(file => new FileInfo(file).Length) / 1_000_000_000d;
+            ErrorLogger.Warn($"Found old voice files from an earlier Stardew Voices version in {oldAudioFolder}. " +
+                $"They're no longer used. You can delete that folder to free {sizeInGb:0.#} GB.");
+        }
+
+        public void Play(FileVoiceLine line)
+        {
+            StopLastLine();
+
+            if (line != null)
             {
-                ErrorLogger.Trace($"Playing cue");
-                currentCue = cue;
-                cue.Play();
+                ErrorLogger.Trace($"Playing line");
+                SetCurrentLine(line);
+                line.Play();
             } else
             {
-                ErrorLogger.Warn($"Unable to play cue");
+                ErrorLogger.Warn($"Unable to play line");
             }
         }
 
 
         public void Play(string lineId, string characterName)
         {
-            currentCue = GetCueFromDialogueId(lineId, characterName);
+            SetCurrentLine(GetVoiceLine(lineId, characterName));
 
-            StopLastCue();
+            StopLastLine();
 
-            if(currentCue != null)
+            if(currentLine != null)
             {
-                ErrorLogger.Trace($"Playing cue: {characterName}: {lineId}");
-                currentCue.Play();
-            }
-        }
-  
-        public void StopCue()
-        {
-            if (currentCue != null)
-            {
-                ErrorLogger.Trace("Current cue stopped");
-                currentCue.Stop(AudioStopOptions.Immediate);
-                currentCue = null;
-
-            }
-
-            StopLastCue();
-        }
-
-        public void StopLastCue()
-        {
-
-            if (lastCue != null && lastCue.IsPlaying)
-            {
-                ErrorLogger.Trace("Last cue stopped");
-                lastCue.Stop(AudioStopOptions.Immediate);
+                ErrorLogger.Trace($"Playing line: {characterName}: {lineId}");
+                currentLine.Play();
             }
         }
 
-        public Boolean LastCueIsStillPlaying() {
-            return (this.lastCue == null || (this.lastCue != null && !this.lastCue.IsPlaying));
+        public void StopAllLines()
+        {
+            if (currentLine != null)
+            {
+                ErrorLogger.Trace("Current line stopped");
+                currentLine.Stop();
+                currentLine = null;
+
+            }
+
+            StopLastLine();
         }
 
-        public void NextCue()
+        public void StopLastLine()
         {
-            if (this.currentCue != null)
+
+            if (lastLine != null && lastLine.IsPlaying)
             {
-                ErrorLogger.Trace("Last cue set to current cue");
-                this.lastCue = currentCue;
+                ErrorLogger.Trace("Last line stopped");
+                lastLine.Stop();
             }
         }
 
-
-        public void MuteAll()
-        {
-            foreach (string name in CharacterManager.SupportedCharacters)
-                CharacterManager.GetCharacter(name)?.SetVolume(0);
+        public Boolean LastLineHasFinished() {
+            return (this.lastLine == null || (this.lastLine != null && !this.lastLine.IsPlaying));
         }
 
-        public void UnmuteAll()
+        public void NextLine()
         {
-            foreach (string name in CharacterManager.SupportedCharacters)
-                CharacterManager.GetCharacter(name)?.SetVolume(1);
-        }
-
-        /// <param name="allowFallback">
-        /// When true (the default, used during real playback) and no cue is recorded for
-        /// <paramref name="lineId"/>, retries once against the generic cue with the
-        /// trailing "-{suffix}" stripped (e.g. "NPC_cs_3985-Abigail" -> "NPC_cs_3985") —
-        /// these dash-suffixed ids are name/genre-substituted variants of one base line,
-        /// so the un-suffixed recording (voiced with the generic placeholder, e.g.
-        /// "Someone") is a reasonable stand-in when the specific variant wasn't recorded.
-        /// Pass false to check a single exact id, e.g. from validation, which needs to
-        /// tell an exact hit apart from a fallback hit.
-        /// </param>
-        public Cue GetCueFromDialogueId(string lineId, string characterName, bool allowFallback = true)
-        {
-            try
+            if (this.currentLine != null)
             {
-                Character character = CharacterManager.GetCharacter(characterName);
-                SoundBank soundBank = character.GetSoundBank();
-                return soundBank.GetCue(lineId);
-            }
-            catch (Exception error)
-            {
-                string fallbackLineId = allowFallback ? GetFallbackLineId(lineId) : null;
-                if (fallbackLineId == null)
-                {
-                    ErrorLogger.WarnOnce($"Error getting cue for {characterName}: {lineId} Sound Bank: {error}");
-                    return null;
-                }
-
-                Cue fallbackCue = GetCueFromDialogueId(fallbackLineId, characterName, allowFallback: false);
-                if (fallbackCue == null)
-                    ErrorLogger.WarnOnce($"Error getting cue for {characterName}: {lineId} Sound Bank: {error}");
-                return fallbackCue;
+                ErrorLogger.Trace("Last line set to current line");
+                FileVoiceLine previousLastLine = lastLine;
+                this.lastLine = currentLine;
+                Release(previousLastLine);
             }
         }
 
-        // "NPC_cs_3985-Abigail" -> "NPC_cs_3985". Null if lineId has no "-{suffix}" to strip.
-        private static string GetFallbackLineId(string lineId)
+        /// <summary>
+        /// Returns the audio for a line (falling back to the un-suffixed id, see
+        /// <see cref="VoiceResolver.Resolve"/>), set to the current volume. Null if the
+        /// character has no recording for it. Nothing is loaded until the line plays.
+        /// </summary>
+        public FileVoiceLine GetVoiceLine(string lineId, string characterName)
         {
-            int dashIndex = lineId?.LastIndexOf('-') ?? -1;
-            return dashIndex > 0 ? lineId.Substring(0, dashIndex) : null;
+            FileVoiceLine line = Resolver.Resolve(characterName, lineId);
+            if (line == null)
+            {
+                ErrorLogger.WarnOnce($"No audio for {characterName}: {lineId}");
+                return null;
+            }
+
+            line.Volume = EffectiveVolume;
+            return line;
+        }
+
+        private void SetCurrentLine(FileVoiceLine line)
+        {
+            FileVoiceLine previousLine = currentLine;
+            currentLine = line;
+            if (line != null)
+                line.Volume = EffectiveVolume;
+            Release(previousLine);
+        }
+
+        /// <summary>
+        /// Frees the audio of a line we've stopped tracking. A line that's still playing is
+        /// left to finish, as before; it just can't be stopped or have its volume changed.
+        /// </summary>
+        private void Release(FileVoiceLine line)
+        {
+            if (line != null && line != currentLine && line != lastLine && !line.IsPlaying)
+                line.Stop();
+        }
+
+        private void ApplyVolume()
+        {
+            if (currentLine != null)
+                currentLine.Volume = EffectiveVolume;
+            if (lastLine != null)
+                lastLine.Volume = EffectiveVolume;
         }
     }
 }

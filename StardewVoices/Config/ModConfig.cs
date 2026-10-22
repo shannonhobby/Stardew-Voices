@@ -21,21 +21,18 @@ namespace StardewVoices.Config
         /****
          ** Volume settings
          ****/
+        /// <summary>The one voices volume slider (0-100). Applies to every character.</summary>
         public int DialogueVolume { get; set; } = 100;
 
-        public int AbigailVolume { get; set; } = 100;
-        public int AlexVolume { get; set; } = 100;
-        public int ElliottVolume { get; set; } = 100;
-        public int EmilyVolume { get; set; } = 100;
-        public int HaleyVolume { get; set; } = 100;
-        public int HarveyVolume { get; set; } = 100;
-        public int LeahVolume { get; set; } = 100;
-        public int MaruVolume { get; set; } = 100;
-        public int PennyVolume { get; set; } = 100;
-        public int SamVolume { get; set; } = 100;
-        public int SebastianVolume { get; set; } = 100;
-        public int ShaneVolume { get; set; } = 100;
-
+        /****
+         ** Voice pack settings
+         ****/
+        /// <summary>
+        /// Which voice each character uses when more than one is installed: character name →
+        /// a voice pack's UniqueID, or "Built-in". Characters not listed use the default
+        /// (the first pack alphabetically that has them, otherwise the built-in voices).
+        /// </summary>
+        public Dictionary<string, string> CharacterVoices { get; set; } = new();
 
         /****
          ** Language settings
@@ -45,22 +42,6 @@ namespace StardewVoices.Config
         /****
           ** Dub-veleper settings
           ****/
-        public List<string> SupportedCharacters { get; set; } = new()
-        {
-            "Abigail",
-            "Alex",
-            "Elliott",
-            "Emily",
-            "Haley",
-            "Harvey",
-            "Leah",
-            "Maru",
-            "Penny",
-            "Sam",
-            "Sebastian",
-            "Shane",
-        };
-
         public List<string> CharactersToGenerate { get; set; } = new()
         {
             "Abigail",

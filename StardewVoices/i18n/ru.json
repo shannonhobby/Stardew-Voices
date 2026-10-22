@@ -1,6 +1,10 @@
 {
     "settings.volumeNote": "Если звук всё ещё слишком тихий:\nуменьшите громкость музыки и звуковых эффектов в настройках.",
     "settings.volume": "Громкость",
+    "settings.voices": "Голоса",
+    "settings.voicePacks": "Наборы голосов",
+    "settings.voicePacksNote": "Выберите, какой голос использует каждый персонаж, если установлено несколько.",
+    "settings.builtInVoices": "Встроенные голоса",
     "settings.volumeTooltip": "Настроить громкость",
     "settings.languageWarning": "*ЧТОБЫ ИЗМЕНЕНИЯ ЯЗЫКА ВСТУПИЛИ В СИЛУ, НЕОБХОДИМО ПЕРЕЗАПУСТИТЬ ИГРУ*",
     "settings.language": "Язык",

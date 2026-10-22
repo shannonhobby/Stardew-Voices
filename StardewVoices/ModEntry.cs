@@ -55,6 +55,20 @@ namespace StardewVoices
             );
 
             helper.ConsoleCommands.Add(
+                "sv_pack_report",
+                "For voice pack authors: lists the characters a voice pack provides, whether each is in use, " +
+                "and files that don't match any line id.\n" +
+                "Usage: sv_pack_report <pack UniqueID or name>",
+                (command, args) =>
+                {
+                    if (args.Length == 0)
+                        ErrorLogger.Info("[sv_pack_report] Usage: sv_pack_report <pack UniqueID or name>");
+                    else
+                        VoicePackReport.Run(managerHub, string.Join(" ", args));
+                }
+            );
+
+            helper.ConsoleCommands.Add(
               "sv_generation",
               "Generates Dialogue JSONs and Scripts." +
               "\n\nUsage: sv_generation [filesToGenerate] [scriptFormat] [generateGossipDialogue]" +
@@ -116,7 +130,7 @@ namespace StardewVoices
                 Game1.currentSpeaker = npc;
 
             // currentSpeaker must be set for UpdateCurrentDialogue to play audio.
-            // If the NPC wasn't found, fall back to playing the cue directly.
+            // If the NPC wasn't found, fall back to playing the line directly.
             if (npc == null && !lineId.Contains("not found"))
             {
                 ErrorLogger.Warn($"[sv_play_line] NPC '{characterName}' not found — playing audio directly.");

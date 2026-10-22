@@ -1,6 +1,10 @@
 {
     "settings.volumeNote": "Falls die Lautstärke immer noch zu niedrig ist:\nreduziere in den Einstellungen die Lautstärke von Musik und Soundeffekten im Spiel.",
     "settings.volume": "Lautstärke",
+    "settings.voices": "Stimmen",
+    "settings.voicePacks": "Stimmpakete",
+    "settings.voicePacksNote": "Wähle, welche Stimme jede Figur verwendet, wenn mehrere installiert sind.",
+    "settings.builtInVoices": "Mitgelieferte Stimmen",
     "settings.volumeTooltip": "Lautstärke anpassen",
     "settings.languageWarning": "*DU MUSST DAS SPIEL NEU STARTEN, DAMIT SPRACHÄNDERUNGEN WIRKUNG ERZIELEN*",
     "settings.language": "Sprache",

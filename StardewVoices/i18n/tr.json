@@ -1,6 +1,10 @@
 {
     "settings.volumeNote": "Ses seviyesi hâlâ çok düşükse:\nayarlar bölümünden oyunun müzik ve ses efektlerinin sesini azaltın.",
     "settings.volume": "Ses",
+    "settings.voices": "Sesler",
+    "settings.voicePacks": "Ses paketleri",
+    "settings.voicePacksNote": "Birden fazla yüklü olduğunda her karakterin hangi sesi kullanacağını seçin.",
+    "settings.builtInVoices": "Yerleşik sesler",
     "settings.volumeTooltip": "Ses seviyesini ayarla",
     "settings.languageWarning": "*DİL DEĞİŞİKLİKLERİNİN GEÇERLİ OLMASI İÇİN OYUNU YENİDEN BAŞLATMANIZ GEREKİR*",
     "settings.language": "Dil",

@@ -1,6 +1,8 @@
 using StardewModdingAPI;
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using StardewVoices.Audio;
 using System.Threading;
 using StardewVoices.Utils;
 
@@ -15,6 +17,9 @@ namespace StardewVoices.Config
 
         /// <summary>Raised whenever a config value changes through the GMCM menu (including reset).</summary>
         public Action OnConfigChanged;
+
+        /// <summary>Every installed voice for each character (see AudioManager.VoiceOptions). Set before the menu is built.</summary>
+        internal Dictionary<string, List<VoiceSourceOption>> VoiceOptions { get; set; } = new();
 
         public Menu(ModConfig config, IModHelper helper, IManifest manifest)
         {
@@ -47,7 +52,12 @@ namespace StardewVoices.Config
             api.Register(
                 ModManifest,
                 reset: () => ResetConfig(),
-                save: () => Helper.WriteConfig(_config)
+                save: () =>
+                {
+                    Helper.WriteConfig(_config);
+                    // GMCM only calls the setValue callbacks on save, so apply the saved values now.
+                    OnConfigChanged?.Invoke();
+                }
             );
 
             api.OnFieldChanged(ModManifest, (fieldId, newValue) => OnConfigChanged?.Invoke());
@@ -86,146 +96,14 @@ namespace StardewVoices.Config
                 ModManifest,
                 () => _config.DialogueVolume,
                 value => _config.DialogueVolume = value,
-                () => Helper.Translation.Get("settings.allVoices"),
+                () => Helper.Translation.Get("settings.voices"),
                 () => Helper.Translation.Get("settings.volumeTooltip"),
                 min: 0,
                 max: 100,
                 interval: 1
             );
 
-
-            api.AddNumberOption(
-                 ModManifest,
-                 () => _config.AbigailVolume,
-                 value => _config.AbigailVolume = value,
-                 () => $"{LocalizationHelpers.GetLocalizedName("Abigail")}",
-                 () => $"Volume for {LocalizationHelpers.GetLocalizedName("Abigail")} dialogue",
-                 min: 0,
-                 max: 100,
-                 interval: 1
-             );
-
-            api.AddNumberOption(
-                ModManifest,
-                () => _config.AlexVolume,
-                value => _config.AlexVolume = value,
-                () => $"{LocalizationHelpers.GetLocalizedName("Alex")}",
-                () => $"Volume for {LocalizationHelpers.GetLocalizedName("Alex")} dialogue",
-                min: 0,
-                max: 100,
-                interval: 1
-            );
-
-            api.AddNumberOption(
-                ModManifest,
-                () => _config.ElliottVolume,
-                value => _config.ElliottVolume = value,
-                () => $"{LocalizationHelpers.GetLocalizedName("Elliott")}",
-                () => $"Volume for {LocalizationHelpers.GetLocalizedName("Elliott")} dialogue",
-                min: 0,
-                max: 100,
-                interval: 1
-            );
-
-            api.AddNumberOption(
-                ModManifest,
-                () => _config.EmilyVolume,
-                value => _config.EmilyVolume = value,
-                () => $"{LocalizationHelpers.GetLocalizedName("Emily")}",
-                () => $"Volume for {LocalizationHelpers.GetLocalizedName("Emily")} dialogue",
-                min: 0,
-                max: 100,
-                interval: 1
-            );
-
-            api.AddNumberOption(
-                ModManifest,
-                () => _config.HaleyVolume,
-                value => _config.HaleyVolume = value,
-                () => $"{LocalizationHelpers.GetLocalizedName("Haley")}",
-                () => $"Volume for {LocalizationHelpers.GetLocalizedName("Haley")} dialogue",
-                min: 0,
-                max: 100,
-                interval: 1
-            );
-
-            api.AddNumberOption(
-                ModManifest,
-                () => _config.HarveyVolume,
-                value => _config.HarveyVolume = value,
-                () => $"{LocalizationHelpers.GetLocalizedName("Harvey")}",
-                () => $"Volume for {LocalizationHelpers.GetLocalizedName("Harvey")} dialogue",
-                min: 0,
-                max: 100,
-                interval: 1
-            );
-
-            api.AddNumberOption(
-                ModManifest,
-                () => _config.LeahVolume,
-                value => _config.LeahVolume = value,
-                () => $"{LocalizationHelpers.GetLocalizedName("Leah")}",
-                () => $"Volume for {LocalizationHelpers.GetLocalizedName("Leah")} dialogue",
-                min: 0,
-                max: 100,
-                interval: 1
-            );
-
-            api.AddNumberOption(
-                ModManifest,
-                () => _config.MaruVolume,
-                value => _config.MaruVolume = value,
-                () => $"{LocalizationHelpers.GetLocalizedName("Maru")}",
-                () => $"Volume for {LocalizationHelpers.GetLocalizedName("Maru")} dialogue",
-                min: 0,
-                max: 100,
-                interval: 1
-            );
-
-            api.AddNumberOption(
-                ModManifest,
-                () => _config.PennyVolume,
-                value => _config.PennyVolume = value,
-                () => $"{LocalizationHelpers.GetLocalizedName("Penny")}",
-                () => $"Volume for {LocalizationHelpers.GetLocalizedName("Penny")} dialogue",
-                min: 0,
-                max: 100,
-                interval: 1
-            );
-
-            api.AddNumberOption(
-                ModManifest,
-                () => _config.SamVolume,
-                value => _config.SamVolume = value,
-                () => $"{LocalizationHelpers.GetLocalizedName("Sam")}",
-                () => $"Volume for {LocalizationHelpers.GetLocalizedName("Sam")} dialogue",
-                min: 0,
-                max: 100,
-                interval: 1
-            );
-
-            api.AddNumberOption(
-                ModManifest,
-                () => _config.SebastianVolume,
-                value => _config.SebastianVolume = value,
-                () => $"{LocalizationHelpers.GetLocalizedName("Sebastian")}",
-                () => $"Volume for {LocalizationHelpers.GetLocalizedName("Sebastian")} dialogue",
-                min: 0,
-                max: 100,
-                interval: 1
-            );
-
-            api.AddNumberOption(
-                ModManifest,
-                () => _config.ShaneVolume,
-                value => _config.ShaneVolume = value,
-                () => $"{LocalizationHelpers.GetLocalizedName("Shane")}",
-                () => $"Volume for {LocalizationHelpers.GetLocalizedName("Shane")} dialogue",
-                min: 0,
-                max: 100,
-                interval: 1
-            );
-
+            AddVoiceChoices(api);
 
             api.AddSectionTitle(
                 ModManifest,
@@ -255,6 +133,42 @@ namespace StardewVoices.Config
             AddCastLine(LocalizationHelpers.GetLocalizedName("Shane"), "Jonathan David Bullock");
 
 
+        }
+
+        /// <summary>
+        /// One dropdown per character that has more than one voice installed (a voice pack and
+        /// the built-in voices, or several packs). Nothing is shown if there's no choice to make.
+        /// </summary>
+        private void AddVoiceChoices(IGenericModConfigMenuApi api)
+        {
+            List<string> charactersWithChoices = VoiceOptions
+                .Where(entry => entry.Value.Count > 1)
+                .Select(entry => entry.Key)
+                .OrderBy(character => character)
+                .ToList();
+            if (charactersWithChoices.Count == 0)
+                return;
+
+            api.AddSectionTitle(ModManifest, text: () => Helper.Translation.Get("settings.voicePacks"));
+            api.AddParagraph(ModManifest, () => Helper.Translation.Get("settings.voicePacksNote"));
+
+            foreach (string character in charactersWithChoices)
+            {
+                List<VoiceSourceOption> options = VoiceOptions[character];
+                api.AddTextOption(
+                    ModManifest,
+                    // Characters the player hasn't chosen for show their default, the first option.
+                    getValue: () => _config.CharacterVoices.TryGetValue(character, out string choice) && options.Any(o => o.Id == choice)
+                        ? choice
+                        : options[0].Id,
+                    setValue: value => _config.CharacterVoices[character] = value,
+                    name: () => LocalizationHelpers.GetLocalizedName(character),
+                    allowedValues: options.Select(o => o.Id).ToArray(),
+                    formatAllowedValue: id => id == VoiceSourceSelector.BuiltInId
+                        ? Helper.Translation.Get("settings.builtInVoices")
+                        : options.First(o => o.Id == id).Source.Name
+                );
+            }
         }
 
     }

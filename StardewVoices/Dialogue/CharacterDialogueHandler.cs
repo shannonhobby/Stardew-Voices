@@ -24,9 +24,7 @@ namespace StardewVoices.Dialogue
             _testingManager = testingManager;
             foreach(string characterName in characterManager.SupportedCharacters)
             {
-                string characterDialoguePath = Path.Combine(
-                    pathManager.GetPathString("Characters"),
-                    characterName.ToLower() + ".json");
+                string characterDialoguePath = FindDialogueFile(pathManager, characterName);
                 Character character = characterManager.GetCharacter(characterName);
                 if (character == null) continue;
                 character.SetDialogueDictionary(SetupDialogueDictionaryFromJsonPath(characterDialoguePath));
@@ -40,6 +38,15 @@ namespace StardewVoices.Dialogue
                         DialogueHelpers.GetDictionaryFromPath(pathManager.GetPathString(Constants.GenericDialogueTypeToFileName[dialogueType])));
                 }
             }
+        }
+
+        /// <summary>
+        /// The character's dialogue file in Dialogue Jsons/Characters, or null if there isn't one.
+        /// File names vary in case ("abigail.json", "Caroline.json"), so this ignores case.
+        /// </summary>
+        internal static string FindDialogueFile(PathManager pathManager, string characterName)
+        {
+            return FileManipulationHelpers.FindFile(pathManager.GetPathString("Characters"), characterName + ".json");
         }
 
         private DialogueDictionary SetupDialogueDictionaryFromJsonPath(string path)

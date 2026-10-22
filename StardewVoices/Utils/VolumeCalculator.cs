@@ -4,25 +4,15 @@ namespace StardewVoices.Utils
 {
     internal class VolumeCalculator
     {
-        private static float CalculateCharacterVolume(int volume)
+        /// <summary>
+        /// Turns the 0–100 voices slider into a 0–1 playback volume. Squared so it behaves like
+        /// a real fader (loudness isn't linear). 100 = 1.0, the voice file's own level: playback
+        /// can't go louder than the file, so how loud voices are is set when the files are made.
+        /// </summary>
+        public static float CalculateVolume(int sliderVolume)
         {
-            float t = volume / 100f;
-            return 0.25f + MathF.Pow(t, 1.8f) * 4.5f;
-
-        }
-
-        private static float CalculateMasterVolume(int volume)
-        {
-            float t = volume / 100f;
-
-            // softer curve than characters so it behaves like a real "fader"
+            float t = Math.Clamp(sliderVolume, 0, 100) / 100f;
             return MathF.Pow(t, 2.0f);
-        }
-
-        public static float CalculateVolume(int characterVolume, int masterVolume)
-        {
-            return CalculateCharacterVolume(characterVolume)
-                 * CalculateMasterVolume(masterVolume);
         }
     }
 }

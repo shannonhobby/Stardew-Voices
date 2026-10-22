@@ -14,6 +14,49 @@ namespace StardewVoices.Pathing
             _helper = helper;
         }
 
+        /// <summary>
+        /// The path of <paramref name="parent"/>'s subfolder called <paramref name="name"/>, ignoring
+        /// case ("Voices" matches "voices"), so it behaves the same on Linux as on Windows and macOS.
+        /// Null if there's no such folder.
+        /// </summary>
+        public static string FindFolder(string parent, string name)
+        {
+            if (!Directory.Exists(parent))
+                return null;
+
+            string exactMatch = Path.Combine(parent, name);
+            if (Directory.Exists(exactMatch))
+                return exactMatch;
+
+            foreach (string folder in Directory.GetDirectories(parent))
+            {
+                if (string.Equals(Path.GetFileName(folder), name, StringComparison.OrdinalIgnoreCase))
+                    return folder;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// The path of the file called <paramref name="name"/> in <paramref name="folder"/>, ignoring
+        /// case. Null if there's no such file.
+        /// </summary>
+        public static string FindFile(string folder, string name)
+        {
+            if (!Directory.Exists(folder))
+                return null;
+
+            string exactMatch = Path.Combine(folder, name);
+            if (File.Exists(exactMatch))
+                return exactMatch;
+
+            foreach (string file in Directory.GetFiles(folder))
+            {
+                if (string.Equals(Path.GetFileName(file), name, StringComparison.OrdinalIgnoreCase))
+                    return file;
+            }
+            return null;
+        }
+
         public static void CreateNewFolder(string path)
         {
             if (Directory.Exists(path)) return;

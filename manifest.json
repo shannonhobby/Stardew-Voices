@@ -1,7 +1,7 @@
 {
   "Name": "Stardew Voices",
   "Author": "Shannon Hobby",
-  "Version": "2.0.1",
+  "Version": "3.1.0",
   "Description": "Adds voiceover to love interests in Stardew Valley",
   "UniqueID": "shobby.StardewVoices",
   "EntryDll": "StardewVoices.dll",

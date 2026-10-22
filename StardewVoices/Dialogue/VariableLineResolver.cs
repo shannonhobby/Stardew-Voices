@@ -9,9 +9,9 @@ using System.Text;
 namespace StardewVoices.Dialogue
 {
     /// <summary>
-    /// Handles dialogue lines whose cue names have a recorded-variant suffix
+    /// Handles dialogue lines whose line ids have a recorded-variant suffix
     /// (e.g. fall_Thu_chance_1-dragon). Loads variable_lines.json, then at
-    /// runtime picks a random suffix and returns the resolved cue name.
+    /// runtime picks a random suffix and returns the resolved line id.
     /// </summary>
     public class VariableLineResolver
     {
@@ -36,9 +36,9 @@ namespace StardewVoices.Dialogue
 
         /// <summary>
         /// If lineId has recorded variants for characterName, returns a randomly
-        /// chosen variant cue name (e.g. "fall_Thu_chance_1-dragon").
+        /// chosen variant line id (e.g. "fall_Thu_chance_1-dragon").
         /// Returns lineId unchanged if no variants are registered.
-        /// An empty-string suffix means the base cue (no suffix) is one of the options.
+        /// An empty-string suffix means the base line (no suffix) is one of the options.
         /// </summary>
         public string Resolve(string lineId, string characterName)
         {
@@ -53,7 +53,7 @@ namespace StardewVoices.Dialogue
             => TryGetSuffixes(lineId, characterName, out _);
 
         /// <summary>
-        /// Returns every recorded variant cue name for this line and character.
+        /// Returns every recorded variant line id for this line and character.
         /// Used by validation to test all recorded variants instead of the raw template line.
         /// </summary>
         public string[] GetAllVariants(string lineId, string characterName)

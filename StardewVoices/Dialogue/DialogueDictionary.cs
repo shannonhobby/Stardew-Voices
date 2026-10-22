@@ -167,9 +167,10 @@ namespace StardewVoices.Dialogue
             _data[type] = dialogue;
         }
 
+        /// <summary>The lines of one dialogue type, or an empty set if this character has none of that type.</summary>
         public Dictionary<string, string[]> GetType(string type) 
         {
-            return _data[type];
+            return _data.TryGetValue(type, out Dictionary<string, string[]> lines) ? lines : new Dictionary<string, string[]>();
         }
 
         public Dictionary<string, Dictionary<string, string[]>> Data()

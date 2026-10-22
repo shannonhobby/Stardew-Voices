@@ -1,11 +1,9 @@
-using Microsoft.Xna.Framework.Audio;
 using StardewModdingAPI;
 using StardewVoices.Utils;
 using System.Threading;
 using System;
 using StardewValley;
 using System.Collections.Generic;
-using StardewVoices.Audio;
 
 namespace StardewVoices.Characters
 {
@@ -35,7 +33,7 @@ namespace StardewVoices.Characters
         {
             if (Game1.characterData == null)
             {
-                ErrorLogger.Warn("Cannot validate SupportedCharacters: game character data not loaded yet.");
+                ErrorLogger.Warn("Cannot match voiced characters to NPCs: game character data not loaded yet.");
                 return;
             }
 
@@ -43,7 +41,7 @@ namespace StardewVoices.Characters
             {
                 if (!Game1.characterData.ContainsKey(characterName))
                 {
-                    ErrorLogger.Warn($"'{characterName}' in SupportedCharacters does not match any Stardew Valley NPC and will be skipped.");
+                    ErrorLogger.Warn($"'{characterName}' has voices installed but doesn't match any Stardew Valley NPC, so it's skipped.");
                     continue;
                 }
                 characterDictionary[characterName].SetupNpc();
@@ -55,17 +53,6 @@ namespace StardewVoices.Characters
             for (int i = 0; i < SupportedCharacters.Count; i++)
             {
                 this.characterDictionary.Add(SupportedCharacters[i], new Character(SupportedCharacters[i]));
-            }
-        }
-
-        internal void SetCharacterAudio(string characterName, CharacterAudio audio)
-        {
-            try
-            {
-                characterDictionary[characterName].SetCharacterAudio(audio);
-            } catch (Exception e)
-            {
-                ErrorLogger.Warn($"Error setting character audio for {characterName}. {e}");
             }
         }
 
