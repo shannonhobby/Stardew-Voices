@@ -1,4 +1,5 @@
 using StardewModdingAPI;
+using System;
 using System.Linq;
 using System.Threading;
 using StardewVoices.Utils;
@@ -12,11 +13,28 @@ namespace StardewVoices.Config
         private IModHelper Helper { get; }
         private IManifest ModManifest { get; }
 
+        /// <summary>Raised whenever a config value changes through the GMCM menu (including reset).</summary>
+        public Action OnConfigChanged;
+
         public Menu(ModConfig config, IModHelper helper, IManifest manifest)
         {
             _config = config;
             Helper = helper;
             ModManifest = manifest;
+        }
+
+        // Copies default values onto the existing config instance instead of replacing it,
+        // since ManagerHub and other managers hold onto this same ModConfig reference.
+        private void ResetConfig()
+        {
+            ModConfig defaults = new ModConfig();
+            foreach (var property in typeof(ModConfig).GetProperties())
+            {
+                if (property.CanWrite)
+                    property.SetValue(_config, property.GetValue(defaults));
+            }
+
+            OnConfigChanged?.Invoke();
         }
 
         public void SetupGMCM()
@@ -28,9 +46,11 @@ namespace StardewVoices.Config
 
             api.Register(
                 ModManifest,
-                reset: () => _config = new ModConfig(),
+                reset: () => ResetConfig(),
                 save: () => Helper.WriteConfig(_config)
             );
+
+            api.OnFieldChanged(ModManifest, (fieldId, newValue) => OnConfigChanged?.Invoke());
 
             api.AddTextOption(
             ModManifest,

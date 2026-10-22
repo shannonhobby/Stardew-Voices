@@ -34,20 +34,6 @@ namespace StardewVoices.Audio
         public void SetVolume(float volume)
         {
             this._audioCategory?.SetVolume(volume);
-            // access the config from here?
-            /*
-            var prop = this.Config.GetType().GetProperty($"{character}Volume");
-            if (prop == null)
-            {
-                this.characterDictionary[character].SetVolume(VolumeCalculator.CalculateVolume(100, this.Config.DialogueVolume));
-
-            }
-            else
-            {
-                this.characterDictionary[character].SetVolume(VolumeCalculator.CalculateVolume((int)prop.GetValue(this.Config), this.Config.DialogueVolume));
-
-            }
-            */
         }
 
         public SoundBank GetSoundBank()

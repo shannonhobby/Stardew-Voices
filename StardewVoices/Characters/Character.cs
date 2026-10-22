@@ -51,7 +51,7 @@ namespace StardewVoices.Characters
             Audio = audio;
         }
 
-        public void SetVolume(int volume)
+        public void SetVolume(float volume)
         {
             Audio.SetVolume(volume);
         }

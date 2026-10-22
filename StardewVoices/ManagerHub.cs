@@ -34,7 +34,8 @@ namespace StardewVoices
             VariableLineResolver = new VariableLineResolver(PathManager.GetPathString("variable_lines.json"));
             DialogueManager = new DialogueManager(PathManager, CharacterManager, TestingManager, VariableLineResolver);
 
-            GameEventManager = new GameEventsService(this);
+            GameEventManager = new GameEventsService(this, config);
+            Menu.OnConfigChanged = GameEventManager.UpdateCharacterVolumes;
 
         }
     }

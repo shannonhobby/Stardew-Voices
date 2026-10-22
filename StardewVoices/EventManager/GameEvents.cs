@@ -10,6 +10,7 @@ using System.IO;
 using System.Text;
 using StardewVoices.Utils;
 using StardewVoices.Testing;
+using StardewVoices.Config;
 
 namespace StardewVoices.EventManager
 {
@@ -24,11 +25,13 @@ namespace StardewVoices.EventManager
         private WorldDate lastDate { get; set; }
 
         private ManagerHub _managers { get; }
+        private ModConfig _config { get; }
         private DialoguePlaybackController _DialoguePlaybackController { get; }
 
-        public GameEventsService(ManagerHub managers)
+        public GameEventsService(ManagerHub managers, ModConfig config)
         {
             _managers = managers;
+            _config = config;
             _DialoguePlaybackController = new DialoguePlaybackController(managers.DialogueManager, this, managers.AudioManager);
         }
 
@@ -50,12 +53,6 @@ namespace StardewVoices.EventManager
             _DialoguePlaybackController.UpdateCurrentDialogue();
 
             this.UpdateLastLocationAndEvent();
-
-
-            foreach (string character in Constants.LoveInterests)
-            {
-                // Update volume
-            }
 
             // Setup testing if in testing world (only set in update tick because must be in specific farm name
             _managers.TestingManager.SetupTestDialogue();
@@ -156,8 +153,22 @@ namespace StardewVoices.EventManager
         public void OnSaveLoaded(object sender, SaveLoadedEventArgs e)
         {
            _managers.CharacterManager.SetupCharacterInGameNpcs();
+           UpdateCharacterVolumes();
         }
 
+
+        /// <summary>Applies the configured master/per-character volume sliders to each character's audio category.</summary>
+        public void UpdateCharacterVolumes()
+        {
+            foreach (string characterName in _managers.CharacterManager.SupportedCharacters)
+            {
+                var volumeProperty = _config.GetType().GetProperty($"{characterName}Volume");
+                int characterVolume = volumeProperty != null ? (int)volumeProperty.GetValue(_config) : 100;
+
+                _managers.CharacterManager.GetCharacter(characterName)?
+                    .SetVolume(VolumeCalculator.CalculateVolume(characterVolume, _config.DialogueVolume));
+            }
+        }
 
         public void UpdateLastLocationAndEvent()
         {
