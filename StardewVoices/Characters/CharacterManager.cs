@@ -4,6 +4,10 @@ using System.Threading;
 using System;
 using StardewValley;
 using System.Collections.Generic;
+using System.Linq;
+using StardewVoices.Audio;
+using StardewVoices.Pathing;
+using StardewVoices.Dialogue;
 
 namespace StardewVoices.Characters
 {
@@ -13,10 +17,32 @@ namespace StardewVoices.Characters
         private Dictionary<string, Character> characterDictionary = new Dictionary<string, Character>();
         public List<string> SupportedCharacters { get; }
 
-        public CharacterManager(List<string> supportedCharacters)
+        public CharacterManager(AudioManager audioManager, PathManager pathManager)
         {
-            SupportedCharacters = supportedCharacters;
+            SupportedCharacters = GetVoicedCharacters(audioManager, pathManager);
             SetupCharacterDictionary();
+        }
+
+        /// <summary>
+        /// The characters the mod voices: every character with installed voices (built-in or a
+        /// pack) that also has a dialogue file, since that's what matches on-screen text to a
+        /// line id. Characters without one are logged and left out.
+        /// </summary>
+        private static List<string> GetVoicedCharacters(AudioManager audioManager, PathManager pathManager)
+        {
+            List<string> characters = new();
+            foreach (string voiceFolderName in audioManager.Resolver.Characters.OrderBy(name => name))
+            {
+                // A pack's folder might be "abigail"; the rest of the mod expects the game's "Abigail".
+                string character = Constants.AllCharacterNames.FirstOrDefault(name => string.Equals(name, voiceFolderName, StringComparison.OrdinalIgnoreCase))
+                    ?? voiceFolderName;
+
+                if (CharacterDialogueHandler.FindDialogueFile(pathManager, character) != null)
+                    characters.Add(character);
+                else
+                    ErrorLogger.Warn($"{character} has voices installed but no dialogue file in Dialogue Jsons/Characters, so their voices won't play.");
+            }
+            return characters;
         }
 
         public Character GetCharacter(string characterName)
