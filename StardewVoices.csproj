@@ -8,7 +8,9 @@
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Pathoschild.Stardew.ModBuildConfig" Version="4.4.0" />
-    <EmbeddedResource Include="i18n\*.json" />
+    <!-- Translations live in StardewVoices/i18n. Copy them into the build output's i18n folder,
+         which ModBuildConfig deploys (and zips) with the mod. -->
+    <None Include="StardewVoices\i18n\*.json" Link="i18n\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ProjectExtensions><VisualStudio><UserProperties /></VisualStudio></ProjectExtensions>
