@@ -35,7 +35,7 @@ namespace StardewVoices.Testing.Models
 
                 if (!result.Success)
                 {
-                    AddFailedTest(result.TestCase.CharacterName, result.TestCase.CueName);
+                    AddFailedTest(result.TestCase.CharacterName, result.TestCase.ResolvedLineId);
                     PrintFailedTestCase(result);
                 }
             }
@@ -43,12 +43,12 @@ namespace StardewVoices.Testing.Models
             PrintReportStats();
         }
 
-        private void AddFailedTest(string characterName, string cueIdentifier)
+        private void AddFailedTest(string characterName, string lineId)
         {
             if (failedTests.TryGetValue(characterName, out List<string> existing))
-                existing.Add(cueIdentifier);
+                existing.Add(lineId);
             else
-                failedTests.Add(characterName, new List<string>() { cueIdentifier });
+                failedTests.Add(characterName, new List<string>() { lineId });
         }
 
         private void PrintCharacterTestInfo(string characterName)
@@ -57,7 +57,7 @@ namespace StardewVoices.Testing.Models
         }
         private void PrintFailedTestCase(ValidationResult result)
         {
-            ErrorLogger.Error($"[FAILED D:]: {result.TestCase.CueName ?? "EMPTY CUE NAME"}: {result.TestCase.DialogueText}");
+            ErrorLogger.Error($"[FAILED D:]: {result.TestCase.ResolvedLineId ?? "EMPTY LINE ID"}: {result.TestCase.DialogueText}");
             foreach (string errorMessage in result.ErrorMessages)
                 ErrorLogger.Warn(errorMessage);
         }
@@ -71,7 +71,7 @@ namespace StardewVoices.Testing.Models
                 {
                     PrintCharacterSuccess(characterName);
                 }
-                PrintFailedCuesForCharacter(characterName);
+                PrintFailedLinesForCharacter(characterName);
             }
             ErrorLogger.Trace($"{DialogueType} Testing complete!");
             ErrorLogger.Trace($"Total Tests: {TotalTestCount}");
@@ -95,7 +95,7 @@ namespace StardewVoices.Testing.Models
 
         }
 
-        private void PrintFailedCuesForCharacter(string characterName)
+        private void PrintFailedLinesForCharacter(string characterName)
         {
             if (failedTests.TryGetValue(characterName, out List<string> failedTestsForCharacter))
             {

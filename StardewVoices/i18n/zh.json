@@ -1,6 +1,10 @@
 {
     "settings.volumeNote": "如果音量还是太小：\n请在设置中调低游戏的音乐和音效音量。",
     "settings.volume": "音量",
+    "settings.voices": "语音",
+    "settings.voicePacks": "语音包",
+    "settings.voicePacksNote": "安装了多个语音时，选择每个角色使用哪一个。",
+    "settings.builtInVoices": "内置语音",
     "settings.volumeTooltip": "调整音量",
     "settings.languageWarning": "*要使语言更改生效，需要重新启动游戏*",
     "settings.language": "语言",

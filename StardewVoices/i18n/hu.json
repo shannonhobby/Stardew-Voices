@@ -1,6 +1,10 @@
 {
     "settings.volumeNote": "Ha a hangerő még mindig túl alacsony:\nállítsd halkabbra a játék zenéjét és hanghatásait a beállításokban.",
     "settings.volume": "Hangerő",
+    "settings.voices": "Hangok",
+    "settings.voicePacks": "Hangcsomagok",
+    "settings.voicePacksNote": "Válaszd ki, melyik hangot használja egy-egy szereplő, ha több is telepítve van.",
+    "settings.builtInVoices": "Beépített hangok",
     "settings.volumeTooltip": "Hangerő beállítása",
     "settings.languageWarning": "*A NYELVI VÁLTOZTATÁSOK ÉRVÉNYESÍTÉSÉHEZ ÚJRA KELL INDÍTANOD A JÁTÉKOT*",
     "settings.language": "Nyelv",

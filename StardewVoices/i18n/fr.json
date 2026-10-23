@@ -1,6 +1,10 @@
 {
     "settings.volumeNote": "Si le volume est encore trop faible :\najustez le volume de la musique et des effets sonores dans les paramètres.",
     "settings.volume": "Volume",
+    "settings.voices": "Voix",
+    "settings.voicePacks": "Packs de voix",
+    "settings.voicePacksNote": "Choisis la voix utilisée par chaque personnage quand plusieurs sont installées.",
+    "settings.builtInVoices": "Voix incluses",
     "settings.volumeTooltip": "Ajuster le volume",
     "settings.languageWarning": "*VOUS DEVEZ REDÉMARRER LE JEU POUR QUE LES CHANGEMENTS DE LANGUE PRENNENT EFFET*",
     "settings.language": "Langue",

@@ -1,6 +1,10 @@
 {
     "settings.volumeNote": "If the volume is still too quiet: \n adjust the game music / sound effects to be quieter in settings.",
     "settings.volume": "Volume",
+    "settings.voices": "Voices",
+    "settings.voicePacks": "Voice Packs",
+    "settings.voicePacksNote": "Choose which voice each character uses when more than one is installed.",
+    "settings.builtInVoices": "Built-in voices",
     "settings.volumeTooltip": "Adjust volume level",
     "settings.languageWarning": "*YOU WILL HAVE TO RESTART YOUR GAME FOR LANGUAGE CHANGES TO TAKE EFFECT*",
     "settings.language": "Language",

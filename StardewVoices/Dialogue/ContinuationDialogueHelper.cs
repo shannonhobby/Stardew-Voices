@@ -15,8 +15,8 @@ namespace StardewVoices.Dialogue
                 if (character == null) continue;
                 DialogueDictionary dialogueDictionary = character.GetDialogueDictionary();
                 Dictionary<string, string[]> continuationDialogue = dialogueDictionary.GetType("continuation_dialogue");
-                string[] continuationLineIds = continuationDialogue["continuation_dialogue"];
-                _continuationDialogue.AddRange(continuationLineIds);
+                if (continuationDialogue.TryGetValue("continuation_dialogue", out string[] continuationLineIds))
+                    _continuationDialogue.AddRange(continuationLineIds);
             }
         }
  

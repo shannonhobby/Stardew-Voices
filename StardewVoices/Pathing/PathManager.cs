@@ -14,7 +14,6 @@ namespace StardewVoices.Pathing
         public PathManager(string modPath)
         {
             ModPath = new PathNode("root", modPath);
-            ModPath.CreateChild("Audio");
 
             // Generated files output — language subfolder for non-English so each
             // language sits alongside the others under Generated Files/.

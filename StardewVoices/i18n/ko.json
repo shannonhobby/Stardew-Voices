@@ -1,6 +1,10 @@
 {
     "settings.volumeNote": "볼륨이 여전히 너무 작다면:\n설정에서 게임 음악과 효과음의 볼륨을 낮춰 보세요.",
     "settings.volume": "볼륨",
+    "settings.voices": "음성",
+    "settings.voicePacks": "음성 팩",
+    "settings.voicePacksNote": "여러 개가 설치된 경우 각 캐릭터가 사용할 음성을 선택합니다.",
+    "settings.builtInVoices": "기본 음성",
     "settings.volumeTooltip": "볼륨 조절",
     "settings.languageWarning": "*언어 변경 사항을 적용하려면 게임을 다시 시작해야 합니다*",
     "settings.language": "언어",

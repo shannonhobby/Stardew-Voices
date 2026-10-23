@@ -153,21 +153,14 @@ namespace StardewVoices.EventManager
         public void OnSaveLoaded(object sender, SaveLoadedEventArgs e)
         {
            _managers.CharacterManager.SetupCharacterInGameNpcs();
-           UpdateCharacterVolumes();
+           UpdateVoiceVolume();
         }
 
 
-        /// <summary>Applies the configured master/per-character volume sliders to each character's audio category.</summary>
-        public void UpdateCharacterVolumes()
+        /// <summary>Applies the configured voices volume slider.</summary>
+        public void UpdateVoiceVolume()
         {
-            foreach (string characterName in _managers.CharacterManager.SupportedCharacters)
-            {
-                var volumeProperty = _config.GetType().GetProperty($"{characterName}Volume");
-                int characterVolume = volumeProperty != null ? (int)volumeProperty.GetValue(_config) : 100;
-
-                _managers.CharacterManager.GetCharacter(characterName)?
-                    .SetVolume(VolumeCalculator.CalculateVolume(characterVolume, _config.DialogueVolume));
-            }
+            _managers.AudioManager.Volume = VolumeCalculator.CalculateVolume(_config.DialogueVolume);
         }
 
         public void UpdateLastLocationAndEvent()

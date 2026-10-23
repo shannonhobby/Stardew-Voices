@@ -64,7 +64,7 @@ namespace StardewVoices.Testing.Models
 
         public bool RunTests(DialogueTestCase testCase)
         {
-            return CueNameFound(testCase) && CueExists(testCase) && CueAudioPlays(testCase);
+            return LineIdFound(testCase) && LineAudioExists(testCase) && LineAudioPlays(testCase);
         }
 
         public bool RunVariationsTest(DialogueTestCase testCase)
@@ -77,10 +77,10 @@ namespace StardewVoices.Testing.Models
                 return false;
             }
             bool testPasses = true;
-            foreach (string cueName in allVariations)
+            foreach (string lineId in allVariations)
             {
-                ErrorLogger.Trace($"Testing variation: {cueName} for {testCase.CharacterName}");
-                if (!CueExists(cueName, testCase.CharacterName) || !CueAudioPlays(cueName, testCase.CharacterName))
+                ErrorLogger.Trace($"Testing variation: {lineId} for {testCase.CharacterName}");
+                if (!LineAudioExists(lineId, testCase.CharacterName) || !LineAudioPlays(lineId, testCase.CharacterName))
                 {
                     testPasses = false;
                 }
@@ -92,91 +92,84 @@ namespace StardewVoices.Testing.Models
 
 
         // TODO add a test for checking if the right audio plays? not just that audio plays
-        public bool CueNameFound(DialogueTestCase testCase)
+        public bool LineIdFound(DialogueTestCase testCase)
         {
             try
             {
-                string cueName = DialogueManager.getIdFromDialogueString(testCase.DialogueText, testCase.CharacterName);
-                bool cueNameFound = cueName != null && cueName.Count() > 0;
-                if (cueNameFound) testCase.CueName = cueName;
-                if (!cueNameFound)
-                    ErrorMessages.Add($"1. [FAILURE] CueNameFound: Cue name not found for dialogue line {testCase.DialogueText}.");
-                return cueNameFound;
+                string lineId = DialogueManager.getIdFromDialogueString(testCase.DialogueText, testCase.CharacterName);
+                bool lineIdFound = lineId != null && lineId.Count() > 0;
+                if (lineIdFound) testCase.ResolvedLineId = lineId;
+                if (!lineIdFound)
+                    ErrorMessages.Add($"1. [FAILURE] LineIdFound: Line id not found for dialogue line {testCase.DialogueText}.");
+                return lineIdFound;
             }
             catch (Exception e)
             {
-                ErrorMessages.Add($"1. [FAILURE] CueNameFound: Cue name not found for dialogue line {testCase.DialogueText}");
+                ErrorMessages.Add($"1. [FAILURE] LineIdFound: Line id not found for dialogue line {testCase.DialogueText}");
                 return false;
             }
         }
 
         // <summary>
-        // Whether the given Cue name maps to a Cue in the Sound Bank.
+        // Whether audio exists for the given line id.
         //
-        // Dash-suffixed cue names (e.g. "NPC_cs_3985-Abigail") are name/genre-substituted
-        // variants of one base line — AudioManager.Play falls back to the un-suffixed cue
+        // Dash-suffixed line ids (e.g. "NPC_cs_3985-Abigail") are name/genre-substituted
+        // variants of one base line — VoiceResolver.Resolve falls back to the un-suffixed line
         // for these at runtime if the specific variant wasn't recorded. That fallback keeps
         // the game silent about a missing recording, so validation checks the exact id
-        // itself (allowFallback: false) and always fails when it's missing, distinguishing
-        // two severities: the base cue still exists (this character just doesn't have a
-        // dedicated recording — a normal failure) vs. the base cue is ALSO missing (this
+        // itself (Resolver.HasExactLine) and always fails when it's missing, distinguishing
+        // two severities: the base line still exists (this character just doesn't have a
+        // dedicated recording — a normal failure) vs. the base line is ALSO missing (this
         // line won't play at all in-game — a worse failure).
         // </summary>
-        public bool CueExists(DialogueTestCase testCase)
+        public bool LineAudioExists(DialogueTestCase testCase)
         {
             try
             {
-                if (AudioManager.GetCueFromDialogueId(testCase.CueName, testCase.CharacterName, allowFallback: false) != null)
+                if (AudioManager.Resolver.HasExactLine(testCase.CharacterName, testCase.ResolvedLineId))
                     return true;
 
-                string fallbackCueName = GetFallbackCueName(testCase.CueName);
-                if (fallbackCueName != null &&
-                    AudioManager.GetCueFromDialogueId(fallbackCueName, testCase.CharacterName, allowFallback: false) != null)
+                string fallbackLineId = VoiceResolver.GetFallbackLineId(testCase.ResolvedLineId);
+                if (fallbackLineId != null &&
+                    AudioManager.Resolver.HasExactLine(testCase.CharacterName, fallbackLineId))
                 {
                     ErrorMessages.Add(
-                        $"2. [FAILURE] CueExists: Cue not found for ID {testCase.CueName} — falls back to generic " +
-                        $"cue {fallbackCueName} at runtime. Record a dedicated line for this character.");
+                        $"2. [FAILURE] LineAudioExists: Audio not found for line {testCase.ResolvedLineId} — falls back to generic " +
+                        $"line {fallbackLineId} at runtime. Record a dedicated line for this character.");
                 }
                 else
                 {
                     ErrorMessages.Add(
-                        $"2. [SEVERE FAILURE] CueExists: Cue not found for ID {testCase.CueName}, and its fallback " +
-                        $"cue {fallbackCueName ?? "(none)"} is also missing — this line will not play at all.");
+                        $"2. [SEVERE FAILURE] LineAudioExists: Audio not found for line {testCase.ResolvedLineId}, and its fallback " +
+                        $"line {fallbackLineId ?? "(none)"} is also missing — this line will not play at all.");
                 }
 
                 return false;
             }
             catch (Exception e)
             {
-                ErrorMessages.Add($"2. [FAILURE] CueExists: Cue not found for ID {testCase.CueName}.");
+                ErrorMessages.Add($"2. [FAILURE] LineAudioExists: Audio not found for line {testCase.ResolvedLineId}.");
                 return false;
             }
 
         }
 
-        // "NPC_cs_3985-Abigail" -> "NPC_cs_3985". Null if cueName has no "-{suffix}" to strip.
-        private static string GetFallbackCueName(string cueName)
-        {
-            int dashIndex = cueName?.LastIndexOf('-') ?? -1;
-            return dashIndex > 0 ? cueName.Substring(0, dashIndex) : null;
-        }
-
-        // <summary>Whether the given Cue name maps to a Cue in the Sound Bank</summary>
-        public bool CueExists(string cueName, string characterName)
+        // <summary>Whether audio exists for the given line id</summary>
+        public bool LineAudioExists(string lineId, string characterName)
         {
             try
             {
-                bool CueExists = AudioManager.GetCueFromDialogueId(cueName, characterName) != null;
-                if (!CueExists)
+                bool LineAudioExists = AudioManager.GetVoiceLine(lineId, characterName) != null;
+                if (!LineAudioExists)
                 {
-                    ErrorMessages.Add($"2. [FAILURE] CueExists: Cue not found for ID {cueName}");
+                    ErrorMessages.Add($"2. [FAILURE] LineAudioExists: Audio not found for line {lineId}");
                 }
 
-                return CueExists;
+                return LineAudioExists;
             }
             catch (Exception e)
             {
-                ErrorMessages.Add($"2. [FAILURE] CueExists: Cue not found for ID {cueName}.");
+                ErrorMessages.Add($"2. [FAILURE] LineAudioExists: Audio not found for line {lineId}.");
                 return false;
             }
 
@@ -186,30 +179,30 @@ namespace StardewVoices.Testing.Models
 
         // ALSO CHECKS IF IT EXISTS? 
         // <summary>Checks if an error is thrown when trying to play the given audio.</summary>
-        public bool CueAudioPlays(DialogueTestCase testCase)
+        public bool LineAudioPlays(DialogueTestCase testCase)
         {
             try
             {
-                AudioManager.Play(testCase.CueName, testCase.CharacterName);
+                AudioManager.Play(testCase.ResolvedLineId, testCase.CharacterName);
                 return true;
             }
             catch (Exception e)
             {
-                ErrorMessages.Add($"3. [FAILURE] CueAudioPlays: {e}");
+                ErrorMessages.Add($"3. [FAILURE] LineAudioPlays: {e}");
                 return false;
             }
         }
 
-        public bool CueAudioPlays(string cueName, string characterName)
+        public bool LineAudioPlays(string lineId, string characterName)
         {
             try
             {
-                AudioManager.Play(cueName, characterName);
+                AudioManager.Play(lineId, characterName);
                 return true;
             }
             catch (Exception e)
             {
-                ErrorMessages.Add($"3. [FAILURE] CueAudioPlays: {e}");
+                ErrorMessages.Add($"3. [FAILURE] LineAudioPlays: {e}");
                 return false;
             }
         }

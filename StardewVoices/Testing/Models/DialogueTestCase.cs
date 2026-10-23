@@ -19,7 +19,7 @@ namespace StardewVoices.Testing.Models
         public LabelledDialogueLine DialogueLine { get; }
         public string DialogueText { get; }
         public string Context { get; }
-        public string CueName { get; set; }
+        public string ResolvedLineId { get; set; }
         public bool HasVariations = false;
         public DialogueType DialogueType { get; set; }
         private IModHelper helper { get; }
@@ -33,8 +33,8 @@ namespace StardewVoices.Testing.Models
             DialogueType = dialogueType;
             this.helper = helper;
             this.dialogueManager = dialogueManager;
-            CueName = dialogueManager.getIdFromDialogueString(DialogueText, characterName);
-            // A dash in the cue name isn't a reliable signal on its own anymore — we now
+            ResolvedLineId = dialogueManager.getIdFromDialogueString(DialogueText, characterName);
+            // A dash in the line id isn't a reliable signal on its own anymore — we now
             // generate dash-suffixed ids ourselves for name-substituted (NPC_cs_3985-Alex)
             // and %book-genre-expanded (Event_cs_1257_sv1-Romance) lines, which are each a
             // single fixed audio file, not a set of interchangeable recorded takes. Only

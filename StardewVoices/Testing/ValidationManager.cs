@@ -34,14 +34,21 @@ namespace StardewVoices.StardewVoices.Testing
 
         public void RunValidation()
         {
+            // Results depend on which voice each character uses (built-in or a pack), so say up front.
+            foreach (string character in Managers.CharacterManager.SupportedCharacters)
+                ErrorLogger.Info($"Validating {character} against {Managers.AudioManager.Resolver.GetSource(character)?.Name ?? "no voices"}.");
+
             GenerateTestCases();
 
-            Managers.AudioManager.MuteAll();
+            Managers.AudioManager.Muted = true;
 
             Dictionary<DialogueType, List<ValidationResult>> results = RunTestCases();
             foreach (DialogueType dialogueType in results.Keys)
                 ValidationReport.Add(new ValidationReport(dialogueType, results[dialogueType], Managers.CharacterManager.SupportedCharacters));
-            // TODO unmute the dialogue!
+
+            // Stop the last test line first, or it would become audible when unmuted.
+            Managers.AudioManager.StopAllLines();
+            Managers.AudioManager.Muted = false;
 
             PrintFinalRecap();
 
@@ -69,8 +76,8 @@ namespace StardewVoices.StardewVoices.Testing
                 ErrorLogger.Trace($"--- FAILED {report.DialogueType.ToString().ToUpper()} LINES ---");
                 foreach (string character in report.failedTests.Keys)
                 {
-                    string cues = string.Join("\n", report.failedTests[character]);
-                    ErrorLogger.Error($"\n  {character}:\n {cues}");
+                    string lineIds = string.Join("\n", report.failedTests[character]);
+                    ErrorLogger.Error($"\n  {character}:\n {lineIds}");
                 }
             }
 
@@ -120,7 +127,7 @@ namespace StardewVoices.StardewVoices.Testing
                                 continue;
 
                             DialogueTestCase newTestCase = new DialogueTestCase(characterName, key, dialogueBox, Managers.DialogueManager, helper);
-                            if (!newTestCase.CueName.ToLower().Contains("event_"))
+                            if (!newTestCase.ResolvedLineId.ToLower().Contains("event_"))
                                 testCases.Add(newTestCase);
                         }
                     }

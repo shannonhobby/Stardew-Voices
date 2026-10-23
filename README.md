@@ -4,6 +4,14 @@ Stardew Voices adds support for adding voice over to the many wonderful characte
 
 The full version of the mod can be downloaded from [Nexus Mods]([url](https://www.nexusmods.com/stardewvalley/mods/22550?tab=files)). This will include the audio files for all recorded voice lines for the vanilla romanceable npcs (not included in this repo).
 
+## Voice Packs
+
+Anyone can give characters a new voice with a voice pack: a SMAPI content pack with a `voices/<Character>/` folder of audio files. A pack replaces whole characters (so a character never switches actors mid-conversation) and can add characters the base mod doesn't voice. If more than one voice is installed for a character, choose which one to use in the config menu under *Voice Packs*.
+
+## Updating from 3.0
+
+Version 3.1 stores voices as `.ogg` files in a `voices` folder instead of the old `Audio` folder, which makes the download much smaller and uses far less memory. After updating, you can delete the old `Audio` folder in your Stardew Voices folder to free about 3 GB. The per-character volume sliders were replaced by one Voices volume slider.
+
 ## Support for Other Languages
 
 If your game is set to a language other than English audio files will not play unless your Stardew Voices mod is configured to the correct language code:
@@ -62,3 +70,8 @@ Looks up and plays a voiced dialogue line for a character.
 
 Usage: sv_play_line <characterName> <dialogueString>
 Example: sv_play_line Alex “Wow I’m so buff and cool”.
+
+**sv_pack_report**
+For voice pack authors: lists the characters a voice pack provides, whether each is in use, and any files whose names don't match a line id.
+
+Usage: sv_pack_report <pack UniqueID or name>

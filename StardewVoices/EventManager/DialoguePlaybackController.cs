@@ -1,4 +1,3 @@
-using Microsoft.Xna.Framework.Audio;
 using StardewModdingAPI;
 using StardewValley.Menus;
 using StardewValley;
@@ -130,13 +129,13 @@ namespace StardewVoices.EventManager
             // If the last dialogue box string stored doesn't equal the current dialogue box string that means there's been a change! (yay!)
             if (!string.Equals(LastDialogueBoxString, currentDialogueBoxString))
             {
-                // If dialogue has gone from non-empty to empty stop the audio cues.
+                // If dialogue has gone from non-empty to empty stop the audio.
                 if (!string.IsNullOrEmpty(this.LastDialogueBoxString) && !DialogueBoxIsOpen())
                 {
                     ErrorLogger.Trace("Dialogue Box Closed");
                     this.LastDialogueBoxString = "";
                     currentlyTalking = false;
-                    _audioManager.StopCue();
+                    _audioManager.StopAllLines();
                 }
 
                 if (Game1.currentSpeaker?.getName() != null && DialogueHelpers.StringContainsSupportedCharacter(Game1.currentSpeaker?.getName())
@@ -162,32 +161,32 @@ namespace StardewVoices.EventManager
                         return;
                     }
 
-                    Cue cue = _audioManager.GetCueFromDialogueId(currentLineId, currentSpeaker);
+                    FileVoiceLine voiceLine = _audioManager.GetVoiceLine(currentLineId, currentSpeaker);
 
-                    if (cue == null)
+                    if (voiceLine == null)
                     {
-                        // this.Monitor.Log($"Cue could not be found for current line: {this.currentLineId}: {currentDialogueBoxString}", LogLevel.Debug);
+                        // this.Monitor.Log($"Audio could not be found for current line: {this.currentLineId}: {currentDialogueBoxString}", LogLevel.Debug);
                         this.LastDialogueBoxString = currentDialogueBoxString;
                         return;
                     }
                     else
                     {
 
-                        _audioManager.StopLastCue();
+                        _audioManager.StopLastLine();
 
                         // TODO - refactor ?? i think this is an attempt to fix the one after another dialogue
-                        // If the last cue is still playing current cue probably isn't ready to play yet
-                        if (_audioManager.LastCueIsStillPlaying() && !currentlyTalking)
+                        // If the last line is still playing the current line probably isn't ready to play yet
+                        if (_audioManager.LastLineHasFinished() && !currentlyTalking)
                         {
                             currentlyTalking = true;
-                            _audioManager.Play(cue);
+                            _audioManager.Play(voiceLine);
 
-                            // i THINK events are the only place the right after anotehr dialogue can happen 
+                            // i THINK events are the only place the right after anotehr dialogue can happen
                             if ((Game1.CurrentEvent != null && !Game1.CurrentEvent.isFestival)
-                                || cue.Name.Contains("Gift")
-                                || ContinuationDialogueHelper.DialogueHasContinuation(cue.Name)
-                                || cue.Name.Contains("endDialogue")
-                                || cue.Name.ToLower().Contains("event"))
+                                || voiceLine.LineId.Contains("Gift")
+                                || ContinuationDialogueHelper.DialogueHasContinuation(voiceLine.LineId)
+                                || voiceLine.LineId.Contains("endDialogue")
+                                || voiceLine.LineId.ToLower().Contains("event"))
                             {
                                 currentlyTalking = false;
                             }
@@ -204,7 +203,7 @@ namespace StardewVoices.EventManager
                     this.lastLineId = this.currentLineId;
                 }
 
-                _audioManager.NextCue();
+                _audioManager.NextLine();
 
                 this.LastDialogueBoxString = currentDialogueBoxString;
 
