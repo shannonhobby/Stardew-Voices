@@ -14,6 +14,11 @@ namespace StardewVoices.Audio
         private FileVoiceLine lastLine { get; set; }
         private FileVoiceLine currentLine { get; set; }
 
+        // Lines evicted from currentLine/lastLine while still playing (see Release) — kept
+        // here so SweepFinishedLines can still Stop()/Dispose() them once they finish, instead
+        // of leaking a SoundEffectInstance and eventually hitting MonoGame's instance cap.
+        private readonly List<FileVoiceLine> _pendingDisposal = new();
+
         private float _volume = 1f;
         private bool _muted;
 
@@ -94,6 +99,7 @@ namespace StardewVoices.Audio
 
         public void Play(FileVoiceLine line)
         {
+            SweepFinishedLines();
             StopLastLine();
 
             if (line != null)
@@ -110,6 +116,7 @@ namespace StardewVoices.Audio
 
         public void Play(string lineId, string characterName)
         {
+            SweepFinishedLines();
             SetCurrentLine(GetVoiceLine(lineId, characterName));
 
             StopLastLine();
@@ -132,6 +139,25 @@ namespace StardewVoices.Audio
             }
 
             StopLastLine();
+
+            // A deliberate "silence everything" request, so pending lines get cut off here
+            // even if still playing (SweepFinishedLines only disposes ones that already finished).
+            foreach (FileVoiceLine pending in _pendingDisposal)
+                pending.Stop();
+            _pendingDisposal.Clear();
+        }
+
+        /// <summary>Disposes any pending line that has finished playing. Called every tick and on every Play().</summary>
+        public void SweepFinishedLines()
+        {
+            for (int i = _pendingDisposal.Count - 1; i >= 0; i--)
+            {
+                if (!_pendingDisposal[i].IsPlaying)
+                {
+                    _pendingDisposal[i].Stop();
+                    _pendingDisposal.RemoveAt(i);
+                }
+            }
         }
 
         public void StopLastLine()
@@ -187,12 +213,18 @@ namespace StardewVoices.Audio
         }
 
         /// <summary>
-        /// Frees the audio of a line we've stopped tracking. A line that's still playing is
-        /// left to finish, as before; it just can't be stopped or have its volume changed.
+        /// Frees the audio of a line we've stopped tracking. A still-playing line is left to
+        /// finish rather than cut off, but goes into _pendingDisposal so it still gets disposed
+        /// once it's done instead of leaking.
         /// </summary>
         private void Release(FileVoiceLine line)
         {
-            if (line != null && line != currentLine && line != lastLine && !line.IsPlaying)
+            if (line == null || line == currentLine || line == lastLine)
+                return;
+
+            if (line.IsPlaying)
+                _pendingDisposal.Add(line);
+            else
                 line.Stop();
         }
 

@@ -5,10 +5,11 @@ using Newtonsoft.Json;
 using StardewVoices.Characters;
 using StardewValley;
 using StardewVoices.Testing;
-using System.Linq;
 using StardewVoices.Utils;
 using Microsoft.Xna.Framework.Input;
 using Newtonsoft.Json.Serialization;
+using System.Text.RegularExpressions;
+using System.Linq;
 
 namespace StardewVoices.Dialogue
 {
@@ -55,65 +56,136 @@ namespace StardewVoices.Dialogue
             return null;
         }
 
-        // TODO - WHAT DOES THIS DO??? IT JUST SKIPS LINES W/ VARIABLES? THIS IS SO COMPUTATIONALLY HEAVY
+        // Caches each key's compiled regex (see GetVariableLinePattern) so repeated lookups for
+        // the same key don't rebuild it every time. Keys never change after construction, so
+        // nothing here ever goes stale.
+        private readonly Dictionary<string, Regex> _variableLinePatternCache = new();
+
+        /// <summary>
+        /// Finds the placeholder key (one containing "%...", "{...}", or "@" for the farmer's
+        /// name) whose non-placeholder words all match the dialogue line exactly, with each
+        /// placeholder absorbing whatever words sit in its place. Returns null if no key matches,
+        /// or if more than one does — we'd rather play nothing than guess wrong.
+        /// </summary>
         private string CheckDictionaryForVariableLines(Dictionary<string, string[]> dict, string dialogueLine, string currentSpeaker, string type)
         {
+            string matchedKey = null;
+
             foreach (string key in dict.Keys)
             {
-                if (!key.Contains("{") && !key.Contains("%"))
+                if (!key.Contains("{") && !key.Contains("%") && !key.Contains("@"))
                 {
                     continue;
                 }
 
-                string[] splitKey = key.Split(" ");
-                string[] splitDialogueString = dialogueLine.Split(" ");
-
-                // Count how many words in the dialogue don't appear in the key's word set.
-                // Using a HashSet for the key avoids the Intersect() deduplication bug where
-                // repeated words (e.g. "We"/"have" appearing twice) inflate the difference.
-                var keyWordSet = new HashSet<string>(splitKey);
-                int nonMatchingCount = splitDialogueString.Count(word => !keyWordSet.Contains(word));
-
-                if (splitDialogueString.Intersect(splitKey).Any() && splitDialogueString.Length == splitKey.Length && nonMatchingCount <= 3)
+                Regex pattern = GetVariableLinePattern(key);
+                if (pattern == null || !pattern.IsMatch(dialogueLine))
                 {
-                    // Check for dad / mom / name stuff
-                    if (CheckForParentString(splitDialogueString, splitKey))
-                    {
-                        continue;
-                        // todo - is the first part of this if statement necessary?
-                    } else if(!splitDialogueString.Contains("Dad") && !splitDialogueString.Contains("Mom") && CheckForPronounString(dialogueLine, key))
-                    {
-                        continue;
-                    }
-
-                    if (dict[key].Length > 1)
-                    {
-                        // TODO
-                        /*
-                        return DialogueHelpers.getCorrectIdFromListOfLineIds(dict[key], currentSpeaker, dialogueDictionaryNames[i]);
-                        */
-                    }
-
-                    return dict[key][0];
+                    continue;
                 }
+
+                if (matchedKey != null)
+                {
+                    ErrorLogger.Warn($"Ambiguous placeholder match for \"{dialogueLine}\": both \"{matchedKey}\" and \"{key}\" fit. Playing neither.");
+                    return null;
+                }
+
+                matchedKey = key;
             }
 
-            return null;
+            return matchedKey != null ? dict[matchedKey][0] : null;
         }
 
-        private Boolean CheckForParentString(string[] splitDialogueString, string[] splitKey)
+        // Max words a placeholder can absorb (e.g. a multi-word farm/kid/pet name). Only applies
+        // when literal text follows the placeholder to anchor the end of the match — a
+        // placeholder with nothing after it (e.g. "Hi {0}!") has no such anchor, so it's capped
+        // at one word instead, or a short key could swallow an entire unrelated sentence.
+        private const int MaxPlaceholderWords = 4;
+
+        private Regex GetVariableLinePattern(string key)
         {
-            return splitDialogueString.Contains("Dad") && !splitKey.Contains("Dad")
-                        || splitDialogueString.Contains("Mom") && !splitKey.Contains("Mom")
-                        || (!splitDialogueString.Contains("Dad") && !splitDialogueString.Contains("Mom") && splitKey.Contains("Dad") && splitKey.Contains("Mom"));
+            if (_variableLinePatternCache.TryGetValue(key, out Regex cached))
+            {
+                return cached;
+            }
+
+            string[] words = key.Split(" ");
+            List<string> patternParts = new();
+            bool hasAnchorWord = false;
+            int i = 0;
+
+            while (i < words.Length)
+            {
+                if (!TryParsePlaceholderWord(words[i], out string lead, out string trail))
+                {
+                    patternParts.Add(Regex.Escape(words[i]));
+                    if (words[i].Any(char.IsLetterOrDigit)) hasAnchorWord = true;
+                    i++;
+                    continue;
+                }
+
+                // Punctuation touching the placeholder (e.g. "Hi {0}!") must match exactly, so
+                // it's escaped into the same pattern part as the gap rather than swallowed by
+                // it. It's punctuation-only by construction (never letters/digits), so it
+                // doesn't count toward hasAnchorWord — a key like "{0}!" has no real text and
+                // would otherwise match any short exclamation ending in "!".
+                string wordPattern = lead.Length > 0 ? Regex.Escape(lead) : "";
+
+                // Adjacent bare placeholder words (rare) collapse into a single gap.
+                while (trail.Length == 0
+                    && i + 1 < words.Length
+                    && TryParsePlaceholderWord(words[i + 1], out string nextLead, out string nextTrail)
+                    && nextLead.Length == 0)
+                {
+                    i++;
+                    trail = nextTrail;
+                }
+
+                bool hasFollowingAnchor = trail.Length > 0 || i + 1 < words.Length;
+                wordPattern += hasFollowingAnchor
+                    ? $@"\S+(?:\s+\S+){{0,{MaxPlaceholderWords - 1}}}"
+                    : @"\S+";
+
+                if (trail.Length > 0)
+                {
+                    wordPattern += Regex.Escape(trail);
+                }
+
+                patternParts.Add(wordPattern);
+                i++;
+            }
+
+            Regex pattern = hasAnchorWord ? new Regex("^" + string.Join(@"\s+", patternParts) + "$") : null;
+            _variableLinePatternCache[key] = pattern;
+            return pattern;
         }
 
-        private Boolean CheckForPronounString(string dialogueLine, string key)
+        private static readonly Regex PlaceholderMarkerRegex = new Regex(@"%\w+|\{\d+\}|@");
+
+        /// <summary>
+        /// True if word is one placeholder marker (%word, {n}, or @) plus only punctuation
+        /// before/after it. On success, lead/trail are that surrounding punctuation (may be empty).
+        /// </summary>
+        private static bool TryParsePlaceholderWord(string word, out string lead, out string trail)
         {
-            return dialogueLine.ToLower().Contains("she") && !key.ToLower().Contains("she")
-                    || dialogueLine.ToLower().Contains(" he ") && !key.ToLower().Contains(" he ") // Spaces are because she and her also contain "he"
-                    || dialogueLine.ToLower().Contains("him") && !key.ToLower().Contains("him")
-                    || dialogueLine.ToLower().Contains("her") && !key.ToLower().Contains("her");
+            Match marker = PlaceholderMarkerRegex.Match(word);
+            if (!marker.Success)
+            {
+                lead = trail = null;
+                return false;
+            }
+
+            string candidateLead = word.Substring(0, marker.Index);
+            string candidateTrail = word.Substring(marker.Index + marker.Length);
+            if (candidateLead.Any(char.IsLetterOrDigit) || candidateTrail.Any(char.IsLetterOrDigit))
+            {
+                lead = trail = null;
+                return false;
+            }
+
+            lead = candidateLead;
+            trail = candidateTrail;
+            return true;
         }
 
         public string CheckAllDictionariesForDialogueLine(string  dialogueLine, string currentSpeaker, TestingManager testingManager)
@@ -185,7 +257,6 @@ namespace StardewVoices.Dialogue
                 ? list
                 : Array.Empty<string>();
         }
-
 
         public void PrintDictionary()
         {

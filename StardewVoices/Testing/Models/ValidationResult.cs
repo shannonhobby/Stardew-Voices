@@ -177,7 +177,7 @@ namespace StardewVoices.Testing.Models
 
 
 
-        // ALSO CHECKS IF IT EXISTS? 
+        // ALSO CHECKS IF IT EXISTS?
         // <summary>Checks if an error is thrown when trying to play the given audio.</summary>
         public bool LineAudioPlays(DialogueTestCase testCase)
         {
@@ -190,6 +190,12 @@ namespace StardewVoices.Testing.Models
             {
                 ErrorMessages.Add($"3. [FAILURE] LineAudioPlays: {e}");
                 return false;
+            }
+            finally
+            {
+                // Validation only cares whether Play() throws, not whether it's audible — stop
+                // it immediately instead of leaving thousands of test lines playing at once.
+                AudioManager.StopAllLines();
             }
         }
 
@@ -204,6 +210,10 @@ namespace StardewVoices.Testing.Models
             {
                 ErrorMessages.Add($"3. [FAILURE] LineAudioPlays: {e}");
                 return false;
+            }
+            finally
+            {
+                AudioManager.StopAllLines();
             }
         }
 

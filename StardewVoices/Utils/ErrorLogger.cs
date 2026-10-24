@@ -19,6 +19,9 @@ namespace StardewVoices.Utils
             _monitor = monitor;
         }
 
+        /// <summary>While true, Trace() is dropped instead of logged. Validation sets this during a test run to avoid flooding the log file.</summary>
+        public static bool SuppressTrace = false;
+
         // -------------------------------------------------------------------------
         // Core log methods
         // -------------------------------------------------------------------------
@@ -28,7 +31,10 @@ namespace StardewVoices.Utils
         /// Use freely for lifecycle events, method entry/exit, internal state.
         /// </summary>
         public static void Trace(string message)
-            => Log(message, LogLevel.Trace);
+        {
+            if (!SuppressTrace)
+                Log(message, LogLevel.Trace);
+        }
 
         /// <summary>
         /// Troubleshooting info the player might care about (e.g. "loaded X items").
