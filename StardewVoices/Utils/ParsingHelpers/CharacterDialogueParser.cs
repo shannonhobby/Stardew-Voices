@@ -356,9 +356,12 @@ namespace StardewVoices.Utils.ParsingHelpers
             {
                 Match branchMarker = BranchConditionMarker.Match(parts[i]);
                 string rawPart = branchMarker.Success ? parts[i].Substring(branchMarker.Length) : parts[i];
-                string text = Clean(rawPart);
-                if (text.Length > 0)
-                    results.Add(($"{currentId}_prereq_{i + 1}", text));
+                if (Clean(rawPart).Length == 0) continue;
+
+                // Recurse so a branch's own #/$e# page breaks (and |/^ splits) still
+                // expand into sequential lines instead of collapsing into one Clean()'d
+                // blob with the page-break markers stripped but the "#" left dangling.
+                results.AddRange(ParseDialogueWithIds(rawPart, $"{currentId}_prereq_{i + 1}"));
             }
             return results.ToArray();
         }
