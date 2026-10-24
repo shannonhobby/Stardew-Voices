@@ -461,10 +461,10 @@ namespace StardewVoices.FileGeneration.Models
 
             for (int i = 0; i < lines.Count; i++)
             {
-                List<ScriptLine> prereqRun = TakePrerequisiteRun(lines, i);
+                List<List<ScriptLine>> prereqRun = TakePrerequisiteRun(lines, i);
                 if (prereqRun.Count >= 2)
                 {
-                    i += prereqRun.Count - 1;
+                    i += prereqRun.Sum(branch => branch.Count) - 1;
                     entries.Add(BuildPrerequisiteEntry(prereqRun));
                     continue;
                 }
@@ -512,47 +512,62 @@ namespace StardewVoices.FileGeneration.Models
             return entries;
         }
 
-        // The consecutive "_prereq_{n}" lines starting at i that belong to one branch set:
-        // same speaker, same base id, n increasing (a branch with empty text is skipped by the
-        // parser, so n can jump). Empty if lines[i] isn't a prereq line.
-        private static List<ScriptLine> TakePrerequisiteRun(IReadOnlyList<ScriptLine> lines, int i)
+        // The consecutive "_prereq_{n}" lines starting at i that belong to one branch set,
+        // grouped by branch: same speaker, same base id, n increasing (a branch with empty
+        // text is skipped by the parser, so n can jump). A branch with its own internal page
+        // breaks (e.g. "$d cond#A#$e#B") produces more than one line per branch — those
+        // continuation lines ("_prereq_{n}_sv{m}") are folded into that branch's list rather
+        // than starting a new one. Empty if lines[i] isn't a prereq line.
+        private static List<List<ScriptLine>> TakePrerequisiteRun(IReadOnlyList<ScriptLine> lines, int i)
         {
-            var run = new List<ScriptLine>();
+            var branches = new List<List<ScriptLine>>();
 
             Match first = PrereqSuffixRegex.Match(lines[i].LineId);
-            if (!first.Success) return run;
+            if (!first.Success) return branches;
 
             string baseId = first.Groups[1].Value;
             int previousNumber = int.Parse(first.Groups[2].Value);
-            run.Add(lines[i]);
+            var currentBranch = new List<ScriptLine> { lines[i] };
+            branches.Add(currentBranch);
 
             for (int j = i + 1; j < lines.Count; j++)
             {
+                if (lines[j].Speaker != lines[i].Speaker) break;
+
+                // Continuation of the current branch's own page breaks, not the next branch.
+                if (lines[j].LineId == CharacterDialogueParser.AdvancePastLineId(currentBranch[^1].LineId))
+                {
+                    currentBranch.Add(lines[j]);
+                    continue;
+                }
+
                 Match next = PrereqSuffixRegex.Match(lines[j].LineId);
                 if (!next.Success
                     || next.Groups[1].Value != baseId
-                    || lines[j].Speaker != lines[i].Speaker
                     || int.Parse(next.Groups[2].Value) <= previousNumber)
                     break;
 
                 previousNumber = int.Parse(next.Groups[2].Value);
-                run.Add(lines[j]);
+                currentBranch = new List<ScriptLine> { lines[j] };
+                branches.Add(currentBranch);
             }
 
-            return run;
+            return branches;
         }
 
-        private static ScriptEntry BuildPrerequisiteEntry(List<ScriptLine> run)
+        private static ScriptEntry BuildPrerequisiteEntry(List<List<ScriptLine>> branches)
         {
             // Every branch reads the same — nothing to choose between. Playback resolves
-            // identical text to the first id in the json, so show that one.
-            if (run.All(line => line.Text == run[0].Text))
-                return new SingleLineEntry(run[0]);
+            // identical text to the first id in the json, so show that one. Only collapse
+            // when every branch is a single page; multi-page branches keep their own
+            // columns rather than compare partial text across pages.
+            if (branches.All(branch => branch.Count == 1) && branches.All(branch => branch[0].Text == branches[0][0].Text))
+                return new SingleLineEntry(branches[0][0]);
 
-            var options = run
-                .Select((line, index) => new VariantOption($"{PrerequisiteLabel} {index + 1}", new List<ScriptLine> { line }))
+            var options = branches
+                .Select((branch, index) => new VariantOption($"{PrerequisiteLabel} {index + 1}", new List<ScriptLine>(branch)))
                 .ToList();
-            return new VariantGroup(VariantKind.Prerequisite, run[0].Speaker, options);
+            return new VariantGroup(VariantKind.Prerequisite, branches[0][0].Speaker, options);
         }
 
         private static bool IsGenderPair(IReadOnlyList<ScriptLine> lines, int i)
