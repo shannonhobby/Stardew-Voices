@@ -501,8 +501,8 @@ namespace StardewVoices.Utils.GameDialogueExtraction
 
                     string lineId = $"{character.Name}GiftTaste_{i + 1}";
                     var sdvDialogue = new StardewValley.Dialogue(character, null, text);
-                    var labelledLine = new LabelledDialogueLine(lineId, text, lineId, DialogueType.GiftTastes);
-                    lines.Add(new LabelledDialogue(sdvDialogue, new List<LabelledDialogueLine> { labelledLine }, lineId, DialogueType.GiftTastes));
+                    var labelledLines = CharacterDialogueParser.ParseRawValueToLines(text, lineId, DialogueType.GiftTastes);
+                    lines.Add(new LabelledDialogue(sdvDialogue, labelledLines, lineId, DialogueType.GiftTastes));
                 }
 
                 if (lines.Count == 0)

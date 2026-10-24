@@ -366,40 +366,66 @@ namespace StardewVoices.Utils.ParsingHelpers
             return results.ToArray();
         }
 
+        // The next page break after a $c marker or branch: "#$e#" (page break with an
+        // emote cue) takes priority over a bare "#" when both could start at the same
+        // position, since "#$e#" is itself built out of "#" characters.
+        private static readonly Regex PageBreakSeparator = new Regex(@"#\$e#|#");
+
+        // Splits s at the next page break. If there isn't one, the whole string is
+        // returned as Head and Tail is empty.
+        private static (string Head, string Tail) SplitAtNextPageBreak(string s)
+        {
+            Match sep = PageBreakSeparator.Match(s);
+            return sep.Success
+                ? (s.Substring(0, sep.Index), s.Substring(sep.Index + sep.Length))
+                : (s, "");
+        }
+
         /// <summary>
-        /// $c chance dialogue: may or may not play → _chance_1 / _chance_2.
+        /// $c chance dialogue: may or may not play → _chance_1 / _chance_2. Only consumes
+        /// its own two branches (each bounded by the next page break, not the end of the
+        /// string)
         /// Format: $c {probability}#{text_if_yes}#{text_if_no}
         ///      or {text_before}#$c {probability}#{text_if_yes}#{text_if_no}
         /// </summary>
         private static (string LineId, string Text)[] ParseCDialogueWithIds(string s, string baseId)
         {
+            Match cMatch = Regex.Match(s, @"#?\$c[^#]*#");
+            if (!cMatch.Success) return new[] { (baseId, Clean(s)) };
+
+            string beforeC = s.Substring(0, cMatch.Index);
+            string afterC = s.Substring(cMatch.Index + cMatch.Length);
+
             var results = new List<(string, string)>();
             string currentId = baseId;
 
-            // Split on the $c marker to separate any text before it from the chance options
-            string[] outerSplit = Regex.Split(s, @"#?\$c[^#]*#");
-
-            if (outerSplit[0].Trim().Length > 0)
+            if (Clean(beforeC).Length > 0)
             {
-                results.Add((currentId, Clean(outerSplit[0])));
-                currentId = IncrementLineId(currentId);
+                var beforeLines = ParseDialogueWithIds(beforeC, baseId);
+                results.AddRange(beforeLines);
+                if (beforeLines.Length > 0)
+                    currentId = AdvancePastLineId(beforeLines[^1].LineId);
             }
 
-            for (int i = 1; i < outerSplit.Length; i++)
-            {
-                string chunk = outerSplit[i];
-                string[] parts = chunk.Contains("#$e#")
-                    ? chunk.Split(new[] { "#$e#" }, StringSplitOptions.None)
-                    : chunk.Split('#');
+            (string chance1, string afterChance1) = SplitAtNextPageBreak(afterC);
+            (string chance2, string trailing) = SplitAtNextPageBreak(afterChance1);
 
-                for (int j = 0; j < parts.Length; j++)
-                {
-                    string cleaned = Clean(parts[j]);
-                    if (cleaned.Length == 0) continue;
-                    string id = j < 2 ? $"{currentId}_chance_{j + 1}" : IncrementLineId(currentId);
-                    results.Add((id, cleaned));
-                }
+            string lastId = currentId;
+            if (Clean(chance1).Length > 0)
+            {
+                lastId = $"{currentId}_chance_1";
+                results.Add((lastId, Clean(chance1)));
             }
+
+            if (Clean(chance2).Length > 0)
+            {
+                lastId = $"{currentId}_chance_2";
+                results.Add((lastId, Clean(chance2)));
+            }
+
+            if (Clean(trailing).Length > 0)
+                results.AddRange(ParseDialogueWithIds(trailing, AdvancePastLineId(lastId)));
+
             return results.ToArray();
         }
 
