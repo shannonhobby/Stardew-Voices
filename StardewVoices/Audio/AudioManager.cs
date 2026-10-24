@@ -14,6 +14,17 @@ namespace StardewVoices.Audio
         private FileVoiceLine lastLine { get; set; }
         private FileVoiceLine currentLine { get; set; }
 
+        // A line that got evicted from both currentLine and lastLine while it was still
+        // playing (e.g. fast continuation dialogue) — Release() leaves it alone rather than
+        // cutting it off, but once it's out of both slots nothing else still references it.
+        // Without tracking it here, its SoundEffectInstance/SoundEffect would never get
+        // Stop()/Dispose()'d once playback actually finishes: MonoGame's instance pool has a
+        // hard cap on concurrently alive SoundEffectInstances, so enough of these leaking
+        // silently eventually makes every Play() anywhere throw InstancePlayLimitException.
+        // SweepFinishedLines() disposes whatever's finished; called every tick and on every
+        // Play()/StopAllLines() so this can't grow unbounded between sweeps.
+        private readonly List<FileVoiceLine> _pendingDisposal = new();
+
         private float _volume = 1f;
         private bool _muted;
 
@@ -94,6 +105,7 @@ namespace StardewVoices.Audio
 
         public void Play(FileVoiceLine line)
         {
+            SweepFinishedLines();
             StopLastLine();
 
             if (line != null)
@@ -110,6 +122,7 @@ namespace StardewVoices.Audio
 
         public void Play(string lineId, string characterName)
         {
+            SweepFinishedLines();
             SetCurrentLine(GetVoiceLine(lineId, characterName));
 
             StopLastLine();
@@ -132,6 +145,31 @@ namespace StardewVoices.Audio
             }
 
             StopLastLine();
+
+            // Unlike SweepFinishedLines, this is a deliberate "silence everything" request
+            // (e.g. before a validation run, or when a dialogue box closes) — cut off anything
+            // pending, even if it's still playing, rather than waiting for it to finish.
+            foreach (FileVoiceLine pending in _pendingDisposal)
+                pending.Stop();
+            _pendingDisposal.Clear();
+        }
+
+        /// <summary>
+        /// Disposes any line that was evicted from currentLine/lastLine while still playing
+        /// (see _pendingDisposal) and has since finished. Safe — and cheap — to call often;
+        /// called every tick (GameEventsService.OnUpdateTicked) and on every Play() so a
+        /// finished line never sits undisposed for long.
+        /// </summary>
+        public void SweepFinishedLines()
+        {
+            for (int i = _pendingDisposal.Count - 1; i >= 0; i--)
+            {
+                if (!_pendingDisposal[i].IsPlaying)
+                {
+                    _pendingDisposal[i].Stop();
+                    _pendingDisposal.RemoveAt(i);
+                }
+            }
         }
 
         public void StopLastLine()
@@ -188,11 +226,18 @@ namespace StardewVoices.Audio
 
         /// <summary>
         /// Frees the audio of a line we've stopped tracking. A line that's still playing is
-        /// left to finish, as before; it just can't be stopped or have its volume changed.
+        /// left to finish, as before — it just can't be stopped or have its volume changed —
+        /// but it's handed to _pendingDisposal so SweepFinishedLines() can still
+        /// Stop()/Dispose() it once it actually finishes, instead of leaking it.
         /// </summary>
         private void Release(FileVoiceLine line)
         {
-            if (line != null && line != currentLine && line != lastLine && !line.IsPlaying)
+            if (line == null || line == currentLine || line == lastLine)
+                return;
+
+            if (line.IsPlaying)
+                _pendingDisposal.Add(line);
+            else
                 line.Stop();
         }
 

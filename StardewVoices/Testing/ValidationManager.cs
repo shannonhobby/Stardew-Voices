@@ -42,7 +42,20 @@ namespace StardewVoices.StardewVoices.Testing
 
             Managers.AudioManager.Muted = true;
 
-            Dictionary<DialogueType, List<ValidationResult>> results = RunTestCases();
+            // Playing/loading each test line logs at Trace level once per line, which is fine
+            // during normal play but turns into thousands of log-file writes here — suppress it
+            // for the run and show periodic progress instead (see RunTestCases).
+            ErrorLogger.SuppressTrace = true;
+            Dictionary<DialogueType, List<ValidationResult>> results;
+            try
+            {
+                results = RunTestCases();
+            }
+            finally
+            {
+                ErrorLogger.SuppressTrace = false;
+            }
+
             foreach (DialogueType dialogueType in results.Keys)
                 ValidationReport.Add(new ValidationReport(dialogueType, results[dialogueType], Managers.CharacterManager.SupportedCharacters));
 
@@ -178,14 +191,28 @@ namespace StardewVoices.StardewVoices.Testing
         private Dictionary<DialogueType, List<ValidationResult>> RunTestCases()
         {
             Dictionary<DialogueType, List<ValidationResult>> results = new Dictionary<DialogueType, List<ValidationResult>>();
-            foreach (DialogueTestCase testCase in testCases)
+            int total = testCases.Count;
+            int lastReportedPercent = -1;
+
+            for (int i = 0; i < total; i++)
             {
+                DialogueTestCase testCase = testCases[i];
+
                 if (!results.ContainsKey(testCase.DialogueType))
                     results.Add(testCase.DialogueType, new List<ValidationResult>() { ValidateTestCase(testCase) });
                 else
                 {
                     results.TryGetValue(testCase.DialogueType, out List<ValidationResult> currentResults);
                     currentResults.Add(ValidateTestCase(testCase));
+                }
+
+                // Stand-in for the per-line Trace logging we're suppressing during this run —
+                // one line every 2% instead of one line per test case.
+                int percent = (i + 1) * 100 / total;
+                if (percent != lastReportedPercent && percent % 2 == 0)
+                {
+                    ErrorLogger.Info($"Validating... {i + 1}/{total} ({percent}%)");
+                    lastReportedPercent = percent;
                 }
             }
             return results;

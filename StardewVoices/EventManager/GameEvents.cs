@@ -50,6 +50,11 @@ namespace StardewVoices.EventManager
             if (!Context.IsWorldReady)
                 return;
 
+            // Disposes any voice line that outlived its spot in AudioManager's current/last
+            // slots (see AudioManager.Release) — without this they'd never get cleaned up,
+            // eventually exhausting MonoGame's cap on concurrently alive SoundEffectInstances.
+            _managers.AudioManager.SweepFinishedLines();
+
             _DialoguePlaybackController.UpdateCurrentDialogue();
 
             this.UpdateLastLocationAndEvent();
