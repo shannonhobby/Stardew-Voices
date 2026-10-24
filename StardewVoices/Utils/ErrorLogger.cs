@@ -19,13 +19,7 @@ namespace StardewVoices.Utils
             _monitor = monitor;
         }
 
-        /// <summary>
-        /// While true, Trace() is dropped instead of written to the log file. Trace calls still
-        /// happen once per audio line played (e.g. "Playing line", "Loaded X in Y ms"), which is
-        /// fine during normal play but turns into thousands of log-file writes during a full
-        /// validation pass, slowing it down for no benefit (failures are reported separately at
-        /// Warn/Error, which this doesn't affect). Validation sets this around the test run.
-        /// </summary>
+        /// <summary>While true, Trace() is dropped instead of logged. Validation sets this during a test run to avoid flooding the log file.</summary>
         public static bool SuppressTrace = false;
 
         // -------------------------------------------------------------------------

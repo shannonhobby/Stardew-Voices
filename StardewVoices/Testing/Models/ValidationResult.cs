@@ -193,13 +193,8 @@ namespace StardewVoices.Testing.Models
             }
             finally
             {
-                // Validation is muted and only cares whether Play() throws — not whether the
-                // line is actually audible — so there's no reason to let it keep running.
-                // Thousands of test cases play back to back here with no real time between
-                // them, so leaving each one running would stack up dozens of concurrently
-                // "playing" SoundEffectInstances within seconds and exhaust MonoGame's cap on
-                // how many can be alive at once (InstancePlayLimitException) for the rest of
-                // the run — and for the game, since the cap is shared.
+                // Validation only cares whether Play() throws, not whether it's audible — stop
+                // it immediately instead of leaving thousands of test lines playing at once.
                 AudioManager.StopAllLines();
             }
         }

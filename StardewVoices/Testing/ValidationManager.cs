@@ -42,9 +42,8 @@ namespace StardewVoices.StardewVoices.Testing
 
             Managers.AudioManager.Muted = true;
 
-            // Playing/loading each test line logs at Trace level once per line, which is fine
-            // during normal play but turns into thousands of log-file writes here — suppress it
-            // for the run and show periodic progress instead (see RunTestCases).
+            // Each test line logs at Trace level, which would flood the log file here —
+            // suppress it and show periodic progress instead (see RunTestCases).
             ErrorLogger.SuppressTrace = true;
             Dictionary<DialogueType, List<ValidationResult>> results;
             try
@@ -206,8 +205,7 @@ namespace StardewVoices.StardewVoices.Testing
                     currentResults.Add(ValidateTestCase(testCase));
                 }
 
-                // Stand-in for the per-line Trace logging we're suppressing during this run —
-                // one line every 2% instead of one line per test case.
+                // Replaces the suppressed per-line Trace logging with one line every 2%.
                 int percent = (i + 1) * 100 / total;
                 if (percent != lastReportedPercent && percent % 2 == 0)
                 {
