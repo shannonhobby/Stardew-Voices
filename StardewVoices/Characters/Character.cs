@@ -20,8 +20,16 @@ namespace StardewVoices.Characters
         public string GetName() {  return Name; }
         public NPC GetNPC() { return InGameNPC; }
 
-        public void SetupNpc() { 
+        public void SetupNpc() {
             InGameNPC = Game1.getCharacterFromName(Name);
+            if (InGameNPC == null)
+            {
+                // Name might be an NPC's former name (e.g. a pack author voiced them under an
+                // old name) — the live NPC is spawned under its current name, so look that up.
+                string currentName = CharacterManager.ResolveFormerName(Name);
+                if (currentName != null)
+                    InGameNPC = Game1.getCharacterFromName(currentName);
+            }
             ErrorLogger.Trace($"{Name}'s in game NPC instance initialized");
         }
 

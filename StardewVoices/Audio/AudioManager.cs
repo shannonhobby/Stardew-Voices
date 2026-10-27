@@ -38,44 +38,33 @@ namespace StardewVoices.Audio
 
         private float EffectiveVolume => Muted ? 0f : Volume;
 
-        /// <summary>Every installed source for each character, default first. For the config menu.</summary>
-        internal Dictionary<string, List<VoiceSourceOption>> VoiceOptions { get; }
+        /// <param name="voicePackManager">Decides which source (a pack or the built-in voices) is active for each character.</param>
+        public AudioManager(PathManager pathManager, VoicePackManager voicePackManager) {
+            UseVoices(voicePackManager);
 
-        /// <param name="voicePacks">Installed voice packs.</param>
-        /// <param name="characterVoices">The player's choice of voice per character (see ModConfig.CharacterVoices).</param>
-        public AudioManager(PathManager pathManager, IEnumerable<VoicePack> voicePacks, IDictionary<string, string> characterVoices) {
-            string modPath = pathManager.ModPath.ToString();
-            string voicesFolder = FileManipulationHelpers.FindFolder(modPath, VoicePackLoader.VoicesFolderName)
-                ?? Path.Combine(modPath, VoicePackLoader.VoicesFolderName);
-            FolderVoiceSource builtInVoices = new FolderVoiceSource("Built-in voices", voicesFolder);
-
-            // Each character gets exactly one source: a pack or the built-in voices.
-            VoiceOptions = VoiceSourceSelector.GetOptions(builtInVoices, voicePacks);
-            Dictionary<string, VoiceSourceOption> chosen = VoiceSourceSelector.Choose(VoiceOptions, characterVoices);
-            VoiceSourceSelector.LogChoices(VoiceOptions, chosen, characterVoices);
-            UseVoices(chosen);
-
+            FolderVoiceSource builtInVoices = voicePackManager.BuiltInVoices;
             if (builtInVoices.LineCount == 0)
                 ErrorLogger.Warn($"No voice files found in {builtInVoices.RootPath}, so voices won't play.");
             else
                 ErrorLogger.Info($"Built-in voices: {builtInVoices.Characters.Count} characters, {builtInVoices.LineCount} lines.");
 
-            WarnAboutOldXactFiles(modPath);
+            WarnAboutOldXactFiles(pathManager.ModPath.ToString());
         }
 
         /// <summary>
         /// Re-applies the player's choice of voice per character, e.g. after they change one in the
-        /// config menu. Takes effect from the next line; a line already playing finishes as it was.
+        /// config menu. Call <see cref="VoicePackManager.ApplyChoices"/> first. Takes effect from the
+        /// next line; a line already playing finishes as it was.
         /// </summary>
-        public void ApplyVoiceChoices(IDictionary<string, string> characterVoices)
+        public void ApplyVoiceChoices(VoicePackManager voicePackManager)
         {
-            UseVoices(VoiceSourceSelector.Choose(VoiceOptions, characterVoices));
+            UseVoices(voicePackManager);
         }
 
-        private void UseVoices(Dictionary<string, VoiceSourceOption> chosen)
+        private void UseVoices(VoicePackManager voicePackManager)
         {
-            foreach ((string character, VoiceSourceOption option) in chosen)
-                Resolver.SetSource(character, option.Source);
+            foreach (string character in voicePackManager.Characters)
+                Resolver.SetSource(character, voicePackManager.GetActiveSource(character));
         }
 
         /// <summary>

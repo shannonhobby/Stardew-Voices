@@ -21,7 +21,7 @@ namespace StardewVoices.Testing
 
         public static void Run(ManagerHub managers, string packQuery)
         {
-            VoicePack pack = FindPack(managers.VoicePacks, packQuery);
+            VoicePack pack = FindPack(managers.VoicePackManager.Packs, packQuery);
             if (pack == null)
                 return;
 

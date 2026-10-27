@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using StardewVoices.Audio;
 using StardewVoices.Characters;
 using StardewVoices.Testing;
 using StardewVoices.Utils;
@@ -18,17 +19,35 @@ namespace StardewVoices.Dialogue
         private CharacterManager _characterManager { get; }
         private TestingManager _testingManager { get; }
 
-        public CharacterDialogueHandler(PathManager pathManager, CharacterManager characterManager, TestingManager testingManager)
+        public CharacterDialogueHandler(PathManager pathManager, CharacterManager characterManager, VoicePackManager voicePackManager, TestingManager testingManager)
         {
             _characterManager = characterManager;
             _testingManager = testingManager;
             foreach(string characterName in characterManager.SupportedCharacters)
             {
-                string characterDialoguePath = FindDialogueFile(pathManager, characterName);
                 Character character = characterManager.GetCharacter(characterName);
                 if (character == null) continue;
-                character.SetDialogueDictionary(SetupDialogueDictionaryFromJsonPath(characterDialoguePath));
-                
+
+                string characterDialoguePath = FindDialogueFile(pathManager, characterName);
+                DialogueDictionary dialogueDictionary = characterDialoguePath != null
+                    ? SetupDialogueDictionaryFromJsonPath(characterDialoguePath) ?? new DialogueDictionary()
+                    : new DialogueDictionary();
+
+                // Merge in dialogue from active content pack if it exists.
+                VoicePack activePack = voicePackManager.GetActivePack(characterName);
+                if (activePack?.DialogueFolderPath != null)
+                {
+                    string packDialoguePath = FileManipulationHelpers.FindFile(activePack.DialogueFolderPath, characterName + ".json");
+                    if (packDialoguePath != null)
+                    {
+                        DialogueDictionary packDialogue = SetupDialogueDictionaryFromJsonPath(packDialoguePath);
+                        if (packDialogue != null)
+                            dialogueDictionary.MergeFrom(packDialogue, characterName);
+                    }
+                }
+
+                character.SetDialogueDictionary(dialogueDictionary);
+
                 // We only need the generic dialogue types because the dialogue and misc dialogue are included in
                 // [characterName].json
                 foreach(string dialogueType in Constants.GenericDialogueTypes)

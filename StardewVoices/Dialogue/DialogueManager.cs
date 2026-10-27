@@ -1,4 +1,5 @@
 using StardewValley.Monsters;
+using StardewVoices.Audio;
 using StardewVoices.Characters;
 using StardewVoices.Pathing;
 using StardewVoices.Testing;
@@ -23,6 +24,7 @@ namespace StardewVoices.Dialogue
 
         public DialogueManager(PathManager pathManager,
             CharacterManager characterManager,
+            VoicePackManager voicePackManager,
             TestingManager testingManager,
             VariableLineResolver variableLineResolver
             ) {
@@ -37,7 +39,7 @@ namespace StardewVoices.Dialogue
             textBubbleHandler = new TextBubbleHandler();
             festivalHandler = new FestivalHandler(pathManager);
             eventHandler = new EventHandler(pathManager);
-            characterDialogueHandler = new CharacterDialogueHandler(pathManager, characterManager, _testingManager);
+            characterDialogueHandler = new CharacterDialogueHandler(pathManager, characterManager, voicePackManager, _testingManager);
             ContinuationDialogueHelper.Init(characterManager);
         }
 
