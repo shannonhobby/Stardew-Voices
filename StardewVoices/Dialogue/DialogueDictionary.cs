@@ -315,7 +315,7 @@ namespace StardewVoices.Dialogue
         }
 
         /// <summary>The text mapped to <paramref name="lineId"/> anywhere in this dictionary (any type except continuation_dialogue), or null if none.</summary>
-        private string FindTextForLineId(string lineId)
+        public string FindTextForLineId(string lineId)
         {
             foreach (KeyValuePair<string, Dictionary<string, string[]>> type in _data)
             {

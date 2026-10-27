@@ -1,9 +1,11 @@
-using System.Collections.Generic;
-using System.IO;
 using StardewVoices.Dialogue;
 using StardewVoices.Pathing;
 using StardewVoices.Utils;
 using StardewVoices.Utils.ParsingHelpers;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
 
 namespace StardewVoices.FileGeneration
 {
@@ -38,7 +40,9 @@ namespace StardewVoices.FileGeneration
             foreach (PackDialogueEntry entry in entries)
                 englishRawByLineId[entry.LineId] = entry.RawText;
 
-            GenerateOutput(pathManager, characterName, entries, englishRawByLineId: null, languageSubfolder: null);
+            DialogueDictionary vanillaDialogue = CheckForVanillaDialogue(pathManager, characterName);
+
+            GenerateOutput(pathManager, characterName, entries, vanillaDialogue, englishRawByLineId: null, languageSubfolder: null);
 
             // Translations: <Character>.<lang>.txt for any language this mod recognizes.
             foreach (string language in Constants.languageDisplayNames.Keys)
@@ -52,9 +56,33 @@ namespace StardewVoices.FileGeneration
                 foreach (string error in localizedErrors)
                     ErrorLogger.Warn($"[sv_parse_pack] ({language}) {error}");
 
-                GenerateOutput(pathManager, characterName, localizedEntries, englishRawByLineId, language);
+                GenerateOutput(pathManager, characterName, localizedEntries, vanillaDialogue, englishRawByLineId, language);
             }
         }
+
+        private static DialogueDictionary CheckForVanillaDialogue(PathManager pathManager, string characterName)
+        {
+            string vanillaDialogueJsonPath = CharacterDialogueHandler.FindDialogueFile(pathManager, characterName);
+
+            if (vanillaDialogueJsonPath != null)
+            {
+                try
+                {
+                    string jsonString = File.ReadAllText(vanillaDialogueJsonPath, Encoding.UTF8);
+                    return new DialogueDictionary(jsonString);
+
+                }
+                catch (Exception ex)
+                {
+                    ErrorLogger.Debug($"Error setting up dialogue dictionary from path {vanillaDialogueJsonPath}.\n{ex} :(");
+                    return null;
+                }
+            }
+
+            return null;
+            
+        }
+
 
         /// <summary>
         /// Parses <paramref name="entries"/> and writes the result to Generated Files/Custom Mod
@@ -67,6 +95,7 @@ namespace StardewVoices.FileGeneration
             PathManager pathManager,
             string characterName,
             List<PackDialogueEntry> entries,
+            DialogueDictionary vanillaDialogue,
             Dictionary<string, string> englishRawByLineId,
             string languageSubfolder)
         {
@@ -75,6 +104,12 @@ namespace StardewVoices.FileGeneration
             Dictionary<string, List<string>> moddedDialogue = new();
             List<string> continuationIds = new();
 
+            // Tracks which input entry (by its OriginalKey, i.e. the author's "line_id") first
+            // claimed each distinct text, so a second *different* entry producing the same text
+            // can be flagged as a duplicate (C4) rather than treated as an intentional multi-id
+            // text (e.g. a gender-variant pair from the same entry sharing identical text).
+            Dictionary<string, string> firstOriginalKeyByText = new();
+
             foreach (PackDialogueEntry entry in entries)
             {
                 string englishRawValue = null;
@@ -82,8 +117,30 @@ namespace StardewVoices.FileGeneration
                 List<LabelledDialogueLine> lines = CharacterDialogueParser.ParseRawValueToLines(entry.RawText, entry.LineId, DialogueType.Dialogue, englishRawValue);
                 foreach (LabelledDialogueLine line in lines)
                 {
+                    // Check for line id collissions with vanilla dialogue
+                    if (vanillaDialogue != null)
+                    {
+                       string existingLine = vanillaDialogue.FindTextForLineId(line.LineId);
+                       if (existingLine != null)
+                        {
+                            ErrorLogger.Warn($"{characterName}: the pack's line id \"{line.LineId}\" is already " +
+                               $"used for a different line (\"{existingLine}\"). Both would try to play the same audio file — rename one of them.");
+                        }
+                    }
+
                     if (!moddedDialogue.TryGetValue(line.Text, out List<string> ids))
+                    {
                         moddedDialogue[line.Text] = ids = new List<string>();
+                        firstOriginalKeyByText[line.Text] = line.OriginalKey;
+                    }
+                    else if (firstOriginalKeyByText[line.Text] != line.OriginalKey && !ids.Contains(line.LineId))
+                    {
+                        ErrorLogger.Warn($"{characterName}: \"{entry.LineId}\" produces the same text as " +
+                            $"\"{firstOriginalKeyByText[line.Text]}\" (\"{line.Text}\"). Keeping the first id " +
+                            $"({string.Join(", ", ids)}); \"{line.LineId}\" will not be written.");
+                        continue;
+                    }
+
                     if (!ids.Contains(line.LineId))
                         ids.Add(line.LineId);
 
