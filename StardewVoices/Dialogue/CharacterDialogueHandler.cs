@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using StardewValley;
 using StardewVoices.Pathing;
 using System;
 using System.Collections.Generic;
@@ -25,7 +26,7 @@ namespace StardewVoices.Dialogue
             _testingManager = testingManager;
             foreach(string characterName in characterManager.SupportedCharacters)
             {
-                Character character = characterManager.GetCharacter(characterName);
+                Characters.Character character = characterManager.GetCharacter(characterName);
                 if (character == null) continue;
 
                 string characterDialoguePath = FindDialogueFile(pathManager, characterName);
@@ -37,7 +38,7 @@ namespace StardewVoices.Dialogue
                 VoicePack activePack = voicePackManager.GetActivePack(characterName);
                 if (activePack?.DialogueFolderPath != null)
                 {
-                    string packDialoguePath = FileManipulationHelpers.FindFile(activePack.DialogueFolderPath, characterName + ".json");
+                    string packDialoguePath = FindPackDialogueFile(activePack.DialogueFolderPath, characterName);
                     if (packDialoguePath != null)
                     {
                         DialogueDictionary packDialogue = SetupDialogueDictionaryFromJsonPath(packDialoguePath);
@@ -66,6 +67,26 @@ namespace StardewVoices.Dialogue
         internal static string FindDialogueFile(PathManager pathManager, string characterName)
         {
             return FileManipulationHelpers.FindFile(pathManager.GetPathString("Characters"), characterName + ".json");
+        }
+
+        /// <summary>
+        /// The character's dialogue file inside a pack's "dialogue" folder: a "&lt;lang&gt;/" subfolder
+        /// version if the game isn't running in English and the pack shipped one (mirroring this
+        /// mod's own Dialogue Jsons/&lt;lang&gt;/Characters convention, see sv_parse_pack's translation
+        /// support), otherwise the pack's plain "&lt;Character&gt;.json". Null if neither exists.
+        /// </summary>
+        private static string FindPackDialogueFile(string dialogueFolderPath, string characterName)
+        {
+            string language = LocalizationHelpers.GetCurrentLanguage();
+            if (language != LocalizedContentManager.LanguageCode.en.ToString())
+            {
+                string languageFolder = FileManipulationHelpers.FindFolder(dialogueFolderPath, language);
+                string localizedPath = languageFolder != null ? FileManipulationHelpers.FindFile(languageFolder, characterName + ".json") : null;
+                if (localizedPath != null)
+                    return localizedPath;
+            }
+
+            return FileManipulationHelpers.FindFile(dialogueFolderPath, characterName + ".json");
         }
 
         private DialogueDictionary SetupDialogueDictionaryFromJsonPath(string path)

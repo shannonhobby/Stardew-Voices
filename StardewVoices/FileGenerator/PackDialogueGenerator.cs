@@ -31,6 +31,45 @@ namespace StardewVoices.FileGeneration
             foreach (string error in parseErrors)
                 ErrorLogger.Warn($"[sv_parse_pack] {error}");
 
+            // Keyed by line id so a translation's entries can be parsed with the same ids as the
+            // English ones (see CharacterDialogueParser.ParseRawValueToLines's englishRawValue param),
+            // so the same recorded audio matches every language.
+            Dictionary<string, string> englishRawByLineId = new();
+            foreach (PackDialogueEntry entry in entries)
+                englishRawByLineId[entry.LineId] = entry.RawText;
+
+            GenerateOutput(pathManager, characterName, entries, englishRawByLineId: null, languageSubfolder: null);
+
+            // Translations: <Character>.<lang>.txt for any language this mod recognizes.
+            foreach (string language in Constants.languageDisplayNames.Keys)
+            {
+                if (language == "en") continue;
+
+                string localizedInputFile = FileManipulationHelpers.FindFile(pathManager.InputRoot.FullPath, $"{characterName}.{language}.txt");
+                if (localizedInputFile == null) continue;
+
+                List<PackDialogueEntry> localizedEntries = PackDialogueInputParser.Parse(localizedInputFile, out List<string> localizedErrors);
+                foreach (string error in localizedErrors)
+                    ErrorLogger.Warn($"[sv_parse_pack] ({language}) {error}");
+
+                GenerateOutput(pathManager, characterName, localizedEntries, englishRawByLineId, language);
+            }
+        }
+
+        /// <summary>
+        /// Parses <paramref name="entries"/> and writes the result to Generated Files/Custom Mod
+        /// Jsons[/&lt;languageSubfolder&gt;]/&lt;characterName&gt;.json. When
+        /// <paramref name="englishRawByLineId"/> is given (a translation pass), each entry's line id
+        /// is anchored to the English raw text for the same id, if there is one, so ids stay
+        /// identical across languages.
+        /// </summary>
+        private static void GenerateOutput(
+            PathManager pathManager,
+            string characterName,
+            List<PackDialogueEntry> entries,
+            Dictionary<string, string> englishRawByLineId,
+            string languageSubfolder)
+        {
             // Shape matches what DialogueDictionary.MergeFrom expects and produces at runtime —
             // one flat bucket for every line, plus the usual continuation_dialogue list.
             Dictionary<string, List<string>> moddedDialogue = new();
@@ -38,7 +77,9 @@ namespace StardewVoices.FileGeneration
 
             foreach (PackDialogueEntry entry in entries)
             {
-                List<LabelledDialogueLine> lines = CharacterDialogueParser.ParseRawValueToLines(entry.RawText, entry.LineId, DialogueType.Dialogue);
+                string englishRawValue = null;
+                englishRawByLineId?.TryGetValue(entry.LineId, out englishRawValue);
+                List<LabelledDialogueLine> lines = CharacterDialogueParser.ParseRawValueToLines(entry.RawText, entry.LineId, DialogueType.Dialogue, englishRawValue);
                 foreach (LabelledDialogueLine line in lines)
                 {
                     if (!moddedDialogue.TryGetValue(line.Text, out List<string> ids))
@@ -57,22 +98,29 @@ namespace StardewVoices.FileGeneration
                 ["continuation_dialogue"] = new Dictionary<string, List<string>> { ["continuation_dialogue"] = continuationIds },
             };
 
-            PathNode packsFolder = pathManager.GeneratedFilesRoot;
-            packsFolder.CreateFolder(OutputFolderName);
-            packsFolder = packsFolder.GetChild(OutputFolderName);
+            PathNode outputFolder = pathManager.GeneratedFilesRoot;
+            outputFolder.CreateFolder(OutputFolderName);
+            outputFolder = outputFolder.GetChild(OutputFolderName);
+            if (languageSubfolder != null)
+            {
+                outputFolder.CreateFolder(languageSubfolder);
+                outputFolder = outputFolder.GetChild(languageSubfolder);
+            }
 
             string outputFileName = characterName + ".json";
-            string outputPath = Path.Combine(packsFolder.FullPath, outputFileName);
+            string outputPath = Path.Combine(outputFolder.FullPath, outputFileName);
 
             // Authors re-run this command as they edit their input file — unlike vanilla
             // generation's one-time output, this one should always reflect the latest parse.
             if (File.Exists(outputPath))
                 File.Delete(outputPath);
-            packsFolder.CreateJsonFile(outputFileName, output);
+            outputFolder.CreateJsonFile(outputFileName, output);
 
-            ErrorLogger.Info($"[sv_parse_pack] Parsed {entries.Count} line(s) for {characterName} " +
-                $"({continuationIds.Count} continuation). Wrote {outputPath} — copy it into your " +
-                $"pack's 'dialogue' folder as {outputFileName}.");
+            string dialogueSubpath = languageSubfolder != null ? $"dialogue/{languageSubfolder}" : "dialogue";
+            ErrorLogger.Info($"[sv_parse_pack] Parsed {entries.Count} line(s) for {characterName}" +
+                (languageSubfolder != null ? $" ({languageSubfolder})" : "") +
+                $" ({continuationIds.Count} continuation). Wrote {outputPath} — copy it into your " +
+                $"pack's '{dialogueSubpath}' folder as {outputFileName}.");
         }
     }
 }
