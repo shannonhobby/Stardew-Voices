@@ -314,7 +314,14 @@ namespace StardewVoices.Utils.ParsingHelpers
             // Some raw keys use '*' as a wildcard (e.g. Strings/MovieReactions'
             // "Penny_*_BeforeMovie" for "any movie"). '*' isn't safe in a line id
             // / file name, so normalize it to "1".
-            return lineId.Replace("*", "1");
+            lineId = lineId.Replace("*", "1");
+
+            // Pasted i18n keys (e.g. "menu.greeting!") can carry other characters that
+            // aren't safe in a line id / filename. Collapse any run of them to a single
+            // underscore and trim stray underscores left at either end.
+            lineId = Regex.Replace(lineId, @"[^\w\-]+", "_").Trim('_');
+
+            return lineId;
         }
 
         // Matches a "$p {condition}#" or "$d {condition}#" marker at the very start of
