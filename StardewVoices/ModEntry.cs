@@ -69,6 +69,15 @@ namespace StardewVoices
             );
 
             helper.ConsoleCommands.Add(
+                "sv_parse_pack",
+                "For mod-pack authors: parses a pasted-dialogue input file into dialogue JSON for one character.\n" +
+                "Usage: sv_parse_pack <characterName>\n" +
+                "Reads input/<characterName>.txt and writes the result into this mod's own " +
+                "Generated Files folder. Copy the output into your pack's 'dialogue' folder afterward.",
+                ParsePackDialogue
+            );
+
+            helper.ConsoleCommands.Add(
               "sv_generation",
               "Generates Dialogue JSONs and Scripts." +
               "\n\nUsage: sv_generation [filesToGenerate] [scriptFormat] [generateGossipDialogue]" +
@@ -136,6 +145,17 @@ namespace StardewVoices
                 ErrorLogger.Warn($"[sv_play_line] NPC '{characterName}' not found — playing audio directly.");
                 managerHub.AudioManager.Play(lineId, characterName);
             }
+        }
+
+        private void ParsePackDialogue(string command, string[] args)
+        {
+            if (args.Length < 1)
+            {
+                ErrorLogger.Info("[sv_parse_pack] Usage: sv_parse_pack <characterName>");
+                return;
+            }
+
+            PackDialogueGenerator.Run(managerHub.PathManager, args[0]);
         }
 
         private void PrintMarriageOverrideReport(string command, string[] args)

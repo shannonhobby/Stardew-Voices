@@ -9,11 +9,17 @@ namespace StardewVoices.Pathing
     {
         internal PathNode ModPath { get; }
         internal PathNode GeneratedFilesRoot { get; }
+        internal PathNode InputRoot { get; }
         internal string FestivalDatesJsonName { get; }
 
         public PathManager(string modPath)
         {
             ModPath = new PathNode("root", modPath);
+
+            // Where mod-pack authors drop their pasted-dialogue input files for sv_parse_pack —
+            // lives inside Stardew Voices itself, not the pack, so the author just has to put the
+            // file in the right place rather than the command having to go find it.
+            InputRoot = ModPath.CreateChild("Input");
 
             // Generated files output — language subfolder for non-English so each
             // language sits alongside the others under Generated Files/.
