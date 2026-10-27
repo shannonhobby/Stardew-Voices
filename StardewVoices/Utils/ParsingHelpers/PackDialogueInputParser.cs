@@ -25,6 +25,10 @@ namespace StardewVoices.Utils.ParsingHelpers
             @"^\{?\s*[""']([^""']+)[""']\s*:\s*[""']((?:[^""'\\]|\\.)*)[""']\s*,?\s*\}?\s*$",
             RegexOptions.Compiled);
 
+        // Content Patcher tokens (e.g. "{{randomize: ...}}") resolve differently every time the
+        // pack loads, so the plain text we'd match against at runtime never stays stable.
+        private static readonly Regex UnresolvedTokenPattern = new Regex(@"\{\{.*?\}\}", RegexOptions.Compiled);
+
         public static List<PackDialogueEntry> Parse(string filePath, out List<string> errors)
         {
             return ParseLines(File.ReadAllLines(filePath), out errors);
@@ -52,6 +56,11 @@ namespace StardewVoices.Utils.ParsingHelpers
 
                 string lineId = match.Groups[1].Value.Trim();
                 string rawText = DecodeJsonStringContent(match.Groups[2].Value);
+
+                if (UnresolvedTokenPattern.IsMatch(rawText))
+                    errors.Add($"Line {lineNumber}: \"{lineId}\" contains a Content Patcher token (\"{{{{...}}}}\") " +
+                        "that can't be reliably text-matched at runtime.");
+
                 entries.Add(new PackDialogueEntry(lineId, rawText, lineNumber));
             }
 
