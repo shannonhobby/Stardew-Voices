@@ -16,6 +16,9 @@ namespace StardewVoices.Audio
     {
         public const string VoicesFolderName = "voices";
 
+        /// <summary>A pack's optional folder of dialogue JSON, alongside its "voices" folder.</summary>
+        public const string DialogueFolderName = "dialogue";
+
         /// <summary>Every installed voice pack that has voice files. Packs without any are logged and left out.</summary>
         public static List<VoicePack> LoadAll(IEnumerable<IContentPack> contentPacks)
         {
@@ -46,7 +49,12 @@ namespace StardewVoices.Audio
 
             string characters = string.Join(", ", source.Characters.OrderBy(name => name).Select(name => $"{name} ({source.CountLines(name)} lines)"));
             ErrorLogger.Info($"Voice pack {packName}: {characters}.");
-            return new VoicePack(contentPack.Manifest, source);
+
+            string dialogueFolder = FileManipulationHelpers.FindFolder(contentPack.DirectoryPath, DialogueFolderName);
+            if (dialogueFolder != null)
+                ErrorLogger.Info($"{packName} also has a '{DialogueFolderName}' folder, so it can voice modded NPCs or add extra lines for vanilla ones.");
+
+            return new VoicePack(contentPack.Manifest, source, dialogueFolder);
         }
     }
 }
