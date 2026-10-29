@@ -55,20 +55,6 @@ namespace StardewVoices
             );
 
             helper.ConsoleCommands.Add(
-                "sv_pack_report",
-                "For voice pack authors: lists the characters a voice pack provides, whether each is in use, " +
-                "and files that don't match any line id.\n" +
-                "Usage: sv_pack_report <pack UniqueID or name>",
-                (command, args) =>
-                {
-                    if (args.Length == 0)
-                        ErrorLogger.Info("[sv_pack_report] Usage: sv_pack_report <pack UniqueID or name>");
-                    else
-                        VoicePackReport.Run(managerHub, string.Join(" ", args));
-                }
-            );
-
-            helper.ConsoleCommands.Add(
                 "sv_parse_pack",
                 "For mod-pack authors: parses a pasted-dialogue input file into dialogue JSON for one character.\n" +
                 "Usage: sv_parse_pack <characterName>\n" +

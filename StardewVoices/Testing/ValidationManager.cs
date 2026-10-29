@@ -1,10 +1,14 @@
 using System;
 using StardewModdingAPI;
 using StardewValley;
+using StardewVoices.Audio;
 using StardewVoices.Dialogue;
+using StardewVoices.Pathing;
 using StardewVoices.Testing.Models;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using Newtonsoft.Json.Linq;
 using StardewVoices.Utils;
 using StardewVoices.Utils.GameDialogueExtraction;
 using StardewVoices.Utils.ParsingHelpers;
@@ -17,6 +21,12 @@ namespace StardewVoices.StardewVoices.Testing
         private EventDialogueExtractor eventExtractor;
         private FestivalDialogueExtractor festivalExtractor;
         private List<DialogueTestCase> testCases = new List<DialogueTestCase>();
+
+        // Audio files that don't match any known line id, per character — the reverse of what
+        // the test cases above check (missing audio). Populated by CheckForUnusedAudioFiles,
+        // reported as its own section since it's a different kind of problem (a stray/typo'd
+        // file) than a failed resolve-and-play test.
+        private Dictionary<string, List<string>> unusedAudioFilesByCharacter = new();
 
         private ManagerHub Managers;
         private IModHelper helper;
@@ -62,6 +72,8 @@ namespace StardewVoices.StardewVoices.Testing
             Managers.AudioManager.StopAllLines();
             Managers.AudioManager.Muted = false;
 
+            CheckForUnusedAudioFiles();
+
             PrintFinalRecap();
 
             Managers.TestingManager.ValidationIsRunning = false;
@@ -89,6 +101,16 @@ namespace StardewVoices.StardewVoices.Testing
                 foreach (string character in report.failedTests.Keys)
                 {
                     string lineIds = string.Join("\n", report.failedTests[character]);
+                    ErrorLogger.Error($"\n  {character}:\n {lineIds}");
+                }
+            }
+
+            if (unusedAudioFilesByCharacter.Count > 0)
+            {
+                ErrorLogger.Trace("--- UNUSED AUDIO FILES (no matching line id) ---");
+                foreach (string character in unusedAudioFilesByCharacter.Keys)
+                {
+                    string lineIds = string.Join("\n", unusedAudioFilesByCharacter[character]);
                     ErrorLogger.Error($"\n  {character}:\n {lineIds}");
                 }
             }
@@ -251,6 +273,111 @@ namespace StardewVoices.StardewVoices.Testing
         private bool ShouldSkipTestCase(string text)
         {
             return text == null || text.StartsWith('%') || text.Equals("...");
+        }
+
+        /// <summary>
+        /// For whichever source (built-in or a pack) is active per character, flags audio files
+        /// that don't match any known line id — the reverse of what the test cases check. Formerly
+        /// sv_pack_report's job, scoped to one named pack; this instead checks whatever's actually
+        /// active right now, built-in voices included.
+        /// </summary>
+        private void CheckForUnusedAudioFiles()
+        {
+            HashSet<string> knownVanillaLineIds = LoadKnownVanillaLineIds(Managers.PathManager);
+
+            foreach (string character in Managers.CharacterManager.SupportedCharacters)
+            {
+                FolderVoiceSource source = Managers.AudioManager.Resolver.GetSource(character);
+                if (source == null)
+                    continue;
+
+                HashSet<string> knownIds = new(knownVanillaLineIds, StringComparer.OrdinalIgnoreCase);
+                DialogueDictionary dictionary = Managers.CharacterManager.GetCharacter(character)?.GetDialogueDictionary();
+                if (dictionary != null)
+                {
+                    foreach (string id in dictionary.GetType(DialogueDictionary.ModdedDialogueType).Values.SelectMany(ids => ids))
+                        knownIds.Add(id);
+                }
+
+                List<string> unused = source.GetLineIds(character)
+                    .Where(lineId => !IsKnownLineId(lineId, knownIds))
+                    .OrderBy(lineId => lineId)
+                    .ToList();
+
+                if (unused.Count > 0)
+                    unusedAudioFilesByCharacter[character] = unused;
+            }
+        }
+
+        /// <summary>Whether a file's line id is used anywhere, directly or as the base of a "-suffix" variant.</summary>
+        private static bool IsKnownLineId(string lineId, HashSet<string> knownLineIds)
+        {
+            return knownLineIds.Contains(lineId)
+                || (VoiceResolver.GetFallbackLineId(lineId) is string baseId && knownLineIds.Contains(baseId));
+        }
+
+        /// <summary>
+        /// Every line id the dialogue JSONs for the current language map text to, plus every
+        /// recorded variant from variable_lines.json. Doesn't include pack-added (modded_dialogue)
+        /// ids — those are character-specific and added separately in CheckForUnusedAudioFiles.
+        /// </summary>
+        private static HashSet<string> LoadKnownVanillaLineIds(PathManager pathManager)
+        {
+            HashSet<string> lineIds = new(StringComparer.OrdinalIgnoreCase);
+            string languageFolder = Path.GetDirectoryName(pathManager.GetPathString("Characters"));
+
+            foreach (string subfolder in new[] { "Characters", "Events", "Festivals", "Generic" })
+            {
+                string folder = Path.Combine(languageFolder, subfolder);
+                if (!Directory.Exists(folder))
+                    continue;
+                foreach (string file in Directory.GetFiles(folder, "*.json", SearchOption.AllDirectories))
+                    CollectLineIds(JToken.Parse(File.ReadAllText(file)), lineIds);
+            }
+
+            string variableLinesPath = Path.Combine(languageFolder, "variable_lines.json");
+            if (File.Exists(variableLinesPath))
+                CollectVariantIds(JObject.Parse(File.ReadAllText(variableLinesPath)), lineIds);
+
+            return lineIds;
+        }
+
+        // The dialogue JSONs map text to line ids at varying depths ({text: id}, {text: [ids]},
+        // {type: {text: [ids]}}), so every string value is a line id.
+        private static void CollectLineIds(JToken token, HashSet<string> lineIds)
+        {
+            switch (token)
+            {
+                case JValue value when value.Type == JTokenType.String:
+                    lineIds.Add((string)value);
+                    break;
+                case JArray array:
+                    foreach (JToken item in array)
+                        CollectLineIds(item, lineIds);
+                    break;
+                case JObject obj:
+                    foreach (JProperty property in obj.Properties())
+                        CollectLineIds(property.Value, lineIds);
+                    break;
+            }
+        }
+
+        // variable_lines.json: {group or character: {lineId: [suffixes] or {character: [suffixes]}}}.
+        // An empty suffix means the base id itself.
+        private static void CollectVariantIds(JObject variableLines, HashSet<string> lineIds)
+        {
+            foreach (JProperty group in variableLines.Properties())
+            {
+                if (group.Value is not JObject lines)
+                    continue;
+                foreach (JProperty line in lines.Properties())
+                {
+                    string lineId = line.Name.Trim();
+                    IEnumerable<JToken> suffixLists = line.Value is JObject byCharacter ? byCharacter.Properties().Select(p => p.Value) : new[] { line.Value };
+                    foreach (string suffix in suffixLists.OfType<JArray>().SelectMany(list => list.Values<string>()))
+                        lineIds.Add(suffix.Length == 0 ? lineId : $"{lineId}-{suffix}");
+                }
+            }
         }
     }
 }
