@@ -16,11 +16,19 @@ namespace StardewVoices.Audio
         /// </summary>
         public string DialogueFolderPath { get; }
 
-        public VoicePack(IManifest manifest, FolderVoiceSource source, string dialogueFolderPath = null)
+        /// <summary>
+        /// The pack's own "variable_lines.json", if it has one, for recording its own suffixed
+        /// variants (e.g. a different dub's line count for a chance dialogue) instead of using
+        /// the base mod's. Null if the pack doesn't define any.
+        /// </summary>
+        public string VariableLinesPath { get; }
+
+        public VoicePack(IManifest manifest, FolderVoiceSource source, string dialogueFolderPath = null, string variableLinesPath = null)
         {
             Manifest = manifest;
             Source = source;
             DialogueFolderPath = dialogueFolderPath;
+            VariableLinesPath = variableLinesPath;
         }
     }
 }

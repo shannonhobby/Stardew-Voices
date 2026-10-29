@@ -40,6 +40,7 @@ namespace StardewVoices.Dialogue
             festivalHandler = new FestivalHandler(pathManager);
             eventHandler = new EventHandler(pathManager);
             characterDialogueHandler = new CharacterDialogueHandler(pathManager, characterManager, voicePackManager, _testingManager);
+            RefreshVariableLineOverrides(voicePackManager);
             ContinuationDialogueHelper.Init(characterManager);
         }
 
@@ -52,9 +53,29 @@ namespace StardewVoices.Dialogue
         public void RefreshPackDialogue(VoicePackManager voicePackManager)
         {
             characterDialogueHandler.RefreshPackDialogue(_pathManager, voicePackManager);
+            RefreshVariableLineOverrides(voicePackManager);
         }
 
         // Variable Lines
+
+        /// <summary>
+        /// For each character, whichever pack (if any) is currently voicing it supplies that
+        /// character's variable-line overrides — scoped per character so that two different packs
+        /// active for two different characters can't clobber each other's entries even if both
+        /// files happen to mention both characters.
+        /// </summary>
+        private void RefreshVariableLineOverrides(VoicePackManager voicePackManager)
+        {
+            Dictionary<string, string> characterOverridePaths = new();
+            foreach (string characterName in _characterManager.SupportedCharacters)
+            {
+                string variableLinesPath = voicePackManager.GetActivePack(characterName)?.VariableLinesPath;
+                if (variableLinesPath != null)
+                    characterOverridePaths[characterName] = variableLinesPath;
+            }
+
+            VariableLineResolver.RefreshPackOverrides(characterOverridePaths);
+        }
 
 
 
