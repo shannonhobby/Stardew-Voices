@@ -56,9 +56,9 @@ namespace StardewVoices
 
             helper.ConsoleCommands.Add(
                 "sv_parse_pack",
-                "For mod-pack authors: parses a pasted-dialogue input file into dialogue JSON for one character.\n" +
-                "Usage: sv_parse_pack <characterName>\n" +
-                "Reads input/<characterName>.txt and writes the result into this mod's own " +
+                "For mod-pack authors: parses pasted-dialogue input files into dialogue JSON.\n" +
+                "Usage: sv_parse_pack [characterName]\n" +
+                "Reads input/<characterName>.txt (or every .txt in input/ if no name is given) and writes the result into this mod's own " +
                 "Generated Files folder. Copy the output into your pack's 'dialogue' folder afterward.",
                 ParsePackDialogue
             );
@@ -137,7 +137,7 @@ namespace StardewVoices
         {
             if (args.Length < 1)
             {
-                ErrorLogger.Info("[sv_parse_pack] Usage: sv_parse_pack <characterName>");
+                PackDialogueGenerator.RunAll(managerHub.PathManager);
                 return;
             }
 

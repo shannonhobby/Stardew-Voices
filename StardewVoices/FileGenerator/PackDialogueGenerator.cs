@@ -20,29 +20,61 @@ namespace StardewVoices.FileGeneration
     {
         private const string OutputFolderName = "Custom Mod Jsons";
 
-        public static void Run(PathManager pathManager, string characterName)
+        /// <summary>
+        /// Parses every character with an input file in the Input folder, whether English
+        /// (&lt;Character&gt;.txt), translation-only (&lt;Character&gt;.&lt;lang&gt;.txt), or both.
+        /// </summary>
+        public static void RunAll(PathManager pathManager)
         {
-            string inputFile = FileManipulationHelpers.FindFile(pathManager.InputRoot.FullPath, characterName + ".txt");
-            if (inputFile == null)
+            string inputFolder = pathManager.InputRoot.FullPath;
+            string[] inputFiles = Directory.Exists(inputFolder) ? Directory.GetFiles(inputFolder, "*.txt") : Array.Empty<string>();
+
+            // Sorted set keeps a stable order and collapses Abigail.txt + Abigail.es.txt into one run.
+            SortedSet<string> characterNames = new(StringComparer.OrdinalIgnoreCase);
+            foreach (string file in inputFiles)
             {
-                ErrorLogger.Warn($"[sv_parse_pack] No '{characterName}.txt' found in '{pathManager.InputRoot.FullPath}'.");
+                string name = Path.GetFileNameWithoutExtension(file);
+                string suffix = Path.GetExtension(name).TrimStart('.');
+                if (suffix.Length > 0 && Constants.languageDisplayNames.ContainsKey(suffix))
+                    name = Path.GetFileNameWithoutExtension(name);
+                characterNames.Add(name);
+            }
+
+            if (characterNames.Count == 0)
+            {
+                ErrorLogger.Warn($"[sv_parse_pack] No .txt input files found in '{inputFolder}'.");
                 return;
             }
 
-            List<PackDialogueEntry> entries = PackDialogueInputParser.Parse(inputFile, out List<string> parseErrors);
-            foreach (string error in parseErrors)
-                ErrorLogger.Warn($"[sv_parse_pack] {error}");
+            foreach (string characterName in characterNames)
+                Run(pathManager, characterName);
+        }
 
-            // Keyed by line id so a translation's entries can be parsed with the same ids as the
-            // English ones (see CharacterDialogueParser.ParseRawValueToLines's englishRawValue param),
-            // so the same recorded audio matches every language.
-            Dictionary<string, string> englishRawByLineId = new();
-            foreach (PackDialogueEntry entry in entries)
-                englishRawByLineId[entry.LineId] = entry.RawText;
-
+        public static void Run(PathManager pathManager, string characterName)
+        {
             DialogueDictionary vanillaDialogue = CheckForVanillaDialogue(pathManager, characterName);
 
-            GenerateOutput(pathManager, characterName, entries, vanillaDialogue, englishRawByLineId: null, languageSubfolder: null);
+            // English is optional — a dub-only pack may ship just <Character>.<lang>.txt files.
+            // Keyed by line id so a translation's entries can be parsed with the same ids as the
+            // English ones (see CharacterDialogueParser.ParseRawValueToLines's englishRawValue param),
+            // so the same recorded audio matches every language. Null when there's no English file.
+            Dictionary<string, string> englishRawByLineId = null;
+            bool foundAnyInput = false;
+
+            string inputFile = FileManipulationHelpers.FindFile(pathManager.InputRoot.FullPath, characterName + ".txt");
+            if (inputFile != null)
+            {
+                foundAnyInput = true;
+                List<PackDialogueEntry> entries = PackDialogueInputParser.Parse(inputFile, out List<string> parseErrors);
+                foreach (string error in parseErrors)
+                    ErrorLogger.Warn($"[sv_parse_pack] {error}");
+
+                englishRawByLineId = new();
+                foreach (PackDialogueEntry entry in entries)
+                    englishRawByLineId[entry.LineId] = entry.RawText;
+
+                GenerateOutput(pathManager, characterName, entries, vanillaDialogue, englishRawByLineId: null, languageSubfolder: null);
+            }
 
             // Translations: <Character>.<lang>.txt for any language this mod recognizes.
             foreach (string language in Constants.languageDisplayNames.Keys)
@@ -51,6 +83,7 @@ namespace StardewVoices.FileGeneration
 
                 string localizedInputFile = FileManipulationHelpers.FindFile(pathManager.InputRoot.FullPath, $"{characterName}.{language}.txt");
                 if (localizedInputFile == null) continue;
+                foundAnyInput = true;
 
                 List<PackDialogueEntry> localizedEntries = PackDialogueInputParser.Parse(localizedInputFile, out List<string> localizedErrors);
                 foreach (string error in localizedErrors)
@@ -58,6 +91,9 @@ namespace StardewVoices.FileGeneration
 
                 GenerateOutput(pathManager, characterName, localizedEntries, vanillaDialogue, englishRawByLineId, language);
             }
+
+            if (!foundAnyInput)
+                ErrorLogger.Warn($"[sv_parse_pack] No '{characterName}.txt' or '{characterName}.<lang>.txt' found in '{pathManager.InputRoot.FullPath}'.");
         }
 
         private static DialogueDictionary CheckForVanillaDialogue(PathManager pathManager, string characterName)
