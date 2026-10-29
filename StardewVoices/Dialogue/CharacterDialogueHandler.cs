@@ -29,35 +29,63 @@ namespace StardewVoices.Dialogue
                 Characters.Character character = characterManager.GetCharacter(characterName);
                 if (character == null) continue;
 
-                string characterDialoguePath = FindDialogueFile(pathManager, characterName);
-                DialogueDictionary dialogueDictionary = characterDialoguePath != null
-                    ? SetupDialogueDictionaryFromJsonPath(characterDialoguePath) ?? new DialogueDictionary()
-                    : new DialogueDictionary();
+                LoadDialogueDictionary(pathManager, voicePackManager, characterName, character);
 
-                // Merge in dialogue from active content pack if it exists.
-                VoicePack activePack = voicePackManager.GetActivePack(characterName);
-                if (activePack?.DialogueFolderPath != null)
+                // Generic dialogue (engagement/marriage/extra/rainy templates) is vanilla content
+                // written with vanilla NPCs in mind. A fully modded NPC (no vanilla Dialogue
+                // Jsons/Characters file at all) shouldn't be matched against it — their own
+                // dialogue text could coincidentally match a generic line and resolve to an id
+                // the pack never recorded audio for.
+                if (FindDialogueFile(pathManager, characterName) != null)
                 {
-                    string packDialoguePath = FindPackDialogueFile(activePack.DialogueFolderPath, characterName);
-                    if (packDialoguePath != null)
+                    foreach (string dialogueType in Constants.GenericDialogueTypes)
                     {
-                        DialogueDictionary packDialogue = SetupDialogueDictionaryFromJsonPath(packDialoguePath);
-                        if (packDialogue != null)
-                            dialogueDictionary.MergeFrom(packDialogue, characterName);
+                        character.AddDialogueType(
+                            dialogueType,
+                            DialogueHelpers.GetDictionaryFromPath(pathManager.GetPathString(Constants.GenericDialogueTypeToFileName[dialogueType])));
                     }
                 }
+            }
+        }
 
-                character.SetDialogueDictionary(dialogueDictionary);
+        /// <summary>
+        /// Re-merges vanilla + active-pack dialogue for every supported character. The constructor
+        /// only does this once, at mod startup — call this after the player changes a character's
+        /// voice in the config menu, or a pack's dialogue additions stay silently stuck on whichever
+        /// pack was active at launch even though the audio source itself updates correctly.
+        /// </summary>
+        public void RefreshPackDialogue(PathManager pathManager, VoicePackManager voicePackManager)
+        {
+            foreach (string characterName in _characterManager.SupportedCharacters)
+            {
+                Characters.Character character = _characterManager.GetCharacter(characterName);
+                if (character == null) continue;
 
-                // We only need the generic dialogue types because the dialogue and misc dialogue are included in
-                // [characterName].json
-                foreach(string dialogueType in Constants.GenericDialogueTypes)
+                LoadDialogueDictionary(pathManager, voicePackManager, characterName, character);
+            }
+        }
+
+        private void LoadDialogueDictionary(PathManager pathManager, VoicePackManager voicePackManager, string characterName, Characters.Character character)
+        {
+            string characterDialoguePath = FindDialogueFile(pathManager, characterName);
+            DialogueDictionary dialogueDictionary = characterDialoguePath != null
+                ? SetupDialogueDictionaryFromJsonPath(characterDialoguePath) ?? new DialogueDictionary()
+                : new DialogueDictionary();
+
+            // Merge in dialogue from active content pack if it exists.
+            VoicePack activePack = voicePackManager.GetActivePack(characterName);
+            if (activePack?.DialogueFolderPath != null)
+            {
+                string packDialoguePath = FindPackDialogueFile(activePack.DialogueFolderPath, characterName);
+                if (packDialoguePath != null)
                 {
-                    character.AddDialogueType(
-                        dialogueType,
-                        DialogueHelpers.GetDictionaryFromPath(pathManager.GetPathString(Constants.GenericDialogueTypeToFileName[dialogueType])));
+                    DialogueDictionary packDialogue = SetupDialogueDictionaryFromJsonPath(packDialoguePath);
+                    if (packDialogue != null)
+                        dialogueDictionary.MergeFrom(packDialogue, characterName);
                 }
             }
+
+            character.SetDialogueDictionary(dialogueDictionary);
         }
 
         /// <summary>

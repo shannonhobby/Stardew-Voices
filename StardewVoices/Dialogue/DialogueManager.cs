@@ -43,6 +43,17 @@ namespace StardewVoices.Dialogue
             ContinuationDialogueHelper.Init(characterManager);
         }
 
+        /// <summary>
+        /// Re-merges vanilla + active-pack dialogue for every character — call after the player
+        /// changes a character's voice in the config menu, alongside AudioManager.ApplyVoiceChoices,
+        /// so pack-added dialogue lines up with the newly chosen pack instead of staying stuck on
+        /// whichever pack was active at launch.
+        /// </summary>
+        public void RefreshPackDialogue(VoicePackManager voicePackManager)
+        {
+            characterDialogueHandler.RefreshPackDialogue(_pathManager, voicePackManager);
+        }
+
         // Variable Lines
 
 

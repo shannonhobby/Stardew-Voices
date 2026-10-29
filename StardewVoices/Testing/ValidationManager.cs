@@ -108,6 +108,33 @@ namespace StardewVoices.StardewVoices.Testing
                 GenerateDialogueTestCases(characterName);
                 GenerateEventDialogueTestCases(characterName);
                 GenerateFestivalDialogueTestCases(characterName);
+                GenerateModdedDialogueTestCases(characterName);
+            }
+        }
+
+        /// <summary>
+        /// A voice pack's own added lines, merged into the character's dialogue dictionary at
+        /// startup (see CharacterDialogueHandler) under DialogueDictionary.ModdedDialogueType —
+        /// unlike the other Generate*TestCases methods, these aren't re-extracted from vanilla
+        /// game data, so this is the only source of test coverage for a pack's new lines. Most
+        /// characters have none, which is the normal case, not a failure worth logging.
+        /// </summary>
+        private void GenerateModdedDialogueTestCases(string characterName)
+        {
+            DialogueDictionary dictionary = Managers.CharacterManager.GetCharacter(characterName)?.GetDialogueDictionary();
+            if (dictionary == null)
+                return;
+
+            foreach (KeyValuePair<string, string[]> entry in dictionary.GetType(DialogueDictionary.ModdedDialogueType))
+            {
+                if (ShouldSkipTestCase(entry.Key))
+                    continue;
+
+                foreach (string lineId in entry.Value)
+                {
+                    var dialogueLine = new LabelledDialogueLine(lineId, entry.Key, lineId, DialogueType.Modded);
+                    testCases.Add(new DialogueTestCase(characterName, DialogueType.Modded, dialogueLine, Managers.DialogueManager, helper));
+                }
             }
         }
 
