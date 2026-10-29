@@ -30,29 +30,14 @@ namespace StardewVoices.Dialogue
                 if (character == null) continue;
 
                 LoadDialogueDictionary(pathManager, voicePackManager, characterName, character);
-
-                // Generic dialogue (engagement/marriage/extra/rainy templates) is vanilla content
-                // written with vanilla NPCs in mind. A fully modded NPC (no vanilla Dialogue
-                // Jsons/Characters file at all) shouldn't be matched against it — their own
-                // dialogue text could coincidentally match a generic line and resolve to an id
-                // the pack never recorded audio for.
-                if (FindDialogueFile(pathManager, characterName) != null)
-                {
-                    foreach (string dialogueType in Constants.GenericDialogueTypes)
-                    {
-                        character.AddDialogueType(
-                            dialogueType,
-                            DialogueHelpers.GetDictionaryFromPath(pathManager.GetPathString(Constants.GenericDialogueTypeToFileName[dialogueType])));
-                    }
-                }
             }
         }
 
         /// <summary>
-        /// Re-merges vanilla + active-pack dialogue for every supported character. The constructor
-        /// only does this once, at mod startup — call this after the player changes a character's
-        /// voice in the config menu, or a pack's dialogue additions stay silently stuck on whichever
-        /// pack was active at launch even though the audio source itself updates correctly.
+        /// Rebuilds every supported character's dialogue dictionary (vanilla + active pack +
+        /// generic) from the current paths. The constructor only does this once, at mod startup —
+        /// call this after the player changes a character's voice or the language in the config
+        /// menu, or dialogue stays stuck on whatever was active at launch.
         /// </summary>
         public void RefreshPackDialogue(PathManager pathManager, VoicePackManager voicePackManager)
         {
@@ -86,6 +71,21 @@ namespace StardewVoices.Dialogue
             }
 
             character.SetDialogueDictionary(dialogueDictionary);
+
+            // Generic dialogue (engagement/marriage/extra/rainy templates) is vanilla content
+            // written with vanilla NPCs in mind. A fully modded NPC (no vanilla Dialogue
+            // Jsons/Characters file at all) shouldn't be matched against it — their own
+            // dialogue text could coincidentally match a generic line and resolve to an id
+            // the pack never recorded audio for.
+            if (characterDialoguePath != null)
+            {
+                foreach (string dialogueType in Constants.GenericDialogueTypes)
+                {
+                    character.AddDialogueType(
+                        dialogueType,
+                        DialogueHelpers.GetDictionaryFromPath(pathManager.GetPathString(Constants.GenericDialogueTypeToFileName[dialogueType])));
+                }
+            }
         }
 
         /// <summary>

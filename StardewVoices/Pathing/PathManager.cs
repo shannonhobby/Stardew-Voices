@@ -7,14 +7,31 @@ namespace StardewVoices.Pathing
 {
     public class PathManager
     {
-        internal PathNode ModPath { get; }
-        internal PathNode GeneratedFilesRoot { get; }
-        internal PathNode InputRoot { get; }
-        internal string FestivalDatesJsonName { get; }
+        internal PathNode ModPath { get; private set; }
+        internal PathNode GeneratedFilesRoot { get; private set; }
+        internal PathNode InputRoot { get; private set; }
+        internal string FestivalDatesJsonName { get; private set; }
+
+        private readonly string _modPath;
 
         public PathManager(string modPath)
         {
-            ModPath = new PathNode("root", modPath);
+            _modPath = modPath;
+            BuildPaths();
+        }
+
+        /// <summary>
+        /// Rebuilds the language-specific paths (Dialogue Jsons/&lt;lang&gt;, Generated Files/&lt;lang&gt;)
+        /// for LocalizationHelpers' current language — call after changing the language at runtime.
+        /// </summary>
+        internal void RefreshLanguagePaths()
+        {
+            BuildPaths();
+        }
+
+        private void BuildPaths()
+        {
+            ModPath = new PathNode("root", _modPath);
 
             // Where mod-pack authors drop their pasted-dialogue input files for sv_parse_pack —
             // lives inside Stardew Voices itself, not the pack, so the author just has to put the

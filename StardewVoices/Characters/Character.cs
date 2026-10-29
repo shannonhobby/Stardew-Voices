@@ -40,7 +40,7 @@ namespace StardewVoices.Characters
         public void SetDialogueDictionary (DialogueDictionary dialogueDictionary )
         {
             DialogueDictionary = dialogueDictionary;
-            ErrorLogger.Trace($"Dialogue dictionary set for ${Name}");
+            ErrorLogger.Trace($"Dialogue dictionary set for {Name}");
         }
 
         public void AddDialogueType (string type, Dictionary<string, string[]> dialogue)

@@ -60,8 +60,6 @@ namespace StardewVoices.Config
                 }
             );
 
-            api.OnFieldChanged(ModManifest, (fieldId, newValue) => OnConfigChanged?.Invoke());
-
             api.AddTextOption(
             ModManifest,
             name: () => Helper.Translation.Get("settings.language"),
@@ -76,11 +74,6 @@ namespace StardewVoices.Config
                  ? name
                  : value
              );
-
-            api.AddParagraph(
-                ModManifest,
-                () => Helper.Translation.Get("settings.languageWarning")
-              );
 
             api.AddSectionTitle(
                  ModManifest,

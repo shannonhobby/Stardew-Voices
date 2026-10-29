@@ -6,7 +6,6 @@
     "settings.voicePacksNote": "여러 개가 설치된 경우 각 캐릭터가 사용할 음성을 선택합니다.",
     "settings.builtInVoices": "기본 음성",
     "settings.volumeTooltip": "볼륨 조절",
-    "settings.languageWarning": "*언어 변경 사항을 적용하려면 게임을 다시 시작해야 합니다*",
     "settings.language": "언어",
     "settings.contactInfoSection": "문제 발생 시 stardewvoices@gmail.com으로 문의해 주세요",
     "settings.castList": "성우진 <",

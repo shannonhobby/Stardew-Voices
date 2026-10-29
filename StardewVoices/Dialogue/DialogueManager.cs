@@ -13,7 +13,7 @@ namespace StardewVoices.Dialogue
     public class DialogueManager
     {
         private static Dictionary<string, Dictionary<string, string[]>> genericDialogueDictionariesDictionary = new Dictionary<string, Dictionary<string, string[]>>();
-        private FestivalHandler festivalHandler { get; }
+        private FestivalHandler festivalHandler { get; set; }
         private EventHandler eventHandler { get; }
         private CharacterDialogueHandler characterDialogueHandler { get; }
         private TextBubbleHandler textBubbleHandler { get; }
@@ -54,6 +54,20 @@ namespace StardewVoices.Dialogue
         {
             characterDialogueHandler.RefreshPackDialogue(_pathManager, voicePackManager);
             RefreshVariableLineOverrides(voicePackManager);
+        }
+
+        /// <summary>
+        /// Reloads everything read from language-specific files — call after the language changes
+        /// in the config menu and PathManager.RefreshLanguagePaths has run.
+        /// </summary>
+        public void ReloadForLanguage(VoicePackManager voicePackManager)
+        {
+            string lastFestival = festivalHandler.lastFestival;
+            festivalHandler = new FestivalHandler(_pathManager);
+            if (lastFestival != null)
+                festivalHandler.SetFestival(lastFestival);
+
+            RefreshPackDialogue(voicePackManager);
         }
 
         // Variable Lines

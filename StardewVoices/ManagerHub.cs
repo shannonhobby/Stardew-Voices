@@ -44,7 +44,17 @@ namespace StardewVoices
                 GameEventManager.UpdateVoiceVolume();
                 VoicePackManager.ApplyChoices(config.CharacterVoices);
                 AudioManager.ApplyVoiceChoices(VoicePackManager);
-                DialogueManager.RefreshPackDialogue(VoicePackManager);
+
+                if (config.Language != LocalizationHelpers.GetCurrentLanguage())
+                {
+                    LocalizationHelpers.Init(config.Language);
+                    PathManager.RefreshLanguagePaths();
+                    DialogueManager.ReloadForLanguage(VoicePackManager);
+                }
+                else
+                {
+                    DialogueManager.RefreshPackDialogue(VoicePackManager);
+                }
             };
 
         }

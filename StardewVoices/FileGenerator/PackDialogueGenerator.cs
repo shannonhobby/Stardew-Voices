@@ -67,7 +67,7 @@ namespace StardewVoices.FileGeneration
                 foundAnyInput = true;
                 List<PackDialogueEntry> entries = PackDialogueInputParser.Parse(inputFile, out List<string> parseErrors);
                 foreach (string error in parseErrors)
-                    ErrorLogger.Warn($"[sv_parse_pack] {error}");
+                    ErrorLogger.Warn($"[sv_parse_pack] {characterName}: {error}");
 
                 englishRawByLineId = new();
                 foreach (PackDialogueEntry entry in entries)
@@ -87,7 +87,7 @@ namespace StardewVoices.FileGeneration
 
                 List<PackDialogueEntry> localizedEntries = PackDialogueInputParser.Parse(localizedInputFile, out List<string> localizedErrors);
                 foreach (string error in localizedErrors)
-                    ErrorLogger.Warn($"[sv_parse_pack] ({language}) {error}");
+                    ErrorLogger.Warn($"[sv_parse_pack] {characterName} ({language}): {error}");
 
                 GenerateOutput(pathManager, characterName, localizedEntries, vanillaDialogue, englishRawByLineId, language);
             }
