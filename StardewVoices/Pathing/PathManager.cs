@@ -29,7 +29,8 @@ namespace StardewVoices.Pathing
                 ? generatedFilesNode.CreateChild(language)
                 : generatedFilesNode;
 
-            PathNode InverseDialogueFolderPathNode = ModPath.CreateChild("Dialogue Jsons");
+            PathNode DialogueJsonsPathNode = ModPath.CreateChild("Dialogue Jsons");
+            PathNode InverseDialogueFolderPathNode = DialogueJsonsPathNode;
             if (language != LocalizedContentManager.LanguageCode.en.ToString())
             {
                 InverseDialogueFolderPathNode = InverseDialogueFolderPathNode.CreateChild(language);
@@ -51,7 +52,9 @@ namespace StardewVoices.Pathing
             GenericDialoguePathNode.CreateChild("Marriage Dialogue Generic.json");
             GenericDialoguePathNode.CreateChild("rainy.json");
 
-            InverseDialogueFolderPathNode.CreateChild("variable_lines.json");
+            // Line ids here are vanilla dialogue keys, not translated text, so the base mod only
+            // ships one copy in the English root — it applies no matter which language is configured.
+            DialogueJsonsPathNode.CreateChild("variable_lines.json");
         }
 
         internal PathNode GetPath(string name)
