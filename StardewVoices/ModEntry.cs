@@ -6,6 +6,8 @@ using StardewVoices.Utils;
 using StardewVoices.Utils.GameDialogueExtraction;
 using StardewVoices.Config;
 using StardewValley.Menus;
+using System;
+using System.Linq;
 
 namespace StardewVoices
 {
@@ -33,7 +35,9 @@ namespace StardewVoices
 
             helper.ConsoleCommands.Add(
                 "sv_validation",
-                "Runs dialogue voice validation.",
+                "Runs dialogue voice validation.\n" +
+                "Usage: sv_validation [unused]\n" +
+                "- unused: list every audio file with no matching line id in the recap (otherwise just the count).",
                 RunVoiceValidationCommand
             );
 
@@ -86,8 +90,8 @@ namespace StardewVoices
             string[] args
         )
         {
-            DialogueTestingManager.RunValidation();
-
+            bool listUnusedAudio = args.Any(arg => arg.Equals("unused", StringComparison.OrdinalIgnoreCase));
+            DialogueTestingManager.RunValidation(listUnusedAudio);
         }
 
         private void PlayDialogueLine(string command, string[] args)

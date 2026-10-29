@@ -33,9 +33,12 @@ namespace StardewVoices.StardewVoices.Testing
 
         public List<ValidationReport> ValidationReport = new List<ValidationReport>();
 
-        public ValidationManager(IModHelper helper, ManagerHub managers)
+        private readonly bool listUnusedAudio;
+
+        public ValidationManager(IModHelper helper, ManagerHub managers, bool listUnusedAudio = false)
         {
             this.helper = helper;
+            this.listUnusedAudio = listUnusedAudio;
             dialogueExtractor = new CharacterDialogueExtractor(helper);
             eventExtractor = new EventDialogueExtractor(helper);
             festivalExtractor = new FestivalDialogueExtractor(helper);
@@ -105,7 +108,12 @@ namespace StardewVoices.StardewVoices.Testing
                 }
             }
 
-            if (unusedAudioFilesByCharacter.Count > 0)
+            if (unusedAudioFilesByCharacter.Count > 0 && !listUnusedAudio)
+            {
+                int unusedCount = unusedAudioFilesByCharacter.Values.Sum(ids => ids.Count);
+                ErrorLogger.Warn($"{unusedCount} unused audio file(s) (no matching line id). Run 'sv_validation unused' to list them.");
+            }
+            else if (unusedAudioFilesByCharacter.Count > 0)
             {
                 ErrorLogger.Trace("--- UNUSED AUDIO FILES (no matching line id) ---");
                 foreach (string character in unusedAudioFilesByCharacter.Keys)
@@ -291,7 +299,12 @@ namespace StardewVoices.StardewVoices.Testing
                 if (source == null)
                     continue;
 
-                HashSet<string> knownIds = new(knownVanillaLineIds, StringComparer.OrdinalIgnoreCase);
+                // A fully modded NPC (no vanilla Dialogue Jsons/Characters file) only speaks its
+                // pack's own lines — a file named after some vanilla id (e.g. "4") is still unused.
+                bool hasVanillaDialogue = CharacterDialogueHandler.FindDialogueFile(Managers.PathManager, character) != null;
+                HashSet<string> knownIds = hasVanillaDialogue
+                    ? new(knownVanillaLineIds, StringComparer.OrdinalIgnoreCase)
+                    : new(StringComparer.OrdinalIgnoreCase);
                 DialogueDictionary dictionary = Managers.CharacterManager.GetCharacter(character)?.GetDialogueDictionary();
                 if (dictionary != null)
                 {
