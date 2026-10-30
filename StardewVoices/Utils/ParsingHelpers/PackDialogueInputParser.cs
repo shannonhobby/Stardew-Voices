@@ -18,11 +18,12 @@ namespace StardewVoices.Utils.ParsingHelpers
     /// </summary>
     public static class PackDialogueInputParser
     {
-        // Key/value quotes may be ' or " (not required to match each other, since smart-quote
-        // autocorrect can turn one side of a pasted pair but not the other). \\. inside the value
-        // lets an escaped quote (\") through without ending the match early, same as real JSON.
+        // Key/value quotes may be ' or " or their smart-quote forms (not required to match each
+        // other, since smart-quote autocorrect can turn one side of a pasted pair but not the
+        // other). The value is greedy up to the last quote on the line, so apostrophes ("Isn't")
+        // and escaped quotes (\") inside the text don't end the match early.
         private static readonly Regex EntryPattern = new Regex(
-            @"^\{?\s*[""']([^""']+)[""']\s*:\s*[""']((?:[^""'\\]|\\.)*)[""']\s*,?\s*\}?\s*$",
+            @"^\{?\s*[""'“”‘’]([^""'“”‘’]+)[""'“”‘’]\s*:\s*[""'“”‘’](.*)[""'“”‘’]\s*,?\s*\}?\s*$",
             RegexOptions.Compiled);
 
         // Content Patcher tokens (e.g. "{{randomize: ...}}") resolve differently every time the
@@ -42,7 +43,9 @@ namespace StardewVoices.Utils.ParsingHelpers
             for (int i = 0; i < lines.Length; i++)
             {
                 int lineNumber = i + 1;
-                string line = NormalizeSmartQuotes(lines[i]).Trim();
+                // Not smart-quote normalized: curly apostrophes inside the text ("It’s") must stay
+                // as-is to match what the game displays at runtime.
+                string line = lines[i].Trim();
 
                 if (line.Length == 0 || line.StartsWith("//") || line == "{" || line == "}")
                     continue;
@@ -50,7 +53,7 @@ namespace StardewVoices.Utils.ParsingHelpers
                 Match match = EntryPattern.Match(line);
                 if (!match.Success)
                 {
-                    errors.Add($"Line {lineNumber}: couldn't parse \"{lines[i].Trim()}\".");
+                    errors.Add($"Line {lineNumber}: couldn't parse \"{line}\".");
                     continue;
                 }
 
@@ -66,10 +69,6 @@ namespace StardewVoices.Utils.ParsingHelpers
 
             return entries;
         }
-
-        private static string NormalizeSmartQuotes(string s) => s
-            .Replace('“', '"').Replace('”', '"')   // “ ”
-            .Replace('‘', '\'').Replace('’', '\''); // ‘ ’
 
         // The captured value is already de-escaped except for standard JSON string escapes
         // (\", \\, \n, \t, \uXXXX, ...) — exactly what a real JSON parser would do with the same
