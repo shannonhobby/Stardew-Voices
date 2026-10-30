@@ -1,4 +1,5 @@
 using StardewValley.Monsters;
+using StardewVoices.Audio;
 using StardewVoices.Characters;
 using StardewVoices.Pathing;
 using StardewVoices.Testing;
@@ -12,7 +13,7 @@ namespace StardewVoices.Dialogue
     public class DialogueManager
     {
         private static Dictionary<string, Dictionary<string, string[]>> genericDialogueDictionariesDictionary = new Dictionary<string, Dictionary<string, string[]>>();
-        private FestivalHandler festivalHandler { get; }
+        private FestivalHandler festivalHandler { get; set; }
         private EventHandler eventHandler { get; }
         private CharacterDialogueHandler characterDialogueHandler { get; }
         private TextBubbleHandler textBubbleHandler { get; }
@@ -23,6 +24,7 @@ namespace StardewVoices.Dialogue
 
         public DialogueManager(PathManager pathManager,
             CharacterManager characterManager,
+            VoicePackManager voicePackManager,
             TestingManager testingManager,
             VariableLineResolver variableLineResolver
             ) {
@@ -37,11 +39,57 @@ namespace StardewVoices.Dialogue
             textBubbleHandler = new TextBubbleHandler();
             festivalHandler = new FestivalHandler(pathManager);
             eventHandler = new EventHandler(pathManager);
-            characterDialogueHandler = new CharacterDialogueHandler(pathManager, characterManager, _testingManager);
+            characterDialogueHandler = new CharacterDialogueHandler(pathManager, characterManager, voicePackManager, _testingManager);
+            RefreshVariableLineOverrides(voicePackManager);
             ContinuationDialogueHelper.Init(characterManager);
         }
 
+        /// <summary>
+        /// Re-merges vanilla + active-pack dialogue for every character — call after the player
+        /// changes a character's voice in the config menu, alongside AudioManager.ApplyVoiceChoices,
+        /// so pack-added dialogue lines up with the newly chosen pack instead of staying stuck on
+        /// whichever pack was active at launch.
+        /// </summary>
+        public void RefreshPackDialogue(VoicePackManager voicePackManager)
+        {
+            characterDialogueHandler.RefreshPackDialogue(_pathManager, voicePackManager);
+            RefreshVariableLineOverrides(voicePackManager);
+        }
+
+        /// <summary>
+        /// Reloads everything read from language-specific files — call after the language changes
+        /// in the config menu and PathManager.RefreshLanguagePaths has run.
+        /// </summary>
+        public void ReloadForLanguage(VoicePackManager voicePackManager)
+        {
+            string lastFestival = festivalHandler.lastFestival;
+            festivalHandler = new FestivalHandler(_pathManager);
+            if (lastFestival != null)
+                festivalHandler.SetFestival(lastFestival);
+
+            RefreshPackDialogue(voicePackManager);
+        }
+
         // Variable Lines
+
+        /// <summary>
+        /// For each character, whichever pack (if any) is currently voicing it supplies that
+        /// character's variable-line overrides — scoped per character so that two different packs
+        /// active for two different characters can't clobber each other's entries even if both
+        /// files happen to mention both characters.
+        /// </summary>
+        private void RefreshVariableLineOverrides(VoicePackManager voicePackManager)
+        {
+            Dictionary<string, string> characterOverridePaths = new();
+            foreach (string characterName in _characterManager.SupportedCharacters)
+            {
+                string variableLinesPath = voicePackManager.GetActivePack(characterName)?.VariableLinesPath;
+                if (variableLinesPath != null)
+                    characterOverridePaths[characterName] = variableLinesPath;
+            }
+
+            VariableLineResolver.RefreshPackOverrides(characterOverridePaths);
+        }
 
 
 

@@ -6,6 +6,9 @@ using StardewVoices.Utils;
 using StardewVoices.Utils.GameDialogueExtraction;
 using StardewVoices.Config;
 using StardewValley.Menus;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace StardewVoices
 {
@@ -33,7 +36,11 @@ namespace StardewVoices
 
             helper.ConsoleCommands.Add(
                 "sv_validation",
-                "Runs dialogue voice validation.",
+                "Runs dialogue voice validation.\n" +
+                "Usage: sv_validation [--unused] [characterName...]\n" +
+                "- characterName: only validate these characters (default: every supported character).\n" +
+                "- --unused: list every audio file with no matching line id in the recap (otherwise just the count).\n" +
+                "Example: sv_validation --unused Abigail Shannon",
                 RunVoiceValidationCommand
             );
 
@@ -55,17 +62,12 @@ namespace StardewVoices
             );
 
             helper.ConsoleCommands.Add(
-                "sv_pack_report",
-                "For voice pack authors: lists the characters a voice pack provides, whether each is in use, " +
-                "and files that don't match any line id.\n" +
-                "Usage: sv_pack_report <pack UniqueID or name>",
-                (command, args) =>
-                {
-                    if (args.Length == 0)
-                        ErrorLogger.Info("[sv_pack_report] Usage: sv_pack_report <pack UniqueID or name>");
-                    else
-                        VoicePackReport.Run(managerHub, string.Join(" ", args));
-                }
+                "sv_parse_pack",
+                "For mod-pack authors: parses pasted-dialogue input files into dialogue JSON.\n" +
+                "Usage: sv_parse_pack [characterName]\n" +
+                "Reads input/<characterName>.txt (or every .txt in input/ if no name is given) and writes the result into this mod's own " +
+                "Generated Files folder. Copy the output into your pack's 'dialogue' folder afterward.",
+                ParsePackDialogue
             );
 
             helper.ConsoleCommands.Add(
@@ -91,8 +93,29 @@ namespace StardewVoices
             string[] args
         )
         {
-            DialogueTestingManager.RunValidation();
+            bool listUnusedAudio = args.Any(arg => arg.Equals("--unused", StringComparison.OrdinalIgnoreCase));
 
+            // Every other argument is a character name; none means all supported characters.
+            List<string> supported = managerHub.CharacterManager.SupportedCharacters;
+            List<string> characters = null;
+            List<string> requested = args.Where(arg => !arg.StartsWith("--")).ToList();
+            if (requested.Count > 0)
+            {
+                characters = new List<string>();
+                foreach (string name in requested)
+                {
+                    string match = supported.FirstOrDefault(c => c.Equals(name, StringComparison.OrdinalIgnoreCase));
+                    if (match == null)
+                    {
+                        ErrorLogger.Warn($"[sv_validation] '{name}' isn't a supported character. Supported: {string.Join(", ", supported)}");
+                        return;
+                    }
+                    if (!characters.Contains(match))
+                        characters.Add(match);
+                }
+            }
+
+            DialogueTestingManager.RunValidation(listUnusedAudio, characters);
         }
 
         private void PlayDialogueLine(string command, string[] args)
@@ -136,6 +159,17 @@ namespace StardewVoices
                 ErrorLogger.Warn($"[sv_play_line] NPC '{characterName}' not found — playing audio directly.");
                 managerHub.AudioManager.Play(lineId, characterName);
             }
+        }
+
+        private void ParsePackDialogue(string command, string[] args)
+        {
+            if (args.Length < 1)
+            {
+                PackDialogueGenerator.RunAll(managerHub.PathManager);
+                return;
+            }
+
+            PackDialogueGenerator.Run(managerHub.PathManager, args[0]);
         }
 
         private void PrintMarriageOverrideReport(string command, string[] args)

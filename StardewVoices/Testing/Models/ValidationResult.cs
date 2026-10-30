@@ -24,6 +24,12 @@ namespace StardewVoices.Testing.Models
 
         public List<string> ErrorMessages = new List<string>();
 
+        /// <summary>
+        /// For a variable line, the specific variant ids that failed — the test case's own
+        /// ResolvedLineId is just one randomly picked variant, so it can't name the failure.
+        /// </summary>
+        public List<string> FailedVariantLineIds = new List<string>();
+
         public DialogueTestCase TestCase { get; }
 
         private AudioManager AudioManager;
@@ -83,6 +89,7 @@ namespace StardewVoices.Testing.Models
                 if (!LineAudioExists(lineId, testCase.CharacterName) || !LineAudioPlays(lineId, testCase.CharacterName))
                 {
                     testPasses = false;
+                    FailedVariantLineIds.Add(lineId);
                 }
             }
 
@@ -154,12 +161,16 @@ namespace StardewVoices.Testing.Models
 
         }
 
-        // <summary>Whether audio exists for the given line id</summary>
+        // <summary>
+        // Whether audio exists for exactly this line id. Checked with HasExactLine rather than
+        // GetVoiceLine, which falls back to the un-suffixed base line — a missing variant
+        // ("...-witch") would otherwise pass whenever the base line has audio.
+        // </summary>
         public bool LineAudioExists(string lineId, string characterName)
         {
             try
             {
-                bool LineAudioExists = AudioManager.GetVoiceLine(lineId, characterName) != null;
+                bool LineAudioExists = AudioManager.Resolver.HasExactLine(characterName, lineId);
                 if (!LineAudioExists)
                 {
                     ErrorMessages.Add($"2. [FAILURE] LineAudioExists: Audio not found for line {lineId}");

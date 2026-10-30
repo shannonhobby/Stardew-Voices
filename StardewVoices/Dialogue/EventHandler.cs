@@ -70,7 +70,7 @@ namespace StardewVoices.Dialogue
                         return eventDialogue;
                     }
 
-                    return $"Event dialogue not found for {dialogue}";
+                    return null;
                 }
             }
 

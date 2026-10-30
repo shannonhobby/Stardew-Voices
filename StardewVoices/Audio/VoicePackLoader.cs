@@ -16,6 +16,12 @@ namespace StardewVoices.Audio
     {
         public const string VoicesFolderName = "voices";
 
+        /// <summary>A pack's optional folder of dialogue JSON, alongside its "voices" folder.</summary>
+        public const string DialogueFolderName = "dialogue";
+
+        /// <summary>A pack's optional override of the base mod's variable_lines.json, inside its dialogue folder.</summary>
+        public const string VariableLinesFileName = "variable_lines.json";
+
         /// <summary>Every installed voice pack that has voice files. Packs without any are logged and left out.</summary>
         public static List<VoicePack> LoadAll(IEnumerable<IContentPack> contentPacks)
         {
@@ -46,7 +52,16 @@ namespace StardewVoices.Audio
 
             string characters = string.Join(", ", source.Characters.OrderBy(name => name).Select(name => $"{name} ({source.CountLines(name)} lines)"));
             ErrorLogger.Info($"Voice pack {packName}: {characters}.");
-            return new VoicePack(contentPack.Manifest, source);
+
+            string dialogueFolder = FileManipulationHelpers.FindFolder(contentPack.DirectoryPath, DialogueFolderName);
+            if (dialogueFolder != null)
+                ErrorLogger.Info($"{packName} also has a '{DialogueFolderName}' folder, so it can voice modded NPCs or add extra lines for vanilla ones.");
+
+            string variableLinesPath = dialogueFolder != null ? FileManipulationHelpers.FindFile(dialogueFolder, VariableLinesFileName) : null;
+            if (variableLinesPath != null)
+                ErrorLogger.Info($"{packName} also has its own '{VariableLinesFileName}', so its own variable-line options override the base mod's for the character(s) it voices.");
+
+            return new VoicePack(contentPack.Manifest, source, dialogueFolder, variableLinesPath);
         }
     }
 }

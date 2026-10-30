@@ -6,7 +6,6 @@
     "settings.voicePacksNote": "Choose which voice each character uses when more than one is installed.",
     "settings.builtInVoices": "Built-in voices",
     "settings.volumeTooltip": "Adjust volume level",
-    "settings.languageWarning": "*YOU WILL HAVE TO RESTART YOUR GAME FOR LANGUAGE CHANGES TO TAKE EFFECT*",
     "settings.language": "Language",
     "settings.contactInfoSection": "Contact stardewvoices@gmail.com to report any issues",
     "settings.castList": "Cast List <",

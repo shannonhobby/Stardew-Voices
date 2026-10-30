@@ -18,6 +18,7 @@ namespace StardewVoices.Dialogue
         Gossip,
         SpeechBubble,
         Quest,
+        Modded,
     }
 
 }

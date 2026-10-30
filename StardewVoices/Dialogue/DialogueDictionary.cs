@@ -20,6 +20,10 @@ namespace StardewVoices.Dialogue
     /// </summary>
     public class DialogueDictionary
     {
+        internal const string ModdedDialogueType = "modded_dialogue";
+
+        private const string ContinuationType = "continuation_dialogue";
+
         private Dictionary<string, Dictionary<string, string[]>> _data { get; }
 
         public DialogueDictionary(string jsonString)
@@ -237,6 +241,103 @@ namespace StardewVoices.Dialogue
         public void AddType(string type, Dictionary<string, string[]> dialogue)
         {
             _data[type] = dialogue;
+        }
+
+        /// <summary>
+        /// Merges another dialogue dictionary into this one — used to combine vanilla dialogue
+        /// (this) with a voice pack's added dialogue (other) for the same character. Packs don't
+        /// need vanilla's type taxonomy: every non-continuation line from <paramref name="other"/>
+        /// lands in this dictionary's single <see cref="ModdedDialogueType"/> bucket, regardless of
+        /// what type it was filed under in <paramref name="other"/>. continuation_dialogue is merged
+        /// into this dictionary's own continuation_dialogue list instead. A text that already
+        /// exists anywhere in this dictionary (any type) keeps its existing id(s) — this dictionary
+        /// (vanilla, when called from the runtime loader) always wins an exact-text collision over
+        /// the one being merged in.
+        /// </summary>
+        public void MergeFrom(DialogueDictionary other, string characterName)
+        {
+            if (other == null) return;
+
+            foreach (string type in other._data.Keys)
+            {
+                foreach (KeyValuePair<string, string[]> entry in other._data[type])
+                {
+                    if (type == ContinuationType)
+                    {
+                        MergeContinuationIds(entry.Value);
+                        continue;
+                    }
+
+                    if (TryFindExistingIds(entry.Key, out string[] existingIds))
+                    {
+                        if (!existingIds.SequenceEqual(entry.Value))
+                        {
+                            ErrorLogger.Warn($"{characterName}: \"{entry.Key}\" is already voiced ({string.Join(", ", existingIds)}); " +
+                                $"ignoring the pack's version ({string.Join(", ", entry.Value)}).");
+                        }
+                        continue;
+                    }
+
+                    // A brand-new line whose id collides with an existing one (for different
+                    // text) would both try to play the same audio file inside the pack's own
+                    // voices folder — warn so the author can rename it.
+                    foreach (string newId in entry.Value)
+                    {
+                        string collidingText = FindTextForLineId(newId);
+                        if (collidingText != null)
+                        {
+                            ErrorLogger.Warn($"{characterName}: the pack's line id \"{newId}\" (for \"{entry.Key}\") is already " +
+                                $"used for a different line (\"{collidingText}\"). Both would try to play the same audio file — rename one of them.");
+                        }
+                    }
+
+                    if (!_data.TryGetValue(ModdedDialogueType, out Dictionary<string, string[]> moddedDict))
+                    {
+                        moddedDict = new Dictionary<string, string[]>();
+                        _data[ModdedDialogueType] = moddedDict;
+                    }
+                    moddedDict[entry.Key] = entry.Value;
+                }
+            }
+        }
+
+        /// <summary>The ids already mapped to <paramref name="text"/> anywhere in this dictionary (any type except continuation_dialogue).</summary>
+        private bool TryFindExistingIds(string text, out string[] ids)
+        {
+            foreach (KeyValuePair<string, Dictionary<string, string[]>> type in _data)
+            {
+                if (type.Key == ContinuationType) continue;
+                if (type.Value.TryGetValue(text, out ids))
+                    return true;
+            }
+            ids = null;
+            return false;
+        }
+
+        /// <summary>The text mapped to <paramref name="lineId"/> anywhere in this dictionary (any type except continuation_dialogue), or null if none.</summary>
+        public string FindTextForLineId(string lineId)
+        {
+            foreach (KeyValuePair<string, Dictionary<string, string[]>> type in _data)
+            {
+                if (type.Key == ContinuationType) continue;
+                foreach (KeyValuePair<string, string[]> entry in type.Value)
+                    if (entry.Value.Contains(lineId))
+                        return entry.Key;
+            }
+            return null;
+        }
+
+        /// <summary>Adds any of <paramref name="newIds"/> not already in this dictionary's continuation_dialogue list.</summary>
+        private void MergeContinuationIds(string[] newIds)
+        {
+            if (!_data.TryGetValue(ContinuationType, out Dictionary<string, string[]> continuationDict))
+            {
+                continuationDict = new Dictionary<string, string[]>();
+                _data[ContinuationType] = continuationDict;
+            }
+
+            continuationDict.TryGetValue(ContinuationType, out string[] existingIds);
+            continuationDict[ContinuationType] = (existingIds ?? Array.Empty<string>()).Union(newIds).ToArray();
         }
 
         /// <summary>The lines of one dialogue type, or an empty set if this character has none of that type.</summary>

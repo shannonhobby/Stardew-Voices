@@ -33,10 +33,16 @@ namespace StardewVoices.Testing.Models
                     PrintCharacterTestInfo(lastCharacter);
                 }
 
-                if (!result.Success)
+                // Failures are only listed in the per-character recap, not one by one, to keep the log short.
+                if (!result.Success && result.FailedVariantLineIds.Count > 0)
                 {
-                    AddFailedTest(result.TestCase.CharacterName, result.TestCase.ResolvedLineId);
-                    PrintFailedTestCase(result);
+                    foreach (string lineId in result.FailedVariantLineIds)
+                        AddFailedTest(result.TestCase.CharacterName, lineId);
+                }
+                else if (!result.Success)
+                {
+                    AddFailedTest(result.TestCase.CharacterName,
+                        result.TestCase.ResolvedLineId ?? $"(no line id found) \"{result.TestCase.DialogueText}\"");
                 }
             }
 
@@ -55,13 +61,6 @@ namespace StardewVoices.Testing.Models
         {
             ErrorLogger.Trace($"~~TESTING {characterName.ToUpper()}'S {DialogueType.ToString().ToUpper()} LINES~~");
         }
-        private void PrintFailedTestCase(ValidationResult result)
-        {
-            ErrorLogger.Error($"[FAILED D:]: {result.TestCase.ResolvedLineId ?? "EMPTY LINE ID"}: {result.TestCase.DialogueText}");
-            foreach (string errorMessage in result.ErrorMessages)
-                ErrorLogger.Warn(errorMessage);
-        }
-
 
         private void PrintReportStats()
         {

@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using StardewValley;
 using StardewVoices.Pathing;
 using System;
 using System.Collections.Generic;
@@ -6,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using StardewVoices.Audio;
 using StardewVoices.Characters;
 using StardewVoices.Testing;
 using StardewVoices.Utils;
@@ -18,20 +20,66 @@ namespace StardewVoices.Dialogue
         private CharacterManager _characterManager { get; }
         private TestingManager _testingManager { get; }
 
-        public CharacterDialogueHandler(PathManager pathManager, CharacterManager characterManager, TestingManager testingManager)
+        public CharacterDialogueHandler(PathManager pathManager, CharacterManager characterManager, VoicePackManager voicePackManager, TestingManager testingManager)
         {
             _characterManager = characterManager;
             _testingManager = testingManager;
             foreach(string characterName in characterManager.SupportedCharacters)
             {
-                string characterDialoguePath = FindDialogueFile(pathManager, characterName);
-                Character character = characterManager.GetCharacter(characterName);
+                Characters.Character character = characterManager.GetCharacter(characterName);
                 if (character == null) continue;
-                character.SetDialogueDictionary(SetupDialogueDictionaryFromJsonPath(characterDialoguePath));
-                
-                // We only need the generic dialogue types because the dialogue and misc dialogue are included in
-                // [characterName].json
-                foreach(string dialogueType in Constants.GenericDialogueTypes)
+
+                LoadDialogueDictionary(pathManager, voicePackManager, characterName, character);
+            }
+        }
+
+        /// <summary>
+        /// Rebuilds every supported character's dialogue dictionary (vanilla + active pack +
+        /// generic) from the current paths. The constructor only does this once, at mod startup —
+        /// call this after the player changes a character's voice or the language in the config
+        /// menu, or dialogue stays stuck on whatever was active at launch.
+        /// </summary>
+        public void RefreshPackDialogue(PathManager pathManager, VoicePackManager voicePackManager)
+        {
+            foreach (string characterName in _characterManager.SupportedCharacters)
+            {
+                Characters.Character character = _characterManager.GetCharacter(characterName);
+                if (character == null) continue;
+
+                LoadDialogueDictionary(pathManager, voicePackManager, characterName, character);
+            }
+        }
+
+        private void LoadDialogueDictionary(PathManager pathManager, VoicePackManager voicePackManager, string characterName, Characters.Character character)
+        {
+            string characterDialoguePath = FindDialogueFile(pathManager, characterName);
+            DialogueDictionary dialogueDictionary = characterDialoguePath != null
+                ? SetupDialogueDictionaryFromJsonPath(characterDialoguePath) ?? new DialogueDictionary()
+                : new DialogueDictionary();
+
+            // Merge in dialogue from active content pack if it exists.
+            VoicePack activePack = voicePackManager.GetActivePack(characterName);
+            if (activePack?.DialogueFolderPath != null)
+            {
+                string packDialoguePath = FindPackDialogueFile(activePack.DialogueFolderPath, characterName);
+                if (packDialoguePath != null)
+                {
+                    DialogueDictionary packDialogue = SetupDialogueDictionaryFromJsonPath(packDialoguePath);
+                    if (packDialogue != null)
+                        dialogueDictionary.MergeFrom(packDialogue, characterName);
+                }
+            }
+
+            character.SetDialogueDictionary(dialogueDictionary);
+
+            // Generic dialogue (engagement/marriage/extra/rainy templates) is vanilla content
+            // written with vanilla NPCs in mind. A fully modded NPC (no vanilla Dialogue
+            // Jsons/Characters file at all) shouldn't be matched against it — their own
+            // dialogue text could coincidentally match a generic line and resolve to an id
+            // the pack never recorded audio for.
+            if (characterDialoguePath != null)
+            {
+                foreach (string dialogueType in Constants.GenericDialogueTypes)
                 {
                     character.AddDialogueType(
                         dialogueType,
@@ -47,6 +95,26 @@ namespace StardewVoices.Dialogue
         internal static string FindDialogueFile(PathManager pathManager, string characterName)
         {
             return FileManipulationHelpers.FindFile(pathManager.GetPathString("Characters"), characterName + ".json");
+        }
+
+        /// <summary>
+        /// The character's dialogue file inside a pack's "dialogue" folder: a "&lt;lang&gt;/" subfolder
+        /// version if the game isn't running in English and the pack shipped one (mirroring this
+        /// mod's own Dialogue Jsons/&lt;lang&gt;/Characters convention, see sv_parse_pack's translation
+        /// support), otherwise the pack's plain "&lt;Character&gt;.json". Null if neither exists.
+        /// </summary>
+        private static string FindPackDialogueFile(string dialogueFolderPath, string characterName)
+        {
+            string language = LocalizationHelpers.GetCurrentLanguage();
+            if (language != LocalizedContentManager.LanguageCode.en.ToString())
+            {
+                string languageFolder = FileManipulationHelpers.FindFolder(dialogueFolderPath, language);
+                string localizedPath = languageFolder != null ? FileManipulationHelpers.FindFile(languageFolder, characterName + ".json") : null;
+                if (localizedPath != null)
+                    return localizedPath;
+            }
+
+            return FileManipulationHelpers.FindFile(dialogueFolderPath, characterName + ".json");
         }
 
         private DialogueDictionary SetupDialogueDictionaryFromJsonPath(string path)

@@ -7,13 +7,36 @@ namespace StardewVoices.Pathing
 {
     public class PathManager
     {
-        internal PathNode ModPath { get; }
-        internal PathNode GeneratedFilesRoot { get; }
-        internal string FestivalDatesJsonName { get; }
+        internal PathNode ModPath { get; private set; }
+        internal PathNode GeneratedFilesRoot { get; private set; }
+        internal PathNode InputRoot { get; private set; }
+        internal string FestivalDatesJsonName { get; private set; }
+
+        private readonly string _modPath;
 
         public PathManager(string modPath)
         {
-            ModPath = new PathNode("root", modPath);
+            _modPath = modPath;
+            BuildPaths();
+        }
+
+        /// <summary>
+        /// Rebuilds the language-specific paths (Dialogue Jsons/&lt;lang&gt;, Generated Files/&lt;lang&gt;)
+        /// for LocalizationHelpers' current language — call after changing the language at runtime.
+        /// </summary>
+        internal void RefreshLanguagePaths()
+        {
+            BuildPaths();
+        }
+
+        private void BuildPaths()
+        {
+            ModPath = new PathNode("root", _modPath);
+
+            // Where mod-pack authors drop their pasted-dialogue input files for sv_parse_pack —
+            // lives inside Stardew Voices itself, not the pack, so the author just has to put the
+            // file in the right place rather than the command having to go find it.
+            InputRoot = ModPath.CreateChild("Input");
 
             // Generated files output — language subfolder for non-English so each
             // language sits alongside the others under Generated Files/.
@@ -23,7 +46,8 @@ namespace StardewVoices.Pathing
                 ? generatedFilesNode.CreateChild(language)
                 : generatedFilesNode;
 
-            PathNode InverseDialogueFolderPathNode = ModPath.CreateChild("Dialogue Jsons");
+            PathNode DialogueJsonsPathNode = ModPath.CreateChild("Dialogue Jsons");
+            PathNode InverseDialogueFolderPathNode = DialogueJsonsPathNode;
             if (language != LocalizedContentManager.LanguageCode.en.ToString())
             {
                 InverseDialogueFolderPathNode = InverseDialogueFolderPathNode.CreateChild(language);
@@ -45,7 +69,9 @@ namespace StardewVoices.Pathing
             GenericDialoguePathNode.CreateChild("Marriage Dialogue Generic.json");
             GenericDialoguePathNode.CreateChild("rainy.json");
 
-            InverseDialogueFolderPathNode.CreateChild("variable_lines.json");
+            // Line ids here are vanilla dialogue keys, not translated text, so the base mod only
+            // ships one copy in the English root — it applies no matter which language is configured.
+            DialogueJsonsPathNode.CreateChild("variable_lines.json");
         }
 
         internal PathNode GetPath(string name)

@@ -18,8 +18,8 @@ namespace StardewVoices
         public Menu Menu { get; }
         public GameEventsService GameEventManager { get; }
         public CharacterManager CharacterManager { get; }
+        public VoicePackManager VoicePackManager { get; }
         public AudioManager AudioManager { get; }
-        public List<VoicePack> VoicePacks { get; }
         public DialogueManager DialogueManager { get; }
         public TestingManager TestingManager { get; }
         public VariableLineResolver VariableLineResolver { get; }
@@ -29,20 +29,32 @@ namespace StardewVoices
             LocalizationHelpers.Init(config.Language);
             Menu = new Menu(config, helper, manifest);
             PathManager = new PathManager(helper.DirectoryPath);
-            VoicePacks = VoicePackLoader.LoadAll(helper.ContentPacks.GetOwned());
-            AudioManager = new AudioManager(PathManager, VoicePacks, config.CharacterVoices);
-            CharacterManager = new CharacterManager(AudioManager, PathManager);
+            VoicePackManager = new VoicePackManager(PathManager, helper.ContentPacks.GetOwned(), config.CharacterVoices);
+            AudioManager = new AudioManager(PathManager, VoicePackManager);
+            CharacterManager = new CharacterManager(VoicePackManager, PathManager);
             DialogueHelpers.Init(CharacterManager.SupportedCharacters, config.CharactersToGenerate);
             TestingManager = new TestingManager(CharacterManager, config);
             VariableLineResolver = new VariableLineResolver(PathManager.GetPathString("variable_lines.json"));
-            DialogueManager = new DialogueManager(PathManager, CharacterManager, TestingManager, VariableLineResolver);
+            DialogueManager = new DialogueManager(PathManager, CharacterManager, VoicePackManager, TestingManager, VariableLineResolver);
 
             GameEventManager = new GameEventsService(this, config);
-            Menu.VoiceOptions = AudioManager.VoiceOptions;
+            Menu.VoiceOptions = VoicePackManager.VoiceOptions;
             Menu.OnConfigChanged = () =>
             {
                 GameEventManager.UpdateVoiceVolume();
-                AudioManager.ApplyVoiceChoices(config.CharacterVoices);
+                VoicePackManager.ApplyChoices(config.CharacterVoices);
+                AudioManager.ApplyVoiceChoices(VoicePackManager);
+
+                if (config.Language != LocalizationHelpers.GetCurrentLanguage())
+                {
+                    LocalizationHelpers.Init(config.Language);
+                    PathManager.RefreshLanguagePaths();
+                    DialogueManager.ReloadForLanguage(VoicePackManager);
+                }
+                else
+                {
+                    DialogueManager.RefreshPackDialogue(VoicePackManager);
+                }
             };
 
         }
