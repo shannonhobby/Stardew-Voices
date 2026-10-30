@@ -24,6 +24,12 @@ namespace StardewVoices.Testing.Models
 
         public List<string> ErrorMessages = new List<string>();
 
+        /// <summary>
+        /// For a variable line, the specific variant ids that failed — the test case's own
+        /// ResolvedLineId is just one randomly picked variant, so it can't name the failure.
+        /// </summary>
+        public List<string> FailedVariantLineIds = new List<string>();
+
         public DialogueTestCase TestCase { get; }
 
         private AudioManager AudioManager;
@@ -83,6 +89,7 @@ namespace StardewVoices.Testing.Models
                 if (!LineAudioExists(lineId, testCase.CharacterName) || !LineAudioPlays(lineId, testCase.CharacterName))
                 {
                     testPasses = false;
+                    FailedVariantLineIds.Add(lineId);
                 }
             }
 

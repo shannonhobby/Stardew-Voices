@@ -34,7 +34,12 @@ namespace StardewVoices.Testing.Models
                 }
 
                 // Failures are only listed in the per-character recap, not one by one, to keep the log short.
-                if (!result.Success)
+                if (!result.Success && result.FailedVariantLineIds.Count > 0)
+                {
+                    foreach (string lineId in result.FailedVariantLineIds)
+                        AddFailedTest(result.TestCase.CharacterName, lineId);
+                }
+                else if (!result.Success)
                 {
                     AddFailedTest(result.TestCase.CharacterName,
                         result.TestCase.ResolvedLineId ?? $"(no line id found) \"{result.TestCase.DialogueText}\"");
