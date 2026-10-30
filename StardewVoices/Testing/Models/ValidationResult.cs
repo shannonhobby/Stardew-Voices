@@ -161,12 +161,16 @@ namespace StardewVoices.Testing.Models
 
         }
 
-        // <summary>Whether audio exists for the given line id</summary>
+        // <summary>
+        // Whether audio exists for exactly this line id. Checked with HasExactLine rather than
+        // GetVoiceLine, which falls back to the un-suffixed base line — a missing variant
+        // ("...-witch") would otherwise pass whenever the base line has audio.
+        // </summary>
         public bool LineAudioExists(string lineId, string characterName)
         {
             try
             {
-                bool LineAudioExists = AudioManager.GetVoiceLine(lineId, characterName) != null;
+                bool LineAudioExists = AudioManager.Resolver.HasExactLine(characterName, lineId);
                 if (!LineAudioExists)
                 {
                     ErrorMessages.Add($"2. [FAILURE] LineAudioExists: Audio not found for line {lineId}");
