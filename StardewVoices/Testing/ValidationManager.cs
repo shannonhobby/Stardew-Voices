@@ -35,10 +35,14 @@ namespace StardewVoices.StardewVoices.Testing
 
         private readonly bool listUnusedAudio;
 
-        public ValidationManager(IModHelper helper, ManagerHub managers, bool listUnusedAudio = false)
+        // The characters to validate — every supported character unless a subset was asked for.
+        private readonly List<string> characters;
+
+        public ValidationManager(IModHelper helper, ManagerHub managers, bool listUnusedAudio = false, List<string> characters = null)
         {
             this.helper = helper;
             this.listUnusedAudio = listUnusedAudio;
+            this.characters = characters ?? managers.CharacterManager.SupportedCharacters;
             dialogueExtractor = new CharacterDialogueExtractor(helper);
             eventExtractor = new EventDialogueExtractor(helper);
             festivalExtractor = new FestivalDialogueExtractor(helper);
@@ -48,7 +52,7 @@ namespace StardewVoices.StardewVoices.Testing
         public void RunValidation()
         {
             // Results depend on which voice each character uses (built-in or a pack), so say up front.
-            foreach (string character in Managers.CharacterManager.SupportedCharacters)
+            foreach (string character in characters)
                 ErrorLogger.Info($"Validating {character} against {Managers.AudioManager.Resolver.GetSource(character)?.Name ?? "no voices"}.");
 
             GenerateTestCases();
@@ -69,7 +73,7 @@ namespace StardewVoices.StardewVoices.Testing
             }
 
             foreach (DialogueType dialogueType in results.Keys)
-                ValidationReport.Add(new ValidationReport(dialogueType, results[dialogueType], Managers.CharacterManager.SupportedCharacters));
+                ValidationReport.Add(new ValidationReport(dialogueType, results[dialogueType], characters));
 
             // Stop the last test line first, or it would become audible when unmuted.
             Managers.AudioManager.StopAllLines();
@@ -111,7 +115,7 @@ namespace StardewVoices.StardewVoices.Testing
             if (unusedAudioFilesByCharacter.Count > 0 && !listUnusedAudio)
             {
                 int unusedCount = unusedAudioFilesByCharacter.Values.Sum(ids => ids.Count);
-                ErrorLogger.Warn($"{unusedCount} unused audio file(s) (no matching line id). Run 'sv_validation unused' to list them.");
+                ErrorLogger.Warn($"{unusedCount} unused audio file(s) (no matching line id). Run 'sv_validation --unused' to list them.");
             }
             else if (unusedAudioFilesByCharacter.Count > 0)
             {
@@ -133,7 +137,7 @@ namespace StardewVoices.StardewVoices.Testing
 
         private void GenerateTestCases()
         {
-            foreach (string characterName in Managers.CharacterManager.SupportedCharacters)
+            foreach (string characterName in characters)
             {
                 GenerateDialogueTestCases(characterName);
                 GenerateEventDialogueTestCases(characterName);
@@ -293,7 +297,7 @@ namespace StardewVoices.StardewVoices.Testing
         {
             HashSet<string> knownVanillaLineIds = LoadKnownVanillaLineIds(Managers.PathManager);
 
-            foreach (string character in Managers.CharacterManager.SupportedCharacters)
+            foreach (string character in characters)
             {
                 FolderVoiceSource source = Managers.AudioManager.Resolver.GetSource(character);
                 if (source == null)

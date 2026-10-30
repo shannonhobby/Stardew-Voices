@@ -1,4 +1,5 @@
 ﻿using StardewModdingAPI;
+using System.Collections.Generic;
 using StardewVoices.StardewVoices.Testing;
 
 namespace StardewVoices.Testing
@@ -15,11 +16,12 @@ namespace StardewVoices.Testing
         }
 
         /// <param name="listUnusedAudio">List every unused audio file in the recap, instead of just a count.</param>
-        public static void RunValidation(bool listUnusedAudio = false)
+        /// <param name="characters">The characters to validate, or null for every supported character.</param>
+        public static void RunValidation(bool listUnusedAudio = false, List<string> characters = null)
         {
             Managers.TestingManager.ValidationIsRunning = true;
 
-            ValidationManager validation = new ValidationManager(Helper, Managers, listUnusedAudio);
+            ValidationManager validation = new ValidationManager(Helper, Managers, listUnusedAudio, characters);
             validation.RunValidation();
 
         }

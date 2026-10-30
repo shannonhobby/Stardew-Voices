@@ -7,6 +7,7 @@ using StardewVoices.Utils.GameDialogueExtraction;
 using StardewVoices.Config;
 using StardewValley.Menus;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace StardewVoices
@@ -36,8 +37,10 @@ namespace StardewVoices
             helper.ConsoleCommands.Add(
                 "sv_validation",
                 "Runs dialogue voice validation.\n" +
-                "Usage: sv_validation [unused]\n" +
-                "- unused: list every audio file with no matching line id in the recap (otherwise just the count).",
+                "Usage: sv_validation [--unused] [characterName...]\n" +
+                "- characterName: only validate these characters (default: every supported character).\n" +
+                "- --unused: list every audio file with no matching line id in the recap (otherwise just the count).\n" +
+                "Example: sv_validation --unused Abigail Shannon",
                 RunVoiceValidationCommand
             );
 
@@ -90,8 +93,29 @@ namespace StardewVoices
             string[] args
         )
         {
-            bool listUnusedAudio = args.Any(arg => arg.Equals("unused", StringComparison.OrdinalIgnoreCase));
-            DialogueTestingManager.RunValidation(listUnusedAudio);
+            bool listUnusedAudio = args.Any(arg => arg.Equals("--unused", StringComparison.OrdinalIgnoreCase));
+
+            // Every other argument is a character name; none means all supported characters.
+            List<string> supported = managerHub.CharacterManager.SupportedCharacters;
+            List<string> characters = null;
+            List<string> requested = args.Where(arg => !arg.StartsWith("--")).ToList();
+            if (requested.Count > 0)
+            {
+                characters = new List<string>();
+                foreach (string name in requested)
+                {
+                    string match = supported.FirstOrDefault(c => c.Equals(name, StringComparison.OrdinalIgnoreCase));
+                    if (match == null)
+                    {
+                        ErrorLogger.Warn($"[sv_validation] '{name}' isn't a supported character. Supported: {string.Join(", ", supported)}");
+                        return;
+                    }
+                    if (!characters.Contains(match))
+                        characters.Add(match);
+                }
+            }
+
+            DialogueTestingManager.RunValidation(listUnusedAudio, characters);
         }
 
         private void PlayDialogueLine(string command, string[] args)
