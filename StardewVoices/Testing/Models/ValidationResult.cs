@@ -30,6 +30,12 @@ namespace StardewVoices.Testing.Models
         /// </summary>
         public List<string> FailedVariantLineIds = new List<string>();
 
+        /// <summary>
+        /// How many line ids this result covers — one per variant for a variable line, since
+        /// each variant passes or fails on its own (and is counted that way in the report).
+        /// </summary>
+        public int TestCount { get; private set; } = 1;
+
         public DialogueTestCase TestCase { get; }
 
         private AudioManager AudioManager;
@@ -82,6 +88,7 @@ namespace StardewVoices.Testing.Models
                 ErrorMessages.Add($"[FAILURE] Variations Test: No variations found for: {testCase.DialogueLine.LineId}.");
                 return false;
             }
+            TestCount = allVariations.Length;
             bool testPasses = true;
             foreach (string lineId in allVariations)
             {

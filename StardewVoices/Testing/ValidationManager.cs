@@ -12,6 +12,7 @@ using Newtonsoft.Json.Linq;
 using StardewVoices.Utils;
 using StardewVoices.Utils.GameDialogueExtraction;
 using StardewVoices.Utils.ParsingHelpers;
+using ValidationReportModel = StardewVoices.Testing.Models.ValidationReport;
 
 namespace StardewVoices.StardewVoices.Testing
 {
@@ -128,10 +129,18 @@ namespace StardewVoices.StardewVoices.Testing
             }
 
             ErrorLogger.Trace("--------------------------------------------------------------------------------------------");
+            // Passing lines aren't listed (there are thousands for vanilla characters), so give
+            // each character's passed count — otherwise a few passes among many failures vanish.
+            foreach (string character in characters)
+            {
+                int characterTotal = ValidationReport.Sum(report => report.testCountByCharacter.GetValueOrDefault(character));
+                int characterFailed = ValidationReport.Sum(report => report.failedTests.GetValueOrDefault(character)?.Count ?? 0);
+                ErrorLogger.Trace($"{character}: {characterTotal - characterFailed}/{characterTotal} passed ({ValidationReportModel.FormatSuccessRate(characterTotal - characterFailed, characterTotal)})");
+            }
             ErrorLogger.Trace($"Grand Total: {grandTotal} tests");
             ErrorLogger.Error($"Failed: {grandFailed}");
             ErrorLogger.Trace($"Passed: {grandTotal - grandFailed}");
-            ErrorLogger.Trace($"Success Rate: {Math.Floor((1.0 - (double)grandFailed / grandTotal) * 100)}%");
+            ErrorLogger.Trace($"Success Rate: {ValidationReportModel.FormatSuccessRate(grandTotal - grandFailed, grandTotal)}");
             ErrorLogger.Trace("============================================================================================");
         }
 
